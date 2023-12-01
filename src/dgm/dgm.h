@@ -2,7 +2,8 @@
 #define TSN_DGM_DGM_H
 
 #include "../network/message_stream.h"
-#include "../network/route.h"
+#include "../network/topology.h"
+#include "critical_path.h"
 #include "shuffle_graph.h"
 #include "traversal.h"
 #include <boost/graph/adjacency_list.hpp>
@@ -24,35 +25,109 @@ public:
    */
   DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
                         const std::vector<MessageStream> &streams)
-      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)),
-        network(network) {
-    prop.src = boost::add_vertex(shuffle_graph);
-    prop.sink = boost::add_vertex(shuffle_graph);
-    prop.streams = streams;
+      : network(network), crit_path(shuffle_graph) {
+    shuffle_graph[boost::graph_bundle].src = boost::add_vertex(shuffle_graph);
+    shuffle_graph[boost::graph_bundle].sink = boost::add_vertex(shuffle_graph);
+    shuffle_graph[boost::graph_bundle].streams = streams;
 
     build();
   }
 
+  CriticalPath::Result critical_path(CriticalPath::Objective type);
+
+  /** \brief Perform a complete flip operation on the shuffle graph.
+   *
+   * \param edge edge descriptor of edge to be flipped.
+   */
   inline void complete_flip(E edge) {
     complete_flip(std::list<E>(std::initializer_list<E>{edge}));
   };
-  void complete_flip(std::list<E> edge_list);
 
+  /** \brief Perform a complete flip operation on the shuffle graph.
+   *
+   * \param edge_list list of edge descriptors of edges to be flipped.
+   */
+  inline void complete_flip(const std::list<E> &edge_list) {
+    std::set<boost::OrientationState *> flipped_edges;
+    complete_flip(edge_list, flipped_edges);
+  }
+
+  /** \brief Perform a complete flip operation on the shuffle graph.
+   *
+   * \param edge_list list of edge descriptors of edges to be flipped.
+   * \param flipped_edges set of pointers to OrientationState objects that
+   * represent equivalence classes of already flipped edges.
+   */
+  void complete_flip(const std::list<E> &edge_list,
+                     std::set<boost::OrientationState *> &flipped_edges);
+
+  /** \brief Perform a lazy shuffle operation on the shuffle graph.
+   *
+   * \param edge edge descriptor of edge whose source and target are to be
+   * shuffled.
+   */
+  void lazy_shuffle(E edge);
+
+  /** \brief Perform a lazy shuffle operation on the shuffle graph.
+   *
+   * \param edge_list list of edge descriptors of edges whose source and target
+   * are to be shuffled.
+   */
+  void lazy_shuffle(std::list<E> edge_list);
+
+  /** \brief Perform a split all operation on the shuffle graph.
+   *
+   * This operation undoes all previous shuffle operations but keeps the
+   * orientation of all edges that were not shuffled.
+   */
+  void split_all();
+
+  /** \brief Commit performed flips such that a later call to
+   * restore_last_commit does not undo previous changes.
+   *
+   * Every CompleteFlip operation logs the flipped edges, enabling an efficient
+   * rollback (which is mostly useful for enumerating a selection's
+   * neighborhood). Importantly, however, a LazyShuffle operation invalidates
+   * this log. To rollback an LazyShuffle, use commit_all().
+   */
+  void commit_flips();
+
+  /** \brief Commits the shuffle graph by copying it completely.
+   *
+   * This is required if rollbacks of LazyShuffle operations are desired.
+   * In particular, LazyShuffle operations modify the shuffle graph extensively
+   * (by merging edge equivalence classes, updating weights, and edge
+   * contraction of shuffled operations). As a result, manual logging every
+   * change is rather complex but likely does not increase performance
+   * drastically.
+   */
+  void commit_all(size_t index = 1);
+
+  void restore_flips();
+  void restore_commit(size_t index = 1, bool swap = false);
+  void copy_commit(size_t src_index, size_t dest_index);
+  void swap_commit(size_t src_index, size_t dest_index);
+
+  /** \brief Print the shuffle graph to stdout.
+   */
   void print();
 
-private:
-  ShuffleGraphProperty
-      &prop; //!< reference to graph properties of shuffle_graph
-  shuffle_graph_t
-      initial_shuffle_graph; //!< backup copy of initial_shuffle_graph for
-                             //!< split_all operation
+  void print_critical_path(CriticalPath::Objective type);
 
+private:
   std::shared_ptr<NetworkTopology> network;
+
+  CriticalPath crit_path;
+  bool valid_crit_path = false;
+
+  std::list<E> flip_log;
+  std::vector<shuffle_graph_t> committed_shuffle_graphs;
 
   void build();
   void build_stream(MessageStreamHandle handle);
+  void resize_properties();
 
-  void copy_graph();
+  void remove_fifo_edges(V u, V v);
 };
 
 } // namespace tsndgm

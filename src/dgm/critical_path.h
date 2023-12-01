@@ -6,63 +6,54 @@
 
 namespace tsndgm {
 
-template <typename CostMap, typename PredecessorMap, typename Vertex>
 class longest_path_visitor : public boost::default_dfs_visitor {
-  typedef typename boost::property_traits<CostMap>::value_type T;
-
 public:
-  longest_path_visitor(CostMap cost, PredecessorMap pred, Vertex src)
-      : cost(cost), pred(pred), src(src) {}
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  template <typename Edge, typename Graph>
-  void back_edge(Edge e, const Graph &g) const {
+  longest_path_visitor(shuffle_graph_t &shuffle_graph)
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+
+  void back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     throw std::runtime_error(
         "Selection is not complete; disjunctive graph is acyclic.");
   }
 
-  template <typename Graph>
-  void discover_vertex(Vertex v, const Graph &g) const {
-    boost::put(cost, v, 0);
-    boost::put(pred, v, src);
+  void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
+    prop.crit_cost[v] = 0;
+    prop.crit_pred[v] = prop.src;
   }
 
-  template <typename Edge, typename Graph>
-  void finish_edge(Edge e, const Graph &g) const {
-    T v_cost = boost::get(cost, target(e, g));
-    T u_cost = boost::get(cost, source(e, g)) + g[e].weight;
+  void finish_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    Delay v_cost = prop.crit_cost[target(e, shuffle_graph)];
+    Delay u_cost =
+        prop.crit_cost[source(e, shuffle_graph)] + shuffle_graph[e].weight;
     if (u_cost > v_cost) {
-      boost::put(cost, target(e, g), u_cost);
-      boost::put(pred, target(e, g), source(e, g));
+      prop.crit_cost[target(e, shuffle_graph)] = u_cost;
+      prop.crit_pred[target(e, shuffle_graph)] = source(e, shuffle_graph);
     }
   }
 
-  CostMap cost;
-  PredecessorMap pred;
-  Vertex src;
+  ShuffleGraphProperty &prop;
 };
-
-template <typename CostMap, typename PredecessorMap, typename Vertex>
-longest_path_visitor<CostMap, PredecessorMap, Vertex>
-make_longest_path_visitor(CostMap cost, PredecessorMap pred, Vertex src) {
-  return longest_path_visitor<CostMap, PredecessorMap, Vertex>(cost, pred, src);
-}
 
 class CriticalPath {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
+  enum Objective { makespan, tardiness };
+
   struct Result {
     Delay objective;
     V critical_vertex;
   };
 
-  CriticalPath(shuffle_graph_t &shuffle_graph)
-      : shuffle_graph(shuffle_graph),
-        prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+  CriticalPath(shuffle_graph_t &shuffle_graph) : shuffle_graph(shuffle_graph) {}
 
   void compute_longest_paths();
 
+  Result path(Objective type);
   Result makespan_path();
   Result tardiness_path();
 
@@ -70,22 +61,8 @@ public:
 
 private:
   shuffle_graph_t &shuffle_graph;
-  ShuffleGraphProperty &prop;
-
-  std::list<E> candidates;
-
-  std::vector<V> pred;
-  std::vector<Delay> cost;
 };
 
 } // namespace tsndgm
-
-// V v = prop.sink;
-// while (v != prop.src) {
-//   E e = boost::edge(pred[v], v, shuffle_graph).first;
-//   if (shuffle_graph[e].edge_type != conjunctive)
-//     candidates.push_front(e);
-//   v = pred[v];
-// }
 
 #endif // TSN_DGM_CRITICAL_PATH_H

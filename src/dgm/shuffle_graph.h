@@ -20,53 +20,6 @@ typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
                               ShuffleGraphEdgeProperty, ShuffleGraphProperty>
     shuffle_graph_t;
 
-struct ShuffleGraphVertexProperty {
-  Edge edge;
-  std::list<MessageStreamHandle> ms_handle;
-  std::list<const TreeRouteHop *> hop;
-  std::list<boost::graph_traits<shuffle_graph_t>::vertex_descriptor> root;
-
-  ShuffleGraphVertexProperty &
-  operator=(const ShuffleGraphVertexProperty &other) = default;
-};
-
-struct OrientationStatePair {
-  boost::OrientationState state;
-  OrientationStatePair *reversed_state;
-};
-
-typedef std::pair<std::shared_ptr<OrientationStatePair>,
-                  std::shared_ptr<OrientationStatePair>>
-    PtrOrientationStatePair;
-
-static PtrOrientationStatePair create_pair() {
-  std::shared_ptr<OrientationStatePair> state =
-      std::make_shared<OrientationStatePair>(boost::allowed);
-  std::shared_ptr<OrientationStatePair> reversed_state =
-      std::make_shared<OrientationStatePair>(boost::blocked);
-  state->reversed_state = reversed_state.get();
-  reversed_state->reversed_state = state.get();
-
-  return {state, reversed_state};
-}
-
-const std::shared_ptr<OrientationStatePair> CONJUNCTIVE_STATE =
-    std::make_shared<OrientationStatePair>(boost::allowed);
-
-enum ShuffleGraphEdgeType { conjunctive, disjunctive, fifo };
-
-struct ShuffleGraphEdgeProperty {
-  // weight has to be updated on merge
-  Delay weight;
-  std::shared_ptr<OrientationStatePair> state_pair;
-  ShuffleGraphEdgeType edge_type;
-
-  const boost::OrientationState &state() const { return state_pair->state; }
-
-  ShuffleGraphEdgeProperty &
-  operator=(const ShuffleGraphEdgeProperty &other) = default;
-};
-
 struct ShuffleGraphProperty {
   boost::graph_traits<shuffle_graph_t>::vertex_descriptor src;
   boost::graph_traits<shuffle_graph_t>::vertex_descriptor sink;
@@ -75,7 +28,122 @@ struct ShuffleGraphProperty {
   std::map<Operation, boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
       operation_to_vertex;
 
-  ShuffleGraphProperty &operator=(const ShuffleGraphProperty &other) = default;
+  std::vector<Delay> crit_cost;
+  std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
+      crit_pred;
+  std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
+      cycle_pred;
+};
+
+struct ShuffleGraphVertexProperty {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+
+  Edge edge;
+  std::list<MessageStreamHandle> ms_handle;
+  std::list<const TreeRouteHop *> hop;
+  std::list<V> root;
+
+  ShuffleGraphVertexProperty &
+  operator=(const ShuffleGraphVertexProperty &other) = default;
+
+  void shuffle(ShuffleGraphVertexProperty &other) {
+    ms_handle.splice(ms_handle.end(), other.ms_handle);
+    hop.splice(hop.end(), other.hop);
+    root.splice(root.end(), other.root);
+  }
+};
+
+struct PtrOrientationStatePair {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  std::shared_ptr<boost::OrientationState> state;
+  std::shared_ptr<boost::OrientationState> reversed_state;
+
+  std::set<std::pair<V, V>> equivalence_class;
+  std::vector<std::set<std::pair<V, V>>> committed_equivalence_classes;
+
+  void add_edge(E e, shuffle_graph_t &shuffle_graph) {
+    equivalence_class.insert(
+        {source(e, shuffle_graph), target(e, shuffle_graph)});
+  }
+
+  void commit(size_t index) {
+    if (index < committed_equivalence_classes.size())
+      committed_equivalence_classes[index] = equivalence_class;
+    else if (index == committed_equivalence_classes.size())
+      committed_equivalence_classes.push_back(equivalence_class);
+  }
+
+  void restore_commit(size_t index, bool swap) {
+    if (swap)
+      std::swap(equivalence_class, committed_equivalence_classes[index]);
+    else
+      equivalence_class = committed_equivalence_classes[index];
+  }
+
+  void copy_commit(size_t src_index, size_t dest_index) {
+    committed_equivalence_classes[dest_index] =
+        committed_equivalence_classes[src_index];
+  }
+
+  void swap_commit(size_t src_index, size_t dest_index) {
+    std::swap(committed_equivalence_classes[src_index],
+              committed_equivalence_classes[dest_index]);
+  }
+
+  PtrOrientationStatePair(
+      std::shared_ptr<boost::OrientationState> state,
+      std::shared_ptr<boost::OrientationState> reversed_state)
+      : state(state), reversed_state(reversed_state) {}
+};
+
+static PtrOrientationStatePair create_pair() {
+  std::shared_ptr<boost::OrientationState> state =
+      std::make_shared<boost::OrientationState>(boost::allowed);
+  std::shared_ptr<boost::OrientationState> reversed_state =
+      std::make_shared<boost::OrientationState>(boost::blocked);
+
+  return PtrOrientationStatePair(state, reversed_state);
+}
+
+const std::shared_ptr<PtrOrientationStatePair> CONJUNCTIVE_STATE =
+    std::make_shared<PtrOrientationStatePair>(create_pair());
+
+enum ShuffleGraphEdgeType { conjunctive, disjunctive, fifo };
+
+struct ShuffleGraphEdgeProperty {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  Delay weight;
+  std::shared_ptr<PtrOrientationStatePair> state_pair;
+  ShuffleGraphEdgeType edge_type;
+
+  ShuffleGraphEdgeProperty &
+  operator=(const ShuffleGraphEdgeProperty &other) = default;
+
+  const boost::OrientationState &state() const { return *state_pair->state; }
+  const boost::OrientationState &reversed_state() const {
+    return *state_pair->reversed_state;
+  }
+
+  void consistent_flip() {
+    std::swap(*state_pair->state, *state_pair->reversed_state);
+  }
+  bool relates_to(const ShuffleGraphEdgeProperty &other) {
+    return state_pair->state.get() == other.state_pair->state.get();
+  }
+  void merge_equivalence_classes(E other, shuffle_graph_t &shuffle_graph,
+                                 ShuffleGraphProperty &prop) {
+    for (auto e : state_pair->equivalence_class) {
+      auto e_new = boost::edge(e.first, e.second, shuffle_graph);
+      if (e_new.second) {
+        shuffle_graph[e_new.first].state_pair = shuffle_graph[other].state_pair;
+        shuffle_graph[other].state_pair->equivalence_class.insert(e);
+      }
+    }
+  }
 };
 
 static void print(const shuffle_graph_t &shuffle_graph,
@@ -86,7 +154,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
   } else if (v == prop.sink) {
     std::cout << "sink";
   } else {
-    std::cout << "([" << shuffle_graph[v].edge.first << ", "
+    std::cout << v << " ([" << shuffle_graph[v].edge.first << ", "
               << shuffle_graph[v].edge.second << "], {";
     for (auto handle : shuffle_graph[v].ms_handle)
       std::cout << handle

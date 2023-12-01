@@ -4,35 +4,38 @@
 namespace tsndgm {
 
 void CriticalPath::compute_longest_paths() {
-  pred.resize(boost::num_vertices(shuffle_graph));
-  cost.resize(boost::num_vertices(shuffle_graph));
-
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   reversed_dgm_traversal(
       shuffle_graph,
-      visitor(make_longest_path_visitor(
-                  boost::make_iterator_property_map(
-                      cost.begin(), get(boost::vertex_index, shuffle_graph)),
-                  boost::make_iterator_property_map(
-                      pred.begin(), get(boost::vertex_index, shuffle_graph)),
-                  prop.src))
-          .root_vertex(prop.sink));
+      visitor(longest_path_visitor(shuffle_graph)).root_vertex(prop.sink));
+}
+
+CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
+  switch (type) {
+  case makespan:
+    return makespan_path();
+  case tardiness:
+    return tardiness_path();
+  default:
+    throw std::logic_error("type does not exist: " + std::to_string(type));
+  }
 }
 
 CriticalPath::Result CriticalPath::makespan_path() {
-  return {cost[prop.sink], prop.sink};
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  return {prop.crit_cost[prop.sink], prop.sink};
 }
 
 CriticalPath::Result CriticalPath::tardiness_path() {
-  candidates.clear();
-
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
 
   for (auto ed :
        boost::make_iterator_range(boost::out_edges(prop.src, shuffle_graph))) {
     V u = boost::target(ed, shuffle_graph);
     for (auto handle : shuffle_graph[u].ms_handle) {
-      Delay tardiness =
-          cost[u] - prop.streams[handle].phase - prop.streams[handle].period;
+      Delay tardiness = prop.crit_cost[u] - prop.streams[handle].phase -
+                        prop.streams[handle].period;
       if (tardiness > max_tardiness.second)
         max_tardiness = std::make_pair(u, tardiness);
     }
@@ -48,8 +51,8 @@ CriticalPath::Result CriticalPath::tardiness_path() {
          it1 != shuffle_graph[u].ms_handle.end() &&
          it2 != shuffle_graph[u].root.end();
          ++it1, ++it2) {
-      Delay tardiness = cost[u] + shuffle_graph[ed].weight - cost[*it2] -
-                        prop.streams[*it1].e2e_latency;
+      Delay tardiness = prop.crit_cost[u] + shuffle_graph[ed].weight -
+                        prop.crit_cost[*it2] - prop.streams[*it1].e2e_latency;
       if (tardiness > max_tardiness.second)
         max_tardiness = std::make_pair(u, tardiness);
     }
@@ -59,15 +62,16 @@ CriticalPath::Result CriticalPath::tardiness_path() {
 }
 
 void CriticalPath::print(Result res) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::cout << "Critical Path: Objective = " << res.objective << std::endl
             << "[hop : weight (cost)]" << std::endl;
 
   V v = res.critical_vertex;
   while (v != prop.src) {
     tsndgm::print(shuffle_graph, prop,
-                  boost::edge(pred[v], v, shuffle_graph).first);
-    std::cout << " (" << cost[v] << ")" << std::endl;
-    v = pred[v];
+                  boost::edge(prop.crit_pred[v], v, shuffle_graph).first);
+    std::cout << " (" << prop.crit_cost[v] << ")" << std::endl;
+    v = prop.crit_pred[v];
   }
 }
 
