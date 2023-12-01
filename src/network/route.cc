@@ -30,6 +30,7 @@ void Route::check() {
 
   visited_hops.clear();
   std::list<TreeRouteHop *> hops;
+  std::set<Edge> visited_edges;
 
   // check if talkers match
   DeviceId talker = root.childs.front().edge.first;
@@ -38,6 +39,9 @@ void Route::check() {
       throw std::runtime_error{
           "talkers do not match: " + std::to_string(talker) + " and " +
           std::to_string(child.edge.first)};
+    if (!visited_edges.insert(child.edge).second)
+      throw std::runtime_error("Route contains at least two different paths "
+                               "that use the same data link");
     hops.push_back(&child);
     visited_hops.push_back(child);
     child.parent = &root; // ensure parent pointers are correct
@@ -56,6 +60,9 @@ void Route::check() {
         throw std::runtime_error{
             "route is not contiguous: " + edge_to_string(next->edge) + " -> " +
             edge_to_string(child.edge)};
+      if (!visited_edges.insert(child.edge).second)
+        throw std::runtime_error("Route contains at least two different paths "
+                                 "that use the same data link");
       hops.push_back(&child);
       visited_hops.push_back(child);
       child.parent = next; // ensure parent pointers are correct
