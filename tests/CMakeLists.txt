@@ -25,6 +25,9 @@ target_link_libraries(traversal_test dgm)
 add_executable(dgm_test dgm.cc)
 target_link_libraries(dgm_test dgm GTest::gtest_main)
 
+add_executable(tabu_search_test tabu_search.cc)
+target_link_libraries(tabu_search_test optimization GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(dgm_test)
 gtest_discover_tests(tabu_search_test)
