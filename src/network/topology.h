@@ -54,7 +54,10 @@ typedef std::pair<Edge, DataLinkProperty> DataLink;
 
 class NetworkTopology {
 public:
-  NetworkTopology() : g() {}
+  NetworkTopology() {
+    NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
+                    std::initializer_list<DataLink>{});
+  }
   NetworkTopology(const std::vector<NetworkDeviceProperty> &device_properties,
                   const std::vector<DataLink> &data_links);
 
