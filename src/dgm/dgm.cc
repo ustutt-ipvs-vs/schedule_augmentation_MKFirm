@@ -27,8 +27,8 @@ void DisjunctiveGraphModel::commit_all(size_t index) {
 
   committed_shuffle_graphs[index].clear();
   boost::copy_graph(shuffle_graph, committed_shuffle_graphs[index]);
-  boost::set_property(committed_shuffle_graphs[index], boost::graph_bundle,
-                      boost::get_property(shuffle_graph, boost::graph_bundle));
+  committed_shuffle_graphs[index][boost::graph_bundle] =
+      shuffle_graph[boost::graph_bundle];
 
   for (E e : boost::make_iterator_range(boost::edges(shuffle_graph))) {
     if (shuffle_graph[e].edge_type == disjunctive) {
@@ -41,9 +41,11 @@ void DisjunctiveGraphModel::restore_flips() {
   for (E e : flip_log)
     shuffle_graph[e].consistent_flip();
   flip_log.clear();
+  valid_crit_path = false;
 }
 
 void DisjunctiveGraphModel::restore_commit(size_t index, bool swap) {
+  flip_log.clear();
   if (boost::num_vertices(committed_shuffle_graphs[index]) > 0) {
     shuffle_graph.clear();
     if (swap) {
@@ -60,7 +62,7 @@ void DisjunctiveGraphModel::restore_commit(size_t index, bool swap) {
       }
     }
   }
-  valid_crit_path = true;
+  valid_crit_path = false;
 }
 
 void DisjunctiveGraphModel::copy_commit(size_t src_index, size_t dest_index) {

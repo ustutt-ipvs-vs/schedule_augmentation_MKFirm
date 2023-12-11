@@ -61,7 +61,9 @@ struct PtrOrientationStatePair {
   std::shared_ptr<boost::OrientationState> reversed_state;
 
   std::set<std::pair<V, V>> equivalence_class;
+
   std::vector<std::set<std::pair<V, V>>> committed_equivalence_classes;
+  std::vector<boost::OrientationState> committed_states;
 
   void add_edge(E e, shuffle_graph_t &shuffle_graph) {
     equivalence_class.insert(
@@ -69,10 +71,13 @@ struct PtrOrientationStatePair {
   }
 
   void commit(size_t index) {
-    if (index < committed_equivalence_classes.size())
-      committed_equivalence_classes[index] = equivalence_class;
-    else if (index == committed_equivalence_classes.size())
-      committed_equivalence_classes.push_back(equivalence_class);
+    for (size_t i = committed_equivalence_classes.size(); i <= index; i++) {
+      committed_equivalence_classes.push_back({});
+      committed_states.push_back(*state);
+    }
+
+    committed_equivalence_classes[index] = equivalence_class;
+    committed_states[index] = *state;
   }
 
   void restore_commit(size_t index, bool swap) {
@@ -80,16 +85,24 @@ struct PtrOrientationStatePair {
       std::swap(equivalence_class, committed_equivalence_classes[index]);
     else
       equivalence_class = committed_equivalence_classes[index];
+
+    if (*state != committed_states[index]) {
+      std::swap(*state, *reversed_state);
+      if (swap)
+        committed_states[index] = *reversed_state;
+    }
   }
 
   void copy_commit(size_t src_index, size_t dest_index) {
     committed_equivalence_classes[dest_index] =
         committed_equivalence_classes[src_index];
+    committed_states[dest_index] = committed_states[src_index];
   }
 
   void swap_commit(size_t src_index, size_t dest_index) {
     std::swap(committed_equivalence_classes[src_index],
               committed_equivalence_classes[dest_index]);
+    std::swap(committed_states[dest_index], committed_states[src_index]);
   }
 
   PtrOrientationStatePair(

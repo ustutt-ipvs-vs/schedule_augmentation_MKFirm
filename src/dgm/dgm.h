@@ -16,6 +16,7 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
   shuffle_graph_t shuffle_graph;
+  std::list<E> flip_log;
 
   /** \brief Construct a disjunctive graph from a network topology and a set of
    * message streams.
@@ -114,13 +115,20 @@ public:
 
   void print_critical_path(CriticalPath::Objective type);
 
+  E edge(V u, V v) {
+    auto e = boost::edge(u, v, shuffle_graph);
+    if (!e.second)
+      throw std::runtime_error("edge (" + std::to_string(u) + ", " +
+                               std::to_string(v) + ") does not exist");
+    return e.first;
+  }
+
 private:
   std::shared_ptr<NetworkTopology> network;
 
   CriticalPath crit_path;
   bool valid_crit_path = false;
 
-  std::list<E> flip_log;
   std::vector<shuffle_graph_t> committed_shuffle_graphs;
 
   void build();
