@@ -34,6 +34,12 @@ public:
     build();
   }
 
+  DisjunctiveGraphModel(const DisjunctiveGraphModel &other)
+      : shuffle_graph(other.shuffle_graph), flip_log(other.flip_log),
+        network(other.network),
+        committed_shuffle_graphs(other.committed_shuffle_graphs),
+        crit_path(shuffle_graph) {}
+
   CriticalPath::Result critical_path(CriticalPath::Objective type);
 
   /** \brief Perform a complete flip operation on the shuffle graph.
@@ -74,7 +80,9 @@ public:
    * \param edge_list list of edge descriptors of edges whose source and target
    * are to be shuffled.
    */
-  void lazy_shuffle(std::list<E> edge_list);
+  void lazy_shuffle(std::list<E> edge_list) {
+    throw std::runtime_error("not implemented yet");
+  }
 
   /** \brief Perform a split all operation on the shuffle graph.
    *

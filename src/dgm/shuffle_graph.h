@@ -15,24 +15,25 @@ struct ShuffleGraphVertexProperty;
 struct ShuffleGraphEdgeProperty;
 struct ShuffleGraphProperty;
 
+// TODO: consider replacing OutEdgeList with boost::setS
+// ~> faster lookup speed with boost::edge(), but slower iteration over graph...
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
                               ShuffleGraphVertexProperty,
                               ShuffleGraphEdgeProperty, ShuffleGraphProperty>
     shuffle_graph_t;
 
 struct ShuffleGraphProperty {
-  boost::graph_traits<shuffle_graph_t>::vertex_descriptor src;
-  boost::graph_traits<shuffle_graph_t>::vertex_descriptor sink;
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+
+  V src;
+  V sink;
   std::vector<MessageStream> streams;
   std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
-  std::map<Operation, boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
-      operation_to_vertex;
+  std::map<Operation, V> operation_to_vertex;
 
   std::vector<Delay> crit_cost;
-  std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
-      crit_pred;
-  std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
-      cycle_pred;
+  std::vector<V> crit_pred;
+  std::vector<V> cycle_pred;
 };
 
 struct ShuffleGraphVertexProperty {
@@ -144,9 +145,11 @@ struct ShuffleGraphEdgeProperty {
   void consistent_flip() {
     std::swap(*state_pair->state, *state_pair->reversed_state);
   }
+
   bool relates_to(const ShuffleGraphEdgeProperty &other) {
     return state_pair->state.get() == other.state_pair->state.get();
   }
+
   void merge_equivalence_classes(E other, shuffle_graph_t &shuffle_graph,
                                  ShuffleGraphProperty &prop) {
     for (auto e : state_pair->equivalence_class) {
@@ -167,7 +170,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
   } else if (v == prop.sink) {
     std::cout << "sink";
   } else {
-    std::cout << v << " ([" << shuffle_graph[v].edge.first << ", "
+    std::cout << " ([" << shuffle_graph[v].edge.first << ", "
               << shuffle_graph[v].edge.second << "], {";
     for (auto handle : shuffle_graph[v].ms_handle)
       std::cout << handle
@@ -178,6 +181,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
 static void print(const shuffle_graph_t &shuffle_graph,
                   const ShuffleGraphProperty &prop,
                   boost::graph_traits<shuffle_graph_t>::edge_descriptor e) {
+  std::cout << e << ": ";
   print(shuffle_graph, prop, source(e, shuffle_graph));
   std::cout << " -> ";
   print(shuffle_graph, prop, target(e, shuffle_graph));
@@ -186,6 +190,16 @@ static void print(const shuffle_graph_t &shuffle_graph,
 
 static void print(const shuffle_graph_t &shuffle_graph,
                   const ShuffleGraphProperty &prop) {
+
+  std::cout << "Operations:" << std::endl;
+  for (auto vd : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
+    std::cout << vd << ": ";
+    print(shuffle_graph, prop, vd);
+    std::cout << ": " << shuffle_graph[boost::graph_bundle].crit_cost[vd]
+              << " (" << shuffle_graph[boost::graph_bundle].crit_pred[vd] << ")"
+              << std::endl;
+  }
+
   std::cout << "Conjunctive Edges:" << std::endl;
   for (auto ed : boost::make_iterator_range(boost::edges(shuffle_graph))) {
     if (shuffle_graph[ed].edge_type == conjunctive) {
