@@ -111,7 +111,7 @@ void DisjunctiveGraphModel::complete_flip(
         shuffle_graph,
         visitor(complete_flip_visitor(shuffle_graph, flipped_edges,
                                       required_flips_classes, required_flips))
-            .root_vertex(prop.src));
+            .root_vertex(prop.sink));
   } while (!required_flips.empty());
 
   valid_crit_path = true;

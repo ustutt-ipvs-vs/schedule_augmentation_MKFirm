@@ -124,7 +124,8 @@ void dgm_visit_impl(
         }
       } else {
         if (v_color == Color::gray()) {
-          vis.back_edge(*ei, g);
+          if (vis.back_edge(*ei, g))
+            return;
         } else {
           vis.forward_or_cross_edge(*ei, g);
         }
@@ -170,23 +171,23 @@ void dgm_traversal(
     // ! END MODIFICATION
   }
 
-  for (boost::tie(ui, ui_end) = vertices(g); ui != ui_end; ++ui) {
-    Vertex u = implicit_cast<Vertex>(*ui);
-    ColorValue u_color = get(color, u);
-    if (u_color == Color::white()) {
-      vis.start_vertex(u, g);
-      // ! BEGIN MODIFICATION
-      if (reversed)
-        detail::dgm_visit_impl<VertexListGraph, DFSVisitor, ColorMap,
-                               detail::nontruth2, true>(g, u, vis, color,
-                                                        detail::nontruth2());
-      else
-        detail::dgm_visit_impl<VertexListGraph, DFSVisitor, ColorMap,
-                               detail::nontruth2, false>(g, u, vis, color,
-                                                         detail::nontruth2());
-      // ! END MODIFICATION
-    }
-  }
+  // for (boost::tie(ui, ui_end) = vertices(g); ui != ui_end; ++ui) {
+  //   Vertex u = implicit_cast<Vertex>(*ui);
+  //   ColorValue u_color = get(color, u);
+  //   if (u_color == Color::white()) {
+  //     vis.start_vertex(u, g);
+  //     // ! BEGIN MODIFICATION
+  //     if (reversed)
+  //       detail::dgm_visit_impl<VertexListGraph, DFSVisitor, ColorMap,
+  //                              detail::nontruth2, true>(g, u, vis, color,
+  //                                                       detail::nontruth2());
+  //     else
+  //       detail::dgm_visit_impl<VertexListGraph, DFSVisitor, ColorMap,
+  //                              detail::nontruth2, false>(g, u, vis, color,
+  //                                                        detail::nontruth2());
+  //     // ! END MODIFICATION
+  //   }
+  // }
 }
 
 template <class VertexListGraph, class DFSVisitor, class ColorMap>
@@ -198,6 +199,7 @@ void dgm_traversal(const VertexListGraph &g, DFSVisitor vis, ColorMap color,
     return;
 
   // ! BEGIN MODIFICATION
+  vis.reversed = reversed;
   dgm_traversal(g, vis, color, reversed,
                 detail::get_default_starting_vertex(g));
   // ! END MODIFICATION

@@ -14,7 +14,7 @@ public:
   longest_path_visitor(shuffle_graph_t &shuffle_graph)
       : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
 
-  void back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+  virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     throw std::runtime_error(
         "Selection is not complete; disjunctive graph is acyclic.");
   }
@@ -24,17 +24,37 @@ public:
     prop.crit_pred[v] = prop.src;
   }
 
-  void finish_edge(E e, const shuffle_graph_t &shuffle_graph) const {
-    Delay v_cost = prop.crit_cost[target(e, shuffle_graph)];
-    Delay u_cost =
-        prop.crit_cost[source(e, shuffle_graph)] + shuffle_graph[e].weight;
-    if (u_cost > v_cost) {
-      prop.crit_cost[target(e, shuffle_graph)] = u_cost;
-      prop.crit_pred[target(e, shuffle_graph)] = source(e, shuffle_graph);
+  void finish_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
+    V u, v;
+    if (reversed) {
+      u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+    } else {
+      v = source(uv, shuffle_graph), u = target(uv, shuffle_graph);
+    }
+    Delay v_cost = prop.crit_cost[v];
+    Delay u_cost = prop.crit_cost[u] + shuffle_graph[uv].weight;
+    if (u_cost >= v_cost) {
+      prop.crit_cost[v] = u_cost;
+      prop.crit_pred[v] = u;
     }
   }
 
   ShuffleGraphProperty &prop;
+  bool reversed = true;
+};
+
+class feasibility_visitor : public longest_path_visitor {
+public:
+  feasibility_visitor(shuffle_graph_t &shuffle_graph, bool &feasible)
+      : longest_path_visitor(shuffle_graph), feasible(feasible) {}
+
+  bool back_edge(E e, const shuffle_graph_t &shuffle_graph) {
+    feasible = false;
+    return true; // aborts traversal
+  }
+
+private:
+  bool &feasible;
 };
 
 class CriticalPath {
@@ -50,6 +70,13 @@ public:
   };
 
   CriticalPath(shuffle_graph_t &shuffle_graph) : shuffle_graph(shuffle_graph) {}
+
+  CriticalPath &operator=(const CriticalPath &other) {
+    if (this != &other) {
+      shuffle_graph = other.shuffle_graph;
+    }
+    return *this;
+  }
 
   void compute_longest_paths();
 
