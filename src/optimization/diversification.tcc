@@ -10,34 +10,57 @@ namespace tsndgm {
 template <class SelectionNeighborhood>
 void FrequencyCountDiversification<SelectionNeighborhood>::update_history(
     const NextSelection &next_selection) {
-  frequency_count[next_selection.e]++;
+  for (E e : this->dgm.flip_log) {
+    std::pair<V, V> pair = {source(e, this->dgm.shuffle_graph),
+                            target(e, this->dgm.shuffle_graph)};
+    if (!frequency_count.contains(pair))
+      frequency_count[pair] = 1;
+    else
+      frequency_count[pair]++;
+  }
 }
 
 template <class SelectionNeighborhood>
-void FrequencyCountDiversification<SelectionNeighborhood>::run(
+NextSelection
+FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
     CriticalPath::Objective type) {
-  size_t iteration;
   CriticalPath::Result res = this->dgm.critical_path(type);
+  Neighborhood neighborhood = this->selection_neighborhood.compute(res);
 
-  for (iteration = 0;
-       !this->termination_criterion.satisfied(iteration, res.objective);
-       iteration++) {
-    Neighborhood neighborhood = this->selection_neighborhood.compute(res);
-    std::vector<E> edges;
-    std::vector<double> weights;
-    for (E e : neighborhood.flip_candidates) {
-      edges.push_back(e);
-      weights.push_back(1.0 / static_cast<double>(frequency_count[e]));
+  // compute random edge on critical path (weighted by their frequency count)
+  std::vector<size_t> weights;
+  std::pair<V, V> pair;
+
+  size_t max_freq = 0;
+  for (auto &edges : neighborhood.flip_candidates) {
+    for (E e : edges) {
+      pair = {source(e, this->dgm.shuffle_graph),
+              target(e, this->dgm.shuffle_graph)};
+      max_freq = std::max(max_freq, frequency_count[pair]);
     }
-    std::discrete_distribution<int> d(weights.begin(), weights.end());
-    E e = edges[d(gen)];
-    frequency_count[e]++;
-    this->dgm.complete_flip(e);
-    res = this->dgm.critical_path(type);
   }
 
-  std::cout << " -> diversify: " << res.objective << " after " << iteration
-            << " iterations" << std::endl;
+  for (auto &edges : neighborhood.flip_candidates) {
+    weights.push_back(0);
+    for (E e : edges) {
+      pair = {source(e, this->dgm.shuffle_graph),
+              target(e, this->dgm.shuffle_graph)};
+      weights.back() =
+          std::max(weights.back(), max_freq - frequency_count[pair]);
+    }
+  }
+
+  std::discrete_distribution<int> d(weights.begin(), weights.end());
+
+  auto &edges = neighborhood.flip_candidates[d(gen)];
+  for (E e : edges) {
+    pair = {source(e, this->dgm.shuffle_graph),
+            target(e, this->dgm.shuffle_graph)};
+    frequency_count[pair]++;
+  }
+
+  // no need to recompute res.objective
+  return {edges, flip, res.objective};
 }
 
 } // namespace tsndgm

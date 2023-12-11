@@ -1,6 +1,7 @@
 #ifndef TSN_DGM_DIVERSIFICATION_H
 #define TSN_DGM_DIVERSIFICATION_H
 
+#include "neighborhood.h"
 #include "selection.h"
 #include "termination.h"
 #include <random>
@@ -19,7 +20,12 @@ public:
 
   virtual void update_history(const NextSelection &next_selection) = 0;
 
-  virtual void run(CriticalPath::Objective type) = 0;
+  virtual NextSelection
+  compute_next_selection(CriticalPath::Objective type) = 0;
+
+  bool completed(size_t iteration, Delay objective) {
+    return termination_criterion.satisfied(iteration, objective);
+  };
 
   virtual ~Diversification() = default;
 
@@ -45,7 +51,11 @@ public:
 
   void update_history(const NextSelection &next_selection){};
 
-  void run(CriticalPath::Objective type){};
+  bool completed(size_t iteration, Delay objective) { return true; };
+
+  NextSelection compute_next_selection(CriticalPath::Objective type) {
+    return NextSelection();
+  };
 };
 
 template <class SelectionNeighborhood>
@@ -53,6 +63,7 @@ class FrequencyCountDiversification
     : public Diversification<SelectionNeighborhood> {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
 
   FrequencyCountDiversification(DisjunctiveGraphModel &dgm,
                                 DiversificationConfig &config)
@@ -60,13 +71,29 @@ public:
 
   void update_history(const NextSelection &next_selection);
 
-  void run(CriticalPath::Objective type);
+  NextSelection compute_next_selection(CriticalPath::Objective type);
 
 protected:
-  std::map<E, size_t> frequency_count;
+  std::map<std::pair<V, V>, size_t> frequency_count;
   std::random_device rd;
   std::mt19937 gen;
 };
+
+// template <class SelectionNeighborhood, class TransformationHeuristic>
+// class TransformationHeuristicDiversification
+//     : public Diversification<SelectionNeighborhood> {
+// public:
+//   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+//   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+//
+//   TransformationHeuristicDiversification(DisjunctiveGraphModel &dgm,
+//                                          DiversificationConfig &config)
+//       : Diversification<SelectionNeighborhood>(dgm, config) {}
+//
+//   void update_history(const NextSelection &next_selection);
+//
+//   NextSelection compute_next_selection(CriticalPath::Objective type);
+// };
 
 } // namespace tsndgm
 

@@ -2,9 +2,11 @@
 #define TSN_DGM_TABUSEARCH_H
 
 #include "../dgm/dgm.h"
+#include "../heuristics/transform.h"
 #include "diversification.h"
 #include "intensification.h"
 #include "selection.h"
+#include <chrono>
 
 namespace tsndgm {
 
@@ -23,21 +25,25 @@ public:
       : dgm(network, streams) {}
 
   TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
-  TabuSearch(DisjunctiveGraphModel &&dgm) : dgm(std::move(dgm)) {}
 
   template <class TerminationCriterion, class Intensification,
-            class Diversification>
+            class Diversification, class TransformationHeuristic>
   void run(Config &config);
 
   DisjunctiveGraphModel dgm;
+  BestSelection best_selection;
 
 private:
   template <class Intensification, class Diversification>
   void run_intensification_phase(Config &config, Intensification &int_phase,
                                  Diversification &div_phase,
                                  BestSelection &best_selection);
-  template <class Diversification>
-  void run_diversification_phase(Config &config, Diversification &phase);
+
+  template <class Intensification, class Diversification>
+  void run_diversification_phase(Config &config, Intensification &int_phase,
+                                 Diversification &div_phase);
+
+  std::chrono::high_resolution_clock::time_point start;
 };
 
 } // namespace tsndgm

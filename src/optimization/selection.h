@@ -10,25 +10,28 @@ enum DGMOperation { flip, shuffle };
 struct BestSelection {
   size_t commit_index;
   Delay objective;
+  bool committed;
+
+  BestSelection() {}
 
   BestSelection(size_t commit_index)
       : commit_index(commit_index),
-        objective(std::numeric_limits<Delay>::max()) {}
+        objective(std::numeric_limits<Delay>::max()), committed(false) {}
 
   BestSelection(size_t commit_index, Delay objective)
-      : commit_index(commit_index), objective(objective) {}
+      : commit_index(commit_index), objective(objective), committed(false) {}
 };
 
 struct NextSelection {
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  E e;
+  std::list<E> edges;
   DGMOperation operation;
   Delay objective;
 
   NextSelection() : objective(std::numeric_limits<Delay>::max()) {}
-  NextSelection(E e, DGMOperation operation, Delay objective)
-      : e(e), operation(operation), objective(objective) {}
+  NextSelection(std::list<E> edges, DGMOperation operation, Delay objective)
+      : edges(edges), operation(operation), objective(objective) {}
 };
 
 } // namespace tsndgm

@@ -14,8 +14,8 @@ struct Neighborhood {
     shuffle_candidates.clear();
   }
 
-  std::list<E> flip_candidates;
-  std::list<E> shuffle_candidates;
+  std::vector<std::list<E>> flip_candidates;
+  std::vector<std::list<E>> shuffle_candidates;
 };
 
 class SelectionNeighborhood {
@@ -37,6 +37,35 @@ public:
 
 private:
   Neighborhood neighborhood;
+};
+
+class SelectionCriticalBlockNeighborhood : public SelectionNeighborhood {
+public:
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  SelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm)
+      : SelectionNeighborhood(dgm) {}
+
+  const Neighborhood &compute(CriticalPath::Result res);
+
+protected:
+  Neighborhood neighborhood;
+
+  enum CriticalBlockType { first, intermediate, last };
+  virtual void critical_block_to_neighbors(const std::vector<V> &critical_block,
+                                           CriticalBlockType type);
+};
+
+class ReducedSelectionCriticalBlockNeighborhood
+    : public SelectionCriticalBlockNeighborhood {
+public:
+  ReducedSelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm)
+      : SelectionCriticalBlockNeighborhood(dgm) {}
+
+protected:
+  void critical_block_to_neighbors(const std::vector<V> &critical_block,
+                                   CriticalBlockType type);
 };
 
 } // namespace tsndgm

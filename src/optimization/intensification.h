@@ -14,16 +14,22 @@ struct IntensificationConfig {
 template <class TerminationCriterion, class SelectionNeighborhood>
 class Intensification {
 public:
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
   Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config)
       : dgm(dgm), config(config), best_selection(config.commit_index),
         termination_criterion(config.max_iterations){};
 
-  virtual NextSelection compute_next_selection(CriticalPath::Objective type,
-                                               bool commit_best = true) = 0;
+  virtual NextSelection
+  compute_next_selection(CriticalPath::Objective type) = 0;
+
+  template <typename TabuListEntry> void update_tabu_list(TabuListEntry entry);
 
   bool completed(size_t iteration, Delay objective) {
     return termination_criterion.satisfied(iteration, objective);
   };
+
+  virtual void reset_phase() = 0;
 
   virtual ~Intensification() = default;
 
@@ -45,8 +51,8 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
   struct TabuListEntry {
-    E e;
-    boost::OrientationState state;
+    std::list<E> edges;
+    Delay objective;
   };
   typedef std::list<TabuListEntry> TabuList;
 
@@ -55,9 +61,9 @@ public:
 
     ExtendedNextSelection() : NextSelection(), violation(0) {}
 
-    ExtendedNextSelection(E e, DGMOperation operation, Delay objective,
-                          size_t violation)
-        : NextSelection(e, operation, objective), violation(violation) {}
+    ExtendedNextSelection(std::list<E> edges, DGMOperation operation,
+                          Delay objective, size_t violation)
+        : NextSelection(edges, operation, objective), violation(violation) {}
   };
 
   StrictAdmissionIntensification(DisjunctiveGraphModel &dgm,
@@ -66,27 +72,56 @@ public:
                                                                      config),
         selection_neighborhood(dgm) {}
 
-  NextSelection compute_next_selection(CriticalPath::Objective type,
-                                       bool commit_best = true);
+  NextSelection compute_next_selection(CriticalPath::Objective type);
 
-  inline void clear_tabu_list() { tabu_list.clear(); }
+  virtual void update_tabu_list(TabuListEntry entry);
+
+  void reset_phase();
+
+  TabuList tabu_list;
 
 protected:
-  TabuList tabu_list;
   SelectionNeighborhood selection_neighborhood;
 
-  inline void update_tabu_list(E e) {
-    tabu_list.push_front({e, this->dgm.shuffle_graph[e].reversed_state()});
-    if (tabu_list.size() > this->config.tabu_tenure)
-      tabu_list.pop_back();
-  }
-
-  virtual inline size_t compute_first_violation(E e) {
+  virtual inline size_t compute_first_violation(NextSelection n) {
     return std::distance(
         tabu_list.cbegin(),
         std::find_if(tabu_list.cbegin(), tabu_list.cend(), [&](auto &entry) {
-          return this->dgm.shuffle_graph[entry.e].state() != entry.state;
+          return std::all_of(entry.edges.begin(), entry.edges.end(), [&](E e) {
+            return this->dgm.shuffle_graph[e].state() !=
+                   boost::OrientationState::blocked;
+          });
         }));
+  }
+
+  inline void clear_tabu_list() { tabu_list.clear(); }
+};
+
+template <class TerminationCriterion, class SelectionNeighborhood>
+class TestStrictIntensification
+    : public StrictAdmissionIntensification<TerminationCriterion,
+                                            SelectionNeighborhood> {
+public:
+  TestStrictIntensification(DisjunctiveGraphModel &dgm,
+                            IntensificationConfig &config)
+      : StrictAdmissionIntensification<TerminationCriterion,
+                                       SelectionNeighborhood>(dgm, config) {}
+
+protected:
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  inline size_t compute_first_violation(NextSelection n) {
+    return std::distance(
+        this->tabu_list.cbegin(),
+        std::find_if(this->tabu_list.cbegin(), this->tabu_list.cend(),
+                     [&](auto &entry) {
+                       return std::all_of(
+                           entry.edges.begin(), entry.edges.end(), [&](E e) {
+                             return this->dgm.shuffle_graph[e].state() !=
+                                        boost::OrientationState::blocked &&
+                                    entry.objective <= n.objective;
+                           });
+                     }));
   }
 };
 
@@ -100,14 +135,62 @@ public:
       : StrictAdmissionIntensification<TerminationCriterion,
                                        SelectionNeighborhood>(dgm, config) {}
 
+  void update_tabu_list(
+      StrictAdmissionIntensification<
+          TerminationCriterion, SelectionNeighborhood>::TabuListEntry entry) {
+    std::list<E> edges;
+    for (E &e : entry.edges) {
+      edges.push_back(this->dgm.edge(target(e, this->dgm.shuffle_graph),
+                                     source(e, this->dgm.shuffle_graph)));
+    }
+
+    StrictAdmissionIntensification<
+        TerminationCriterion,
+        SelectionNeighborhood>::update_tabu_list({edges, entry.objective});
+  }
+
 protected:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  inline size_t compute_first_violation(E e) {
+  inline size_t compute_first_violation(NextSelection n) {
     return std::distance(
         this->tabu_list.cbegin(),
         std::find_if(this->tabu_list.cbegin(), this->tabu_list.cend(),
-                     [&](auto &entry) { return e != entry.e; }));
+                     [&](auto &entry) {
+                       return std::any_of(
+                           entry.edges.begin(), entry.edges.end(), [&](E e) {
+                             return std::find(n.edges.begin(), n.edges.end(),
+                                              e) != n.edges.end();
+                           });
+                     }));
+  }
+};
+
+template <class TerminationCriterion, class SelectionNeighborhood>
+class TestRelaxedIntensification
+    : public RelaxedAdmissionIntensification<TerminationCriterion,
+                                             SelectionNeighborhood> {
+public:
+  TestRelaxedIntensification(DisjunctiveGraphModel &dgm,
+                             IntensificationConfig &config)
+      : RelaxedAdmissionIntensification<TerminationCriterion,
+                                        SelectionNeighborhood>(dgm, config) {}
+
+protected:
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  inline size_t compute_first_violation(NextSelection n) {
+    return std::distance(
+        this->tabu_list.cbegin(),
+        std::find_if(this->tabu_list.cbegin(), this->tabu_list.cend(),
+                     [&](auto &entry) {
+                       return std::any_of(
+                           entry.edges.begin(), entry.edges.end(), [&](E e) {
+                             return std::find(n.edges.begin(), n.edges.end(),
+                                              e) != n.edges.end() &&
+                                    entry.objective <= n.objective;
+                           });
+                     }));
   }
 };
 

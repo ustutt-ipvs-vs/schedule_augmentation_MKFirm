@@ -32,7 +32,7 @@ struct DifferentialTerminationCriterion : public TerminationCriterion {
     if (objective < best_solution.objective) {
       best_solution = {objective, iteration};
     }
-    return iteration - best_solution.iteration + 1 >= max_iterations;
+    return iteration - best_solution.iteration >= max_iterations;
   }
 
   struct BestSolution {
