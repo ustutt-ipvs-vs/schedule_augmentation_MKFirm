@@ -6,19 +6,20 @@
 namespace tsndgm {
 
 struct IntensificationConfig {
-  size_t tabu_tenure;  //!< size of tabu list
-  size_t commit_index; //!< for best selection of current phase
-  size_t max_iterations;
+  size_t maxt;  //!< max size of tabu list
+  size_t maxit; //!< max iterations
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>
 class Intensification {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef TerminationCriterion ITerminationCriterion;
+  typedef SelectionNeighborhood ISelectionNeighborhood;
 
   Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config)
-      : dgm(dgm), config(config), best_selection(config.commit_index),
-        termination_criterion(config.max_iterations){};
+      : dgm(dgm), config(config), best_selection(0),
+        termination_criterion(config.maxit){};
 
   virtual NextSelection
   compute_next_selection(CriticalPath::Objective type) = 0;
@@ -30,6 +31,7 @@ public:
   };
 
   virtual void reset_phase() = 0;
+  virtual void clear_tabu_list() = 0;
 
   virtual ~Intensification() = default;
 
@@ -39,8 +41,6 @@ protected:
   DisjunctiveGraphModel &dgm;
   IntensificationConfig &config;
   TerminationCriterion termination_criterion;
-
-  virtual void clear_tabu_list() = 0;
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>
@@ -77,6 +77,7 @@ public:
   virtual void update_tabu_list(TabuListEntry entry);
 
   void reset_phase();
+  inline void clear_tabu_list() { tabu_list.clear(); }
 
   TabuList tabu_list;
 
@@ -93,8 +94,6 @@ protected:
           });
         }));
   }
-
-  inline void clear_tabu_list() { tabu_list.clear(); }
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>

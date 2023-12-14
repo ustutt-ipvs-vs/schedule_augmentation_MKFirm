@@ -9,7 +9,6 @@ template <class TerminationCriterion, class Intensification,
           class Diversification, class TransformationHeuristic>
 void TabuSearch::run(Config &config) {
   best_selection = BestSelection(config.commit_index);
-  TerminationCriterion termination_criterion(config.global_iterations);
   size_t phase;
 
   start = std::chrono::high_resolution_clock::now();

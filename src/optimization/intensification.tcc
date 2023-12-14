@@ -27,7 +27,7 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
         std::min(this->best_selection.objective, next_selection.objective)) {
       // res.objective is better than the objective of the best selection
       // found in this intensification phase (aspiration criterion)
-      next_selection = {edges, flip, res.objective, this->config.tabu_tenure};
+      next_selection = {edges, flip, res.objective, this->config.maxt};
     } else {
       // Check tabu list otherwise.
       // In case every neighbor violates the tabu list, we ensure that
@@ -77,7 +77,7 @@ void StrictAdmissionIntensification<
                                                                        entry) {
   tabu_list.push_front(entry);
 
-  if (tabu_list.size() > this->config.tabu_tenure)
+  if (tabu_list.size() > this->config.maxt)
     tabu_list.pop_back();
 }
 

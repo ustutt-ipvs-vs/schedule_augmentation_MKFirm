@@ -13,11 +13,11 @@ namespace tsndgm {
 class TabuSearch {
 public:
   struct Config {
-    size_t global_iterations;
+    size_t maxit;
     CriticalPath::Objective type;
     IntensificationConfig int_config;
     DiversificationConfig div_config;
-    size_t commit_index; //!< for best global selection
+    size_t commit_index;
   };
 
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,

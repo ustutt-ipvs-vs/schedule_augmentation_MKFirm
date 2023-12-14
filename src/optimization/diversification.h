@@ -9,13 +9,13 @@
 namespace tsndgm {
 
 struct DiversificationConfig {
-  size_t max_iterations;
+  size_t maxit;
 };
 
 template <class SelectionNeighborhood> class Diversification {
 public:
   Diversification(DisjunctiveGraphModel &dgm, DiversificationConfig &config)
-      : dgm(dgm), config(config), termination_criterion(config.max_iterations),
+      : dgm(dgm), config(config), termination_criterion(config.maxit),
         selection_neighborhood(dgm) {}
 
   virtual void update_history(const NextSelection &next_selection) = 0;
@@ -78,22 +78,6 @@ protected:
   std::random_device rd;
   std::mt19937 gen;
 };
-
-// template <class SelectionNeighborhood, class TransformationHeuristic>
-// class TransformationHeuristicDiversification
-//     : public Diversification<SelectionNeighborhood> {
-// public:
-//   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
-//   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
-//
-//   TransformationHeuristicDiversification(DisjunctiveGraphModel &dgm,
-//                                          DiversificationConfig &config)
-//       : Diversification<SelectionNeighborhood>(dgm, config) {}
-//
-//   void update_history(const NextSelection &next_selection);
-//
-//   NextSelection compute_next_selection(CriticalPath::Objective type);
-// };
 
 } // namespace tsndgm
 
