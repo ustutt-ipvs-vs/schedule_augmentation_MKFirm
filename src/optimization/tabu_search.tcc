@@ -16,20 +16,31 @@ void TabuSearch::run(Config &config) {
   Intensification int_phase(dgm, config.int_config);
   TransformationHeuristic heuristic(dgm);
 
-  for (phase = 0;
-       !termination_criterion.satisfied(phase, best_selection.objective);
-       phase++) {
-    std::cout << "Phase " << phase << ":" << std::endl;
+  do {
+    TerminationCriterion termination_criterion(config.maxit);
+    for (phase = 0;
+         !termination_criterion.satisfied(phase, best_selection.objective,
+                                          best_selection.secondary_objective);
+         phase++) {
+      std::cout << "Phase " << phase << ":" << std::endl;
 
-    run_intensification_phase<Intensification, Diversification>(
-        config, int_phase, div_phase, best_selection);
+      std::cout << " Intensify:" << std::endl;
+      run_intensification_phase<Intensification, Diversification>(
+          config, int_phase, div_phase, best_selection);
 
-    if (!termination_criterion.satisfied(phase, best_selection.objective)) {
-      run_diversification_phase<Intensification, Diversification>(
-          config, int_phase, div_phase);
-      heuristic.transform(dgm.critical_path(config.type));
+      if (!termination_criterion.satisfied(phase + 1,
+                                           best_selection.objective)) {
+        std::cout << " Diversify:" << std::endl;
+        run_diversification_phase<Intensification, Diversification>(
+            config, int_phase, div_phase);
+        std::cout << " Transformation:" << std::endl;
+        heuristic.transform(config.type);
+      }
     }
-  }
+
+    std::cout << "Exhaustive Search:" << std::endl;
+  } while (run_exhaustive_search<Intensification, Diversification>(
+      config, int_phase, div_phase, best_selection));
 
   std::cout << "Global Solution: " << best_selection.objective << std::endl;
 }
@@ -100,8 +111,6 @@ void TabuSearch::run_diversification_phase(Config &config,
   size_t iteration;
   NextSelection next_selection;
 
-  std::cout << " Diversify:" << std::endl;
-
   for (iteration = 0; !div_phase.completed(iteration, next_selection.objective);
        iteration++) {
     next_selection = div_phase.compute_next_selection(config.type);
@@ -117,8 +126,42 @@ void TabuSearch::run_diversification_phase(Config &config,
 
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = duration_cast<std::chrono::seconds>(stop - start);
-  std::cout << " Result: " << next_selection.objective << " after " << iteration
-            << " iterations (" << duration << ")" << std::endl;
+  std::cout << " -> Result: " << dgm.critical_path(config.type).objective
+            << " after " << iteration << " iterations (" << duration << ")"
+            << std::endl;
+}
+
+template <class Intensification, class Diversification>
+bool TabuSearch::run_exhaustive_search(Config &config,
+                                       Intensification &int_phase,
+                                       Diversification &div_phase,
+                                       BestSelection &best_selection) {
+  dgm.restore_commit(best_selection.commit_index, false);
+
+  SelectionCriticalBlockNeighborhood selection_neighborhood(dgm);
+  CriticalPath::Result res = this->dgm.critical_path(config.type);
+  Neighborhood neighborhood = selection_neighborhood.compute(res);
+  BestSelection current_objective = best_selection;
+
+  for (auto &edges : neighborhood.flip_candidates) {
+    for (auto &e : edges)
+      e = dgm.edge(e);
+
+    this->dgm.complete_flip(edges);
+
+    Intensification local_search(dgm, config.int_config);
+
+    run_intensification_phase<Intensification, Diversification>(
+        config, local_search, div_phase, best_selection);
+
+    if (best_selection.objective < current_objective.objective ||
+        (best_selection.objective == current_objective.objective &&
+         best_selection.secondary_objective <
+             current_objective.secondary_objective))
+      return true;
+  }
+
+  return false;
 }
 
 } // namespace tsndgm

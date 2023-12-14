@@ -43,6 +43,11 @@ private:
   void run_diversification_phase(Config &config, Intensification &int_phase,
                                  Diversification &div_phase);
 
+  template <class Intensification, class Diversification>
+  bool run_exhaustive_search(Config &config, Intensification &int_phase,
+                             Diversification &div_phase,
+                             BestSelection &best_selection);
+
   std::chrono::high_resolution_clock::time_point start;
 };
 
