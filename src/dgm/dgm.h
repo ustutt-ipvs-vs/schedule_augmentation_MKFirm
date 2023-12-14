@@ -131,6 +131,11 @@ public:
     return e.first;
   }
 
+  E edge(E uv) {
+    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+    return edge(u, v);
+  }
+
 private:
   std::shared_ptr<NetworkTopology> network;
 
