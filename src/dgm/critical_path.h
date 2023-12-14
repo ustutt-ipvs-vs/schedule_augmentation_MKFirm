@@ -21,7 +21,11 @@ public:
 
   void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
     prop.crit_cost[v] = 0;
-    prop.crit_pred[v] = prop.src;
+    if (reversed) {
+      prop.crit_pred[v] = prop.src;
+    } else {
+      prop.crit_pred[v] = prop.sink;
+    }
   }
 
   void finish_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
