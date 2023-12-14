@@ -28,7 +28,7 @@ FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
   Neighborhood neighborhood = this->selection_neighborhood.compute(res);
 
   // compute random edge on critical path (weighted by their frequency count)
-  std::vector<size_t> weights;
+  std::vector<double> weights;
   std::pair<V, V> pair;
 
   size_t max_freq = 0;
@@ -40,14 +40,24 @@ FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
     }
   }
 
+  // store current DGM, which is used to undo flips
+  this->dgm.commit_flips();
+
   for (auto &edges : neighborhood.flip_candidates) {
+    this->dgm.complete_flip(edges);
+    auto res1 = this->dgm.critical_path(type);
+
     weights.push_back(0);
     for (E e : edges) {
       pair = {source(e, this->dgm.shuffle_graph),
               target(e, this->dgm.shuffle_graph)};
       weights.back() =
-          std::max(weights.back(), max_freq - frequency_count[pair]);
+          std::max(weights.back(),
+                   static_cast<double>(max_freq - frequency_count[pair]));
     }
+    weights.back() *= static_cast<double>(res.objective) / res1.objective;
+
+    this->dgm.restore_flips();
   }
 
   std::discrete_distribution<int> d(weights.begin(), weights.end());
@@ -56,7 +66,7 @@ FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
   for (E e : edges) {
     pair = {source(e, this->dgm.shuffle_graph),
             target(e, this->dgm.shuffle_graph)};
-    frequency_count[pair]++;
+    frequency_count[pair] *= 2;
   }
 
   // no need to recompute res.objective
