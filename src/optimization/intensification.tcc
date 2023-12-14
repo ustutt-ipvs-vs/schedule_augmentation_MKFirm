@@ -13,6 +13,7 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
   CriticalPath::Result res = this->dgm.critical_path(type);
   Neighborhood neighborhood = selection_neighborhood.compute(res);
   ExtendedNextSelection next_selection;
+  Delay secondary_objective = 0;
 
   // store current DGM, which is used to undo flips
   this->dgm.commit_flips();
@@ -22,6 +23,7 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
     this->dgm.complete_flip(edges);
     auto res = this->dgm.critical_path(type);
     size_t violation = compute_first_violation({edges, flip, res.objective});
+    secondary_objective += res.objective;
 
     if (res.objective <
         std::min(this->best_selection.objective, next_selection.objective)) {
@@ -49,18 +51,17 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
     tabu_list.resize(next_selection.violation, tabu_list.back());
   update_tabu_list({next_selection.edges, this->best_selection.objective});
 
+  next_selection.secondary_objective =
+      secondary_objective / neighborhood.flip_candidates.size();
+
   return next_selection;
 }
 
 template <class TerminationCriterion, class SelectionNeighborhood>
 void StrictAdmissionIntensification<TerminationCriterion,
                                     SelectionNeighborhood>::reset_phase() {
-  this->termination_criterion =
-      TerminationCriterion(this->config.max_iterations);
-  this->best_selection = BestSelection(this->best_selection.commit_index);
-  // clearing likely steers tabu search back into the local minimum of the last
-  // phase
-  // clear_tabu_list();
+  this->termination_criterion = TerminationCriterion(this->config.maxit);
+  this->best_selection = BestSelection(0);
 
   for (TabuListEntry &entry : tabu_list) {
     for (E &e : entry.edges) {

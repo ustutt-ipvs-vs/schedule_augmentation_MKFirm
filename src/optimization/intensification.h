@@ -61,9 +61,12 @@ public:
 
     ExtendedNextSelection() : NextSelection(), violation(0) {}
 
-    ExtendedNextSelection(std::list<E> edges, DGMOperation operation,
-                          Delay objective, size_t violation)
-        : NextSelection(edges, operation, objective), violation(violation) {}
+    ExtendedNextSelection(
+        std::list<E> edges, DGMOperation operation, Delay objective,
+        size_t violation,
+        Delay secondary_objective = std::numeric_limits<Delay>::max())
+        : NextSelection(edges, operation, objective, secondary_objective),
+          violation(violation) {}
   };
 
   StrictAdmissionIntensification(DisjunctiveGraphModel &dgm,

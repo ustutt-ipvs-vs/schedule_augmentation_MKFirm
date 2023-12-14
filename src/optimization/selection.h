@@ -10,16 +10,16 @@ enum DGMOperation { flip, shuffle };
 struct BestSelection {
   size_t commit_index;
   Delay objective;
+  Delay secondary_objective;
   bool committed;
 
   BestSelection() {}
 
-  BestSelection(size_t commit_index)
-      : commit_index(commit_index),
-        objective(std::numeric_limits<Delay>::max()), committed(false) {}
-
-  BestSelection(size_t commit_index, Delay objective)
-      : commit_index(commit_index), objective(objective), committed(false) {}
+  BestSelection(size_t commit_index,
+                Delay objective = std::numeric_limits<Delay>::max(),
+                Delay secondary_objective = std::numeric_limits<Delay>::max())
+      : commit_index(commit_index), objective(objective),
+        secondary_objective(secondary_objective), committed(false) {}
 };
 
 struct NextSelection {
@@ -28,10 +28,15 @@ struct NextSelection {
   std::list<E> edges;
   DGMOperation operation;
   Delay objective;
+  Delay secondary_objective;
 
-  NextSelection() : objective(std::numeric_limits<Delay>::max()) {}
-  NextSelection(std::list<E> edges, DGMOperation operation, Delay objective)
-      : edges(edges), operation(operation), objective(objective) {}
+  NextSelection()
+      : objective(std::numeric_limits<Delay>::max()),
+        secondary_objective(std::numeric_limits<Delay>::max()) {}
+  NextSelection(std::list<E> edges, DGMOperation operation, Delay objective,
+                Delay secondary_objective = std::numeric_limits<Delay>::max())
+      : edges(edges), operation(operation), objective(objective),
+        secondary_objective(secondary_objective) {}
 };
 
 } // namespace tsndgm

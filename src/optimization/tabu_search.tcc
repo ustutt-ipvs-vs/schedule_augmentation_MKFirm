@@ -40,14 +40,29 @@ void TabuSearch::run_intensification_phase(Config &config,
                                            Diversification &div_phase,
                                            BestSelection &best_selection) {
   size_t iteration;
-  NextSelection next_selection;
+  NextSelection next_selection, prev_selection;
+
+  auto update_best_selection = [&](NextSelection &next_selection) {
+    best_selection.objective = next_selection.objective;
+    best_selection.secondary_objective = next_selection.secondary_objective;
+    best_selection.committed = false;
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(stop - start);
+    std::cout << "  -> New Best Solution " << best_selection.objective << " "
+              << best_selection.secondary_objective << " (" << duration << ")"
+              << std::endl;
+  };
 
   int_phase.reset_phase();
-  std::cout << " Intensify:" << std::endl;
 
   for (iteration = 0; !int_phase.completed(iteration, next_selection.objective);
        iteration++) {
     next_selection = int_phase.compute_next_selection(config.type);
+    prev_selection.secondary_objective = next_selection.secondary_objective;
+
+    if (prev_selection.objective == best_selection.objective &&
+        prev_selection.secondary_objective < best_selection.secondary_objective)
+      update_best_selection(prev_selection);
 
     // commit best known solution if we start with uphill moves
     if (next_selection.objective > best_selection.objective &&
@@ -63,22 +78,18 @@ void TabuSearch::run_intensification_phase(Config &config,
 
     div_phase.update_history(next_selection);
 
-    if (next_selection.objective < best_selection.objective) {
-      best_selection.objective = next_selection.objective;
-      best_selection.committed = false;
-      auto stop = std::chrono::high_resolution_clock::now();
-      auto duration = duration_cast<std::chrono::seconds>(stop - start);
-      std::cout << "  -> New Best Solution " << best_selection.objective << " ("
-                << duration << ")" << std::endl;
-    }
+    if (next_selection.objective < best_selection.objective)
+      update_best_selection(next_selection);
+
+    prev_selection = next_selection;
   }
 
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = duration_cast<std::chrono::seconds>(stop - start);
-  std::cout << " Result: " << int_phase.best_selection.objective << " after "
+  std::cout << " -> Result: " << int_phase.best_selection.objective << " after "
             << iteration << " iterations (" << duration << ")" << std::endl;
 
-  if (best_selection.objective < next_selection.objective)
+  if (best_selection.objective <= next_selection.objective)
     dgm.restore_commit(best_selection.commit_index, false);
 }
 
