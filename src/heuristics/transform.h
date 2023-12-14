@@ -15,7 +15,7 @@ public:
 
   TransformSelectionHeuristic(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
 
-  virtual void transform(CriticalPath::Result res) = 0;
+  virtual void transform(CriticalPath::Objective type) = 0;
 
 protected:
   DisjunctiveGraphModel &dgm;
@@ -26,7 +26,7 @@ public:
   NoTransformation(DisjunctiveGraphModel &dgm)
       : TransformSelectionHeuristic(dgm) {}
 
-  void transform(CriticalPath::Result res){};
+  void transform(CriticalPath::Objective type){};
 };
 
 class CriticalBlockTransformSelectionHeuristic
@@ -53,12 +53,11 @@ public:
   CriticalBlockTransformSelectionHeuristic(DisjunctiveGraphModel &dgm)
       : TransformSelectionHeuristic(dgm), gen(rd()) {}
 
-  void transform(CriticalPath::Result res);
+  void transform(CriticalPath::Objective type);
 
 protected:
   std::random_device rd;
   std::mt19937 gen;
 };
-
 } // namespace tsndgm
 #endif // TSN_DGM_HEURISTIC_TRANSFORM_H

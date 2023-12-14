@@ -3,8 +3,10 @@
 namespace tsndgm {
 
 void CriticalBlockTransformSelectionHeuristic::transform(
-    CriticalPath::Result res) {
+    CriticalPath::Objective type) {
+
   ShuffleGraphProperty &prop = dgm.shuffle_graph[boost::graph_bundle];
+  auto res = dgm.critical_path(type);
 
   // randomly select critical block, weighted by their length
   CriticalMachines critical_machines(dgm);
@@ -51,9 +53,12 @@ void CriticalBlockTransformSelectionHeuristic::transform(
           visitor(feasibility_visitor(dgm.shuffle_graph, feasible))
               .root_vertex(prop.sink));
 
-      if (feasible && prop.crit_cost[prop.sink] < min_d.first) {
-        dgm.commit_flips();
-        min_d = {prop.crit_cost[prop.sink], i};
+      if (feasible) {
+        auto res = dgm.critical_path(type);
+        if (res.objective < min_d.first) {
+          dgm.commit_flips();
+          min_d = {res.objective, i};
+        }
       }
 
       if (i < processing_order.size()) {
@@ -67,6 +72,10 @@ void CriticalBlockTransformSelectionHeuristic::transform(
     processing_order.insert(processing_order.begin() + min_d.second, v);
     dgm.restore_flips();
   }
+
+  std::cout << " -> Result: "
+            << dgm.critical_path(CriticalPath::Objective::makespan).objective
+            << std::endl;
 }
 
 } // namespace tsndgm

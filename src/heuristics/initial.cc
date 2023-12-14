@@ -2,7 +2,7 @@
 
 namespace tsndgm {
 
-void RandomInitialSelectionHeuristic::generate() {
+void RandomInitialSelectionHeuristic::generate(CriticalPath::Objective type) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   std::discrete_distribution<int> d({1, 1});
   std::set<boost::OrientationState *> flipped_edges;
@@ -21,60 +21,7 @@ void RandomInitialSelectionHeuristic::generate() {
   dgm.complete_flip(edge_list);
 }
 
-class earliest_start_visitor : public boost::default_dfs_visitor {
-public:
-  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
-
-  earliest_start_visitor(std::vector<Delay> &earliest_start,
-                         const shuffle_graph_t &shuffle_graph)
-      : earliest_start(earliest_start) {
-    earliest_start.resize(boost::num_vertices(shuffle_graph));
-    earliest_start[0] = 0;
-  }
-
-  bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
-    throw std::runtime_error(
-        "Selection is not complete; disjunctive graph is acyclic.");
-  }
-
-  void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
-    if (shuffle_graph[e].edge_type == conjunctive)
-      earliest_start[target(e, shuffle_graph)] =
-          earliest_start[source(e, shuffle_graph)] + shuffle_graph[e].weight;
-  }
-
-  std::vector<Delay> &earliest_start;
-  bool reversed = true;
-};
-
-void MakespanInitialSelectionHeuristic::generate() {
-  shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
-  std::vector<Delay> earliest_start;
-
-  dgm_traversal(shuffle_graph,
-                visitor(earliest_start_visitor(earliest_start, shuffle_graph))
-                    .root_vertex(shuffle_graph[boost::graph_bundle].src));
-
-  std::set<boost::OrientationState *> flipped_edges;
-  std::list<E> edge_list;
-  for (E uv : boost::make_iterator_range(boost::edges(shuffle_graph))) {
-    if (shuffle_graph[uv].edge_type == disjunctive &&
-        shuffle_graph[uv].state() == boost::OrientationState::allowed) {
-      V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
-      E vu = dgm.edge(v, u);
-      if (earliest_start[v] + shuffle_graph[vu].weight <
-          earliest_start[u] + shuffle_graph[uv].weight) {
-        edge_list.push_back(uv);
-      }
-    }
-  }
-
-  dgm.complete_flip(edge_list);
-  dgm.print_critical_path(CriticalPath::Objective::makespan);
-}
-
-void INSA::generate() {
+void INSA::generate(CriticalPath::Objective type) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
@@ -145,9 +92,12 @@ void INSA::generate() {
           shuffle_graph, visitor(feasibility_visitor(shuffle_graph, feasible))
                              .root_vertex(prop.sink));
 
-      if (feasible && prop.crit_cost[prop.sink] < min_d.first) {
-        dgm.commit_flips();
-        min_d = {prop.crit_cost[prop.sink], i};
+      if (feasible) {
+        auto res = dgm.critical_path(type);
+        if (res.objective < min_d.first) {
+          dgm.commit_flips();
+          min_d = {res.objective, i};
+        }
       }
 
       if (i < processing_order.size()) {

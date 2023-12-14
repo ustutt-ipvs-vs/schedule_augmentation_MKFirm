@@ -13,7 +13,7 @@ public:
 
   InitialSelectionHeuristic(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
 
-  virtual void generate() = 0;
+  virtual void generate(CriticalPath::Objective type) = 0;
 
 protected:
   DisjunctiveGraphModel &dgm;
@@ -24,19 +24,11 @@ public:
   RandomInitialSelectionHeuristic(DisjunctiveGraphModel &dgm)
       : InitialSelectionHeuristic(dgm), gen(rd()) {}
 
-  void generate();
+  void generate(CriticalPath::Objective type);
 
 protected:
   std::random_device rd;
   std::mt19937 gen;
-};
-
-class MakespanInitialSelectionHeuristic : public InitialSelectionHeuristic {
-public:
-  MakespanInitialSelectionHeuristic(DisjunctiveGraphModel &dgm)
-      : InitialSelectionHeuristic(dgm) {}
-
-  void generate();
 };
 
 // Based on "A Fast Taboo Search Algorithm for the Job Shop Problem" by
@@ -51,7 +43,7 @@ class INSA : public InitialSelectionHeuristic {
 public:
   INSA(DisjunctiveGraphModel &dgm) : InitialSelectionHeuristic(dgm) {}
 
-  void generate();
+  void generate(CriticalPath::Objective type);
 };
 
 } // namespace tsndgm
