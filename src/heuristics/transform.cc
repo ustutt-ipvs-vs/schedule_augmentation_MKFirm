@@ -16,19 +16,18 @@ void CriticalBlockTransformSelectionHeuristic::transform(
                                     critical_machines.weights.end());
   Edge critical_machine = critical_machines.edges[d(gen)];
 
-  // gather all operations of critical_machine, sorted by crit_cost
+  // sort operations longest path
   std::set<std::pair<Delay, V>> operation_cost_set;
   for (MessageStreamHandle ms_handle : prop.edge_to_streams[critical_machine]) {
     V v = prop.operation_to_vertex[{critical_machine, ms_handle}];
-    operation_cost_set.insert({prop.crit_cost[v], v});
-
-    for (E e :
-         boost::make_iterator_range(boost::out_edges(v, dgm.shuffle_graph))) {
-      if (dgm.shuffle_graph[e].edge_type == disjunctive) {
-        *dgm.shuffle_graph[e].state_pair->state =
-            boost::OrientationState::blocked;
-      }
+    for (auto &[d, u] : operation_cost_set) {
+      *dgm.shuffle_graph[dgm.edge(u, v)].state_pair->state =
+          boost::OrientationState::blocked;
+      *dgm.shuffle_graph[dgm.edge(v, u)].state_pair->state =
+          boost::OrientationState::blocked;
     }
+
+    operation_cost_set.insert({prop.crit_cost[v], v});
   }
 
   std::vector<V> processing_order;
