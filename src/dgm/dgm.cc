@@ -417,4 +417,105 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
   }
 }
 
+#define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
+#define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
+
+void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf) {
+  auto &prop = shuffle_graph[boost::graph_bundle];
+  buf.clear();
+
+  int offset = 0;
+  for (auto &[e, streams] : prop.edge_to_streams) {
+    buf.insert(buf.begin() + offset, {MACHINE_SEPARATOR, e.first, e.second});
+    offset += 3;
+    int len = 0;
+
+    for (auto &ms : streams) {
+      V v = prop.operation_to_vertex[{e, ms}];
+
+      int i;
+      for (i = offset; i < offset + len; i++) {
+        if (buf[i] == SHUFFLE_SEPARATOR)
+          continue;
+
+        V u = prop.operation_to_vertex[{e, buf[i]}];
+        if (u == v) { // u and v are shuffled
+          if (i == offset || buf[i - 1] != SHUFFLE_SEPARATOR) {
+            buf.insert(buf.begin() + i + 1, SHUFFLE_SEPARATOR);
+            buf.insert(buf.begin() + i, SHUFFLE_SEPARATOR);
+            i += 1;
+            len += 2;
+          }
+          break;
+        } else {
+          E e = edge(v, u);
+          if (shuffle_graph[e].state() == boost::OrientationState::allowed) {
+            break;
+          }
+        }
+      }
+      buf.insert(buf.begin() + i, ms);
+      len += 1;
+    }
+    offset += len;
+  }
+  buf.push_back(MACHINE_SEPARATOR);
+}
+
+void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf,
+                                   size_t last_commit) {
+  restore_commit(last_commit, false);
+  auto &prop = shuffle_graph[boost::graph_bundle];
+
+  std::map<Edge, std::vector<V>> processing_order;
+
+  // compute processing order, and shuffle operations
+  int offset = 0, len;
+  while (offset + 1 < buf.size()) {
+    if (buf[offset] != MACHINE_SEPARATOR)
+      throw std::runtime_error("invalid DGM encoding");
+
+    Edge edge = {buf[offset + 1], buf[offset + 2]};
+    processing_order[edge] = {};
+    len = 3;
+
+    while (buf[offset + len] != MACHINE_SEPARATOR) {
+      if (buf[offset + len] == SHUFFLE_SEPARATOR) {
+        MessageStreamHandle v_ms = buf[offset + len + 1];
+        V v = prop.operation_to_vertex[{edge, v_ms}];
+        processing_order[edge].push_back(v);
+        len += 2;
+        while (buf[offset + len] != SHUFFLE_SEPARATOR) {
+          MessageStreamHandle u_ms = buf[offset + len];
+          V u = prop.operation_to_vertex[{edge, u_ms}];
+          if (u != v)
+            lazy_shuffle(this->edge(u, v));
+          len++;
+        }
+      } else {
+        MessageStreamHandle ms = buf[offset + len];
+        processing_order[edge].push_back(prop.operation_to_vertex[{edge, ms}]);
+      }
+      len++;
+    }
+
+    offset += len;
+  }
+
+  // fix orientations of disjunctive edges
+  for (auto &[edge, operations] : processing_order) {
+    for (int i = 0; i < operations.size(); i++) {
+      V u = operations[i];
+      for (int j = i + 1; j < operations.size(); j++) {
+        V v = operations[j];
+        E e = this->edge(u, v);
+        if (shuffle_graph[e].state() == boost::OrientationState::blocked)
+          shuffle_graph[e].consistent_flip();
+      }
+    }
+  }
+
+  valid_crit_path = false;
+}
+
 } // namespace tsndgm

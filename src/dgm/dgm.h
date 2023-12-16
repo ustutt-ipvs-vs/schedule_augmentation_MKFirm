@@ -117,6 +117,9 @@ public:
   void copy_commit(size_t src_index, size_t dest_index);
   void swap_commit(size_t src_index, size_t dest_index);
 
+  void encode(std::vector<unsigned int> &buf);
+  void decode(std::vector<unsigned int> &buf, size_t last_commit = 0);
+
   /** \brief Print the shuffle graph to stdout.
    */
   void print();
