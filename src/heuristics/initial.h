@@ -19,9 +19,9 @@ protected:
   DisjunctiveGraphModel &dgm;
 };
 
-class RandomInitialSelectionHeuristic : public InitialSelectionHeuristic {
+class RandomInitial : public InitialSelectionHeuristic {
 public:
-  RandomInitialSelectionHeuristic(DisjunctiveGraphModel &dgm)
+  RandomInitial(DisjunctiveGraphModel &dgm)
       : InitialSelectionHeuristic(dgm), gen(rd()) {}
 
   void generate(CriticalPath::Objective type);

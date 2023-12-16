@@ -2,7 +2,7 @@
 
 namespace tsndgm {
 
-void RandomInitialSelectionHeuristic::generate(CriticalPath::Objective type) {
+void RandomInitial::generate(CriticalPath::Objective type) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   std::discrete_distribution<int> d({1, 1});
   std::set<boost::OrientationState *> flipped_edges;
