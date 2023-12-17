@@ -27,6 +27,7 @@ void TabuSearch::run(Config &config) {
       std::cout << " Intensify:" << std::endl;
       run_intensification_phase<Intensification, Diversification>(
           config, int_phase, div_phase, best_selection);
+      com.exchange_best_selection(dgm, best_selection);
 
       if (!termination_criterion.satisfied(phase + 1,
                                            best_selection.objective)) {
@@ -143,10 +144,13 @@ bool TabuSearch::run_exhaustive_search(Config &config,
 
   SelectionCriticalBlockNeighborhood selection_neighborhood(dgm);
   CriticalPath::Result res = this->dgm.critical_path(config.type);
-  Neighborhood neighborhood = selection_neighborhood.compute(res);
+  auto neighborhood = selection_neighborhood.compute(res).flip_candidates;
   BestSelection current_objective = best_selection;
 
-  for (auto &edges : neighborhood.flip_candidates) {
+  auto partition = com.partition(neighborhood.begin(), neighborhood.end());
+
+  for (auto it = partition.first; it < partition.second; ++it) {
+    auto edges = *it;
     for (auto &e : edges)
       e = dgm.edge(e);
 
@@ -156,7 +160,16 @@ bool TabuSearch::run_exhaustive_search(Config &config,
 
     run_intensification_phase<Intensification, Diversification>(
         config, local_search, div_phase, best_selection);
+    com.exchange_best_selection(dgm, best_selection);
 
+    if (best_selection.objective < current_objective.objective ||
+        (best_selection.objective == current_objective.objective &&
+         best_selection.secondary_objective <
+             current_objective.secondary_objective))
+      return true;
+  }
+  if (com.smaller_partition(neighborhood.begin(), neighborhood.end())) {
+    com.exchange_best_selection(dgm, best_selection);
     if (best_selection.objective < current_objective.objective ||
         (best_selection.objective == current_objective.objective &&
          best_selection.secondary_objective <

@@ -3,6 +3,7 @@
 
 #include "../dgm/dgm.h"
 #include "../heuristics/transform.h"
+#include "communicator.h"
 #include "diversification.h"
 #include "intensification.h"
 #include "selection.h"
@@ -32,6 +33,7 @@ public:
 
   DisjunctiveGraphModel dgm;
   BestSelection best_selection;
+  Communicator com;
 
 private:
   template <class Intensification, class Diversification>
