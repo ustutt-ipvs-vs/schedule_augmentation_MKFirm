@@ -23,7 +23,7 @@ void FrequencyCountDiversification<SelectionNeighborhood>::update_history(
 template <class SelectionNeighborhood>
 NextSelection
 FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
-    CriticalPath::Objective type) {
+    BestSelection &best_selection, CriticalPath::Objective type) {
   CriticalPath::Result res = this->dgm.critical_path(type);
   Neighborhood neighborhood = this->selection_neighborhood.compute(res);
 
@@ -55,7 +55,9 @@ FrequencyCountDiversification<SelectionNeighborhood>::compute_next_selection(
           std::max(weights.back(),
                    static_cast<double>(max_freq - frequency_count[pair]));
     }
-    weights.back() *= static_cast<double>(res.objective) / res1.objective;
+
+    weights.back() *=
+        static_cast<double>(best_selection.objective) / res1.objective;
 
     this->dgm.restore_flips();
   }

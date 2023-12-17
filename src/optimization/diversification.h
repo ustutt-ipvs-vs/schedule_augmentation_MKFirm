@@ -21,7 +21,8 @@ public:
   virtual void update_history(const NextSelection &next_selection) = 0;
 
   virtual NextSelection
-  compute_next_selection(CriticalPath::Objective type) = 0;
+  compute_next_selection(BestSelection &best_selection,
+                         CriticalPath::Objective type) = 0;
 
   bool completed(size_t iteration, Delay objective) {
     return termination_criterion.satisfied(iteration, objective);
@@ -53,7 +54,8 @@ public:
 
   bool completed(size_t iteration, Delay objective) { return true; };
 
-  NextSelection compute_next_selection(CriticalPath::Objective type) {
+  NextSelection compute_next_selection(BestSelection &best_selection,
+                                       CriticalPath::Objective type) {
     return NextSelection();
   };
 };
@@ -71,7 +73,8 @@ public:
 
   void update_history(const NextSelection &next_selection);
 
-  NextSelection compute_next_selection(CriticalPath::Objective type);
+  NextSelection compute_next_selection(BestSelection &best_selection,
+                                       CriticalPath::Objective type);
 
 protected:
   std::map<std::pair<V, V>, size_t> frequency_count;

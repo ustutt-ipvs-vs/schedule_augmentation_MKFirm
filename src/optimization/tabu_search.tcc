@@ -32,7 +32,7 @@ void TabuSearch::run(Config &config) {
                                            best_selection.objective)) {
         std::cout << " Diversify:" << std::endl;
         run_diversification_phase<Intensification, Diversification>(
-            config, int_phase, div_phase);
+            config, int_phase, div_phase, best_selection);
         std::cout << " Transformation:" << std::endl;
         heuristic.transform(config.type);
       }
@@ -100,20 +100,23 @@ void TabuSearch::run_intensification_phase(Config &config,
   std::cout << " -> Result: " << int_phase.best_selection.objective << " after "
             << iteration << " iterations (" << duration << ")" << std::endl;
 
-  if (best_selection.objective <= next_selection.objective)
+  if (best_selection.objective <= next_selection.objective) {
     dgm.restore_commit(best_selection.commit_index, false);
+  }
 }
 
 template <class Intensification, class Diversification>
 void TabuSearch::run_diversification_phase(Config &config,
                                            Intensification &int_phase,
-                                           Diversification &div_phase) {
+                                           Diversification &div_phase,
+                                           BestSelection &best_selection) {
   size_t iteration;
   NextSelection next_selection;
 
   for (iteration = 0; !div_phase.completed(iteration, next_selection.objective);
        iteration++) {
-    next_selection = div_phase.compute_next_selection(config.type);
+    next_selection =
+        div_phase.compute_next_selection(best_selection, config.type);
 
     if (next_selection.operation == flip)
       dgm.complete_flip(next_selection.edges);

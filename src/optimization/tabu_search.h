@@ -41,7 +41,8 @@ private:
 
   template <class Intensification, class Diversification>
   void run_diversification_phase(Config &config, Intensification &int_phase,
-                                 Diversification &div_phase);
+                                 Diversification &div_phase,
+                                 BestSelection &best_selection);
 
   template <class Intensification, class Diversification>
   bool run_exhaustive_search(Config &config, Intensification &int_phase,
