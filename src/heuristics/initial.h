@@ -39,9 +39,9 @@ protected:
 // In the original version, the authors propose using the processing order that
 // minimizes the cost of the longest path from src -> sink that contains the
 // newly inserted operation
-class INSA : public InitialSelectionHeuristic {
+class INSA : public RandomInitial {
 public:
-  INSA(DisjunctiveGraphModel &dgm) : InitialSelectionHeuristic(dgm) {}
+  INSA(DisjunctiveGraphModel &dgm) : RandomInitial(dgm) {}
 
   void generate(CriticalPath::Objective type);
 };

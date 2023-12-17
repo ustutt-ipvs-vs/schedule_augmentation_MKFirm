@@ -71,7 +71,6 @@ void CriticalBlockTransformSelectionHeuristic::transform(
     processing_order.insert(processing_order.begin() + min_d.second, v);
     dgm.restore_flips();
   }
-
   std::cout << " -> Result: "
             << dgm.critical_path(CriticalPath::Objective::makespan).objective
             << std::endl;

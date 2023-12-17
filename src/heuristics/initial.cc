@@ -27,7 +27,7 @@ void INSA::generate(CriticalPath::Objective type) {
 
   // get message stream with largest sum of processing time
   // and get sorted set of operations in order of increasing processing time
-  std::pair<MessageStreamHandle, Delay> max_ms = {0, 0};
+  std::vector<Delay> max_ms(prop.streams.size());
   std::set<std::pair<Delay, Operation>> operation_cost_set;
   for (MessageStreamHandle ms_handle = 0; ms_handle < prop.streams.size();
        ms_handle++) {
@@ -39,20 +39,23 @@ void INSA::generate(CriticalPath::Objective type) {
           proc_path_length[hop.parent] + ms.rti_map[hop.edge].d_max();
       operation_cost_set.insert(
           {ms.rti_map[hop.edge].d_max(), {hop.edge, ms_handle}});
-      if (hop.is_leaf() && max_ms.second < proc_path_length[&hop])
-        max_ms = {ms_handle, proc_path_length[&hop]};
+      if (hop.is_leaf() && max_ms[ms_handle] < proc_path_length[&hop])
+        max_ms[ms_handle] = proc_path_length[&hop];
     }
   }
+
+  std::discrete_distribution<int> d(max_ms.begin(), max_ms.end());
+  MessageStreamHandle fixed_ms = d(gen);
 
   // operation_cost is list of operations with non-increasing processing time
   // processing order maps machines (i.e., edges) to processing order
   std::list<std::pair<Delay, Operation>> operation_cost;
   std::map<Edge, std::vector<MessageStreamHandle>> edge_processing_order;
   for (auto &oc : operation_cost_set) {
-    if (oc.second.second != max_ms.first)
+    if (oc.second.second != fixed_ms)
       operation_cost.push_front(oc);
     else
-      edge_processing_order[oc.second.first] = {max_ms.first};
+      edge_processing_order[oc.second.first] = {fixed_ms};
   }
 
   // initially, set all disjunctive edges to blocked
