@@ -42,53 +42,26 @@ public:
 
   CriticalPath::Result critical_path(CriticalPath::Objective type);
 
-  /** \brief Perform a complete flip operation on the shuffle graph.
-   *
-   * \param edge edge descriptor of edge to be flipped.
-   */
-  inline void complete_flip(E edge) {
-    complete_flip(std::list<E>(std::initializer_list<E>{edge}));
-  };
-
-  /** \brief Perform a complete flip operation on the shuffle graph.
-   *
-   * \param edge_list list of edge descriptors of edges to be flipped.
-   */
-  inline void complete_flip(const std::list<E> &edge_list) {
-    std::set<boost::OrientationState *> flipped_edges;
-    complete_flip(edge_list, flipped_edges);
+  inline void complete_flip(std::list<E> &edges) {
+    for (E e : edges)
+      complete_flip(e);
+  }
+  inline void complete_flip(E e) {
+    assert((shuffle_graph[e].state() == allowed));
+    assert_synchronicity(shuffle_graph);
+    std::set<OrientationState *> flipped_edges;
+    complete_flip(flipped_edges, e);
   }
 
-  /** \brief Perform a complete flip operation on the shuffle graph.
-   *
-   * \param edge_list list of edge descriptors of edges to be flipped.
-   * \param flipped_edges set of pointers to OrientationState objects that
-   * represent equivalence classes of already flipped edges.
-   */
-  void complete_flip(const std::list<E> &edge_list,
-                     std::set<boost::OrientationState *> &flipped_edges);
-
-  /** \brief Perform a lazy shuffle operation on the shuffle graph.
-   *
-   * \param edge edge descriptor of edge whose source and target are to be
-   * shuffled.
-   */
-  void lazy_shuffle(E edge);
-
-  /** \brief Perform a lazy shuffle operation on the shuffle graph.
-   *
-   * \param edge_list list of edge descriptors of edges whose source and target
-   * are to be shuffled.
-   */
-  void lazy_shuffle(std::list<E> edge_list) {
-    throw std::runtime_error("not implemented yet");
+  inline void lazy_shuffle(std::list<E> &edges) {
+    for (E e : edges)
+      lazy_shuffle(e);
   }
-
-  /** \brief Perform a split all operation on the shuffle graph.
-   *
-   * This operation undoes all previous shuffle operations but keeps the
-   * orientation of all edges that were not shuffled.
-   */
+  inline void lazy_shuffle(E e) {
+    std::set<OrientationState *> flipped_edges;
+    lazy_shuffle(e, flipped_edges);
+  }
+  void lazy_shuffle(E e, std::set<OrientationState *> &flipped_edges);
   void split_all();
 
   /** \brief Commit performed flips such that a later call to
@@ -112,13 +85,25 @@ public:
    */
   void commit_all(size_t index = 1);
 
-  void restore_flips();
+  // Restore all flips that are stored in flip_log
+  inline void restore_flips() { restore_flips(flip_log.size()); }
+  // Restore last n flips that are stored in flip_log
+  // Note that flip_log is LIFO
+  void restore_flips(size_t n);
+
   void restore_commit(size_t index = 1, bool swap = false);
   void copy_commit(size_t src_index, size_t dest_index);
   void swap_commit(size_t src_index, size_t dest_index);
 
   void encode(std::vector<unsigned int> &buf);
   void decode(std::vector<unsigned int> &buf, size_t last_commit = 0);
+
+  inline void apply_processing_order(
+      const std::map<Edge, std::vector<V>> &processing_order) {
+    for (auto &[edge, operations] : processing_order)
+      apply_machine_processing_order(operations);
+  };
+  void apply_machine_processing_order(const std::vector<V> &operations);
 
   /** \brief Print the shuffle graph to stdout.
    */
@@ -139,6 +124,26 @@ public:
     return edge(u, v);
   }
 
+  E rev_edge(E uv) {
+    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+    if (shuffle_graph[uv].edge_type == disjunctive) {
+      return edge(v, u);
+    } else if (shuffle_graph[uv].edge_type == fifo) {
+      // for fifo edges, vu does not exist
+      for (NeighborVertex &JS : shuffle_graph[v].JS) {
+        auto e = boost::edge(JS.v, u, shuffle_graph);
+        if (e.second) {
+          return e.first;
+        }
+      }
+      // this should never happen
+      throw std::runtime_error("shuffle graph is invalid");
+    }
+
+    throw std::runtime_error("operation not supported for edges of type: " +
+                             std::to_string(shuffle_graph[uv].edge_type));
+  }
+
 private:
   std::shared_ptr<NetworkTopology> network;
 
@@ -151,7 +156,15 @@ private:
   void build_stream(MessageStreamHandle handle);
   void resize_properties();
 
+  // If !uv.has_value(), complete_flip eliminates cycles with
+  // at least one edge in flipped_edges
+  void complete_flip(std::set<OrientationState *> &flipped_edges,
+                     std::optional<E> uv);
+
   void remove_fifo_edges(V u, V v);
+  void renew_descriptors();
+
+  void update_machine_successors(std::map<V, V> updates);
 };
 
 } // namespace tsndgm

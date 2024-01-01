@@ -127,7 +127,7 @@ void NetworkTopology::print_topology() {
   V t;
   for (auto vd : boost::make_iterator_range(boost::vertices(g))) {
     std::cout << g[vd].id << " --> ";
-    for (boost::tie(out_i, out_end) = out_edges(vd, g); out_i != out_end;
+    for (boost::tie(out_i, out_end) = boost::out_edges(vd, g); out_i != out_end;
          out_i++) {
       t = target(*out_i, g);
       std::cout << g[t].id << " ";

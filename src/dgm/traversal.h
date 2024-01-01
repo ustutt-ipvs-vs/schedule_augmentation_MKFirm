@@ -9,9 +9,9 @@
 #include <utility>
 #include <vector>
 
-namespace boost {
+#include "shuffle_graph.h"
 
-enum OrientationState { allowed, blocked };
+namespace boost {
 
 namespace detail {
 
@@ -33,7 +33,7 @@ void dgm_visit_impl(
       (boost::Convertible<decltype(std::declval<typename edge_bundle_type<
                                        BidirectionalGraph>::type>()
                                        .state()),
-                          const OrientationState &>));
+                          const tsndgm::OrientationState &>));
   // ! END MODIFICATION
   BOOST_CONCEPT_ASSERT((DFSVisitorConcept<DGMVisitor, BidirectionalGraph>));
   typedef typename graph_traits<BidirectionalGraph>::vertex_descriptor Vertex;
@@ -43,11 +43,10 @@ void dgm_visit_impl(
   BOOST_CONCEPT_ASSERT((ColorValueConcept<ColorValue>));
   typedef color_traits<ColorValue> Color;
   // ! BEGIN MODIFICATION
-  // We need to use the correct iterator type depending on the direction of the
-  // depth-first search
-  typedef typename std::conditional<
-      reversed, typename graph_traits<BidirectionalGraph>::in_edge_iterator,
-      typename graph_traits<BidirectionalGraph>::out_edge_iterator>::type Iter;
+  typedef typename tsndgm::NeighborVertexIterator<typename std::conditional<
+      reversed, std::map<Vertex, tsndgm::NeighborVertex>,
+      std::list<tsndgm::NeighborVertex>>::type>
+      Iter;
   // ! END MODIFICATION
   typedef std::pair<Vertex,
                     std::pair<boost::optional<Edge>, std::pair<Iter, Iter>>>
@@ -64,10 +63,17 @@ void dgm_visit_impl(
   // Initialize DFS by pushing every vertex of u's group to the stack
   put(color, u, Color::gray());
   vis.discover_vertex(u, g);
-  if constexpr (reversed)
-    boost::tie(ei, ei_end) = in_edges(u, g);
-  else
-    boost::tie(ei, ei_end) = out_edges(u, g);
+  if constexpr (reversed) {
+    if (g[u].neighbors_are_valid)
+      boost::tie(ei, ei_end) = tsndgm::restricted_in_edges(u, g).pair();
+    else
+      boost::tie(ei, ei_end) = boost::in_edges(u, g);
+  } else {
+    if (g[u].neighbors_are_valid)
+      boost::tie(ei, ei_end) = tsndgm::restricted_out_edges(u, g).pair();
+    else
+      boost::tie(ei, ei_end) = boost::out_edges(u, g);
+  }
   if (func(u, g)) {
     // If this vertex terminates the search, we push empty range
     stack.push_back(
@@ -92,44 +98,47 @@ void dgm_visit_impl(
     }
     while (ei != ei_end) {
       // ! BEGIN MODIFICATION
-      // We have to check if the edge is allowed
-      if (g[*ei].state() != allowed) {
+      if (g[(*ei).e].state() == tsndgm::blocked) {
         ++ei;
         continue;
       }
-      Vertex v;
-      if constexpr (reversed)
-        v = source(*ei, g);
-      else
-        v = target(*ei, g);
+
+      Vertex v = (*ei).v;
       // ! END MODIFICATION
-      vis.examine_edge(*ei, g);
+      vis.examine_edge((*ei).e, g);
       ColorValue v_color = get(color, v);
       if (v_color == Color::white()) {
-        vis.tree_edge(*ei, g);
-        src_e = *ei;
+        vis.tree_edge((*ei).e, g);
+        src_e = (*ei).e;
         stack.push_back(std::make_pair(
             u, std::make_pair(src_e, std::make_pair(++ei, ei_end))));
         u = v;
         put(color, u, Color::gray());
         vis.discover_vertex(u, g);
         // ! BEGIN MODIFICATION
-        if constexpr (reversed)
-          boost::tie(ei, ei_end) = in_edges(u, g);
-        else
-          boost::tie(ei, ei_end) = out_edges(u, g);
+        if constexpr (reversed) {
+          if (g[u].neighbors_are_valid)
+            boost::tie(ei, ei_end) = tsndgm::restricted_in_edges(u, g).pair();
+          else
+            boost::tie(ei, ei_end) = boost::in_edges(u, g);
+        } else {
+          if (g[u].neighbors_are_valid)
+            boost::tie(ei, ei_end) = tsndgm::restricted_out_edges(u, g).pair();
+          else
+            boost::tie(ei, ei_end) = boost::out_edges(u, g);
+        }
         // ! END MODIFICATION
         if (func(u, g)) {
           ei = ei_end;
         }
       } else {
         if (v_color == Color::gray()) {
-          if (vis.back_edge(*ei, g))
+          if (vis.back_edge((*ei).e, g))
             return;
         } else {
-          vis.forward_or_cross_edge(*ei, g);
+          vis.forward_or_cross_edge((*ei).e, g);
         }
-        vis.finish_edge(*ei, g);
+        vis.finish_edge((*ei).e, g);
         ++ei;
       }
     }

@@ -26,7 +26,8 @@ private:
 };
 
 static RTI WIRED_RTI(FrameSize frame_size, DataRate data_rate, Delay prop = 0) {
-  return RTI(frame_size * SECONDS_TO_TICKS(1) / data_rate, 0, prop);
+  return RTI(frame_size * SECONDS_TO_TICKS(1) / data_rate,
+             frame_size * SECONDS_TO_TICKS(1) / data_rate, prop);
 }
 
 typedef std::map<Edge, RTI> RTIMap;

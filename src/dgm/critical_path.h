@@ -19,6 +19,10 @@ public:
         "Selection is not complete; disjunctive graph is acyclic.");
   }
 
+  void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    assert((shuffle_graph[e].state() == allowed));
+  }
+
   void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
     prop.crit_cost[v] = 0;
     if (reversed) {
@@ -45,6 +49,52 @@ public:
 
   ShuffleGraphProperty &prop;
   bool reversed = true;
+};
+
+class update_machine_successors_visitor : public longest_path_visitor {
+public:
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+
+  update_machine_successors_visitor(shuffle_graph_t &shuffle_graph,
+                                    std::map<V, V> &updated_machine_successors)
+      : longest_path_visitor(shuffle_graph),
+        updated_machine_successors(updated_machine_successors) {}
+
+  void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
+    longest_path_visitor::discover_vertex(v, shuffle_graph);
+
+    if (!shuffle_graph[v].neighbors_are_valid) {
+      auto find = updated_machine_successors.find(v);
+      if (find == updated_machine_successors.end() ||
+          ((*find).second != 0 &&
+           shuffle_graph[boost::edge(v, (*find).second, shuffle_graph).first]
+                   .state() == blocked))
+        updated_machine_successors[v] = 0;
+    }
+  }
+
+  void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    assert((shuffle_graph[e].state() == allowed));
+
+    if (shuffle_graph[e].edge_type != disjunctive)
+      return;
+
+    V u = source(e, shuffle_graph), v = target(e, shuffle_graph);
+    if (shuffle_graph[u].neighbors_are_valid)
+      return;
+
+    auto find = updated_machine_successors.find(u);
+    if (find == updated_machine_successors.end() || (*find).second == 0 ||
+        (*find).second == v ||
+        shuffle_graph[boost::edge((*find).second, v, shuffle_graph).first]
+                .state() == blocked ||
+        shuffle_graph[boost::edge(u, (*find).second, shuffle_graph).first]
+                .state() == blocked) {
+      updated_machine_successors[u] = v;
+    }
+  }
+
+  std::map<V, V> &updated_machine_successors;
 };
 
 class feasibility_visitor : public longest_path_visitor {
