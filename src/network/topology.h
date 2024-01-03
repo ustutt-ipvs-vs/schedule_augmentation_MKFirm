@@ -17,14 +17,23 @@ static DeviceId unique_id = 0;
 struct NetworkDeviceProperty {
   DeviceId id;
   Delay processing_delay;
+  std::string name;
 
   NetworkDeviceProperty() {}
 
-  explicit NetworkDeviceProperty(DeviceId id, Delay processing_delay = 0)
-      : id(id), processing_delay(processing_delay) {
+  explicit NetworkDeviceProperty(DeviceId id, Delay processing_delay = 0,
+                                 std::string name = "")
+      : id(id), processing_delay(processing_delay), name(name) {
     unique_id = std::max(id, unique_id) + 1;
   }
 };
+
+static std::ostream &operator<<(std::ostream &out,
+                                const NetworkDeviceProperty &dev) {
+  if (dev.name == "")
+    return out << dev.id;
+  return out << dev.name;
+}
 
 static NetworkDeviceProperty
 UniqueNetworkDeviceProperty(Delay processing_delay = 0) {
@@ -54,6 +63,9 @@ typedef std::pair<Edge, DataLinkProperty> DataLink;
 
 class NetworkTopology {
 public:
+  typedef boost::graph_traits<network_topology_t>::vertex_descriptor V;
+  typedef boost::graph_traits<network_topology_t>::edge_descriptor E;
+
   NetworkTopology() {
     NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
                     std::initializer_list<DataLink>{});
@@ -83,10 +95,11 @@ public:
 
   void print_topology();
 
-private:
-  typedef boost::graph_traits<network_topology_t>::vertex_descriptor V;
-  typedef boost::graph_traits<network_topology_t>::edge_descriptor E;
+  inline const NetworkDeviceProperty &operator[](DeviceId v) const {
+    return g[v];
+  }
 
+private:
   template <bool throw_error> V get_vertex_by_id(DeviceId id) const;
   E get_edge_by_ids(Edge edge) const;
 

@@ -5,6 +5,7 @@
 #include "../network/route.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <format>
+#include <iomanip>
 
 namespace tsndgm {
 
@@ -267,24 +268,6 @@ struct ShuffleGraphEdgeProperty {
   }
 };
 
-static void print(const shuffle_graph_t &shuffle_graph,
-                  const ShuffleGraphProperty &prop,
-                  boost::graph_traits<shuffle_graph_t>::vertex_descriptor v) {
-  if (v == prop.src) {
-    std::cout << "src";
-  } else if (v == prop.sink) {
-    std::cout << "sink";
-  } else {
-    std::cout << " ([" << shuffle_graph[v].edge.first << ", "
-              << shuffle_graph[v].edge.second << "], {";
-    if (shuffle_graph[v].ms_handle.size() == 0)
-      std::cout << "})";
-    for (auto handle : shuffle_graph[v].ms_handle)
-      std::cout << handle
-                << (handle == shuffle_graph[v].ms_handle.back() ? "})" : ", ");
-  }
-}
-
 template <typename T> class NeighborVertexIterator {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
@@ -479,12 +462,35 @@ fifo_in_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
 }
 
 static void print(const shuffle_graph_t &shuffle_graph,
-                  const ShuffleGraphProperty &prop,
+                  const NetworkTopology &network,
+                  boost::graph_traits<shuffle_graph_t>::vertex_descriptor v) {
+  const ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
+  if (v == prop.src) {
+    std::cout << "src";
+  } else if (v == prop.sink) {
+    std::cout << "sink";
+  } else {
+    std::cout << "([" << network[shuffle_graph[v].edge.first] << ", "
+              << network[shuffle_graph[v].edge.second] << "], {";
+    if (shuffle_graph[v].ms_handle.size() == 0)
+      std::cout << "})";
+    for (auto handle : shuffle_graph[v].ms_handle)
+      std::cout << handle
+                << (handle == shuffle_graph[v].ms_handle.back() ? "})" : ", ");
+  }
+}
+
+static void print(const shuffle_graph_t &shuffle_graph,
+                  const NetworkTopology &network,
                   boost::graph_traits<shuffle_graph_t>::edge_descriptor e) {
-  std::cout << e << ": ";
-  print(shuffle_graph, prop, source(e, shuffle_graph));
+  int n = log10(boost::num_vertices(shuffle_graph)) + 1;
+  std::cout << "(" << std::setfill('0') << std::setw(n)
+            << source(e, shuffle_graph) << ", " << std::setfill('0')
+            << std::setw(n) << target(e, shuffle_graph) << "): ";
+  print(shuffle_graph, network, source(e, shuffle_graph));
   std::cout << " -> ";
-  print(shuffle_graph, prop, target(e, shuffle_graph));
+  print(shuffle_graph, network, target(e, shuffle_graph));
   std::cout << ": " << shuffle_graph[e].weight;
 }
 
@@ -501,12 +507,11 @@ static void print_processing_order(
 }
 
 static void print(const shuffle_graph_t &shuffle_graph,
-                  const ShuffleGraphProperty &prop) {
-
+                  const NetworkTopology &network) {
   std::cout << "Operations:" << std::endl;
   for (auto vd : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
     std::cout << vd << ": ";
-    print(shuffle_graph, prop, vd);
+    print(shuffle_graph, network, vd);
     std::cout << ": " << shuffle_graph[boost::graph_bundle].crit_cost[vd]
               << " (" << shuffle_graph[boost::graph_bundle].crit_pred[vd] << ")"
               << std::endl;
@@ -515,7 +520,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
   std::cout << "Conjunctive Edges:" << std::endl;
   for (auto vd : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
     for (auto &nv : conjunctive_out_edges(vd, shuffle_graph)) {
-      print(shuffle_graph, prop, nv.e);
+      print(shuffle_graph, network, nv.e);
       std::cout << std::endl;
     }
   }
@@ -523,7 +528,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
   std::cout << "Disjunctive Edges:" << std::endl;
   for (auto vd : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
     if (shuffle_graph[vd].MS.has_value()) {
-      print(shuffle_graph, prop, shuffle_graph[vd].MS.value().e);
+      print(shuffle_graph, network, shuffle_graph[vd].MS.value().e);
       std::cout << std::endl;
     }
   }
@@ -531,7 +536,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
   std::cout << "FIFO Edges:" << std::endl;
   for (auto vd : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
     for (auto &nv : fifo_out_edges(vd, shuffle_graph)) {
-      print(shuffle_graph, prop, nv.e);
+      print(shuffle_graph, network, nv.e);
       std::cout << std::endl;
     }
   }

@@ -27,6 +27,7 @@ NetworkTopology::NetworkTopology(
   for (auto vd : boost::make_iterator_range(boost::vertices(g))) {
     g[vd].id = device_properties[vd].id;
     g[vd].processing_delay = device_properties[vd].processing_delay;
+    g[vd].name = device_properties[vd].name;
   }
 }
 
@@ -34,6 +35,7 @@ void NetworkTopology::add_device(const NetworkDeviceProperty &device_property) {
   V device = boost::add_vertex(g);
   g[device].id = device_property.id;
   g[device].processing_delay = device_property.processing_delay;
+  g[device].name = device_property.name;
 }
 
 void NetworkTopology::add_device(const NetworkDeviceProperty &device_property,
@@ -137,7 +139,8 @@ void NetworkTopology::print_topology() {
 
   std::cout << "ID\tProcessing Delay" << std::endl;
   for (auto vd : boost::make_iterator_range(boost::vertices(g))) {
-    std::cout << g[vd].id << "\t" << g[vd].processing_delay << std::endl;
+    std::cout << g[vd].id << "\t" << g[vd].name << "\t"
+              << g[vd].processing_delay << std::endl;
   }
   std::cout << "Edge\tType\tData Rate\tPropagation Delay" << std::endl;
   for (auto ed : boost::make_iterator_range(boost::edges(g))) {

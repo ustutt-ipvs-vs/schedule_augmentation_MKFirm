@@ -19,12 +19,6 @@ public:
   shuffle_graph_t shuffle_graph;
   std::list<E> flip_log;
 
-  /** \brief Construct a disjunctive graph from a network topology and a set of
-   * message streams.
-   *
-   * \param network shared pointer to network topology.
-   * \param streams vector of message streams.
-   */
   DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
                         const std::vector<MessageStream> &streams)
       : network(network), crit_path(shuffle_graph) {
@@ -96,13 +90,14 @@ public:
   };
   void apply_machine_processing_order(const std::vector<V> &operations);
 
-  /** \brief Print the shuffle graph to stdout.
-   */
-  void print();
+  inline void print() { tsndgm::print(shuffle_graph, *network); }
+  inline void print(V v) { tsndgm::print(shuffle_graph, *network, v); }
+  inline void print(E e) { tsndgm::print(shuffle_graph, *network, e); }
+  inline void print_critical_path(CriticalPath::Objective type) {
+    crit_path.print(critical_path(type), *network);
+  }
 
-  void print_critical_path(CriticalPath::Objective type);
-
-  E edge(V u, V v) {
+  inline E edge(V u, V v) {
     auto e = boost::edge(u, v, shuffle_graph);
     if (!e.second)
       throw std::runtime_error("edge (" + std::to_string(u) + ", " +
@@ -110,12 +105,12 @@ public:
     return e.first;
   }
 
-  E edge(E uv) {
+  inline E edge(E uv) {
     V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
     return edge(u, v);
   }
 
-  E rev_edge(E uv) {
+  inline E rev_edge(E uv) {
     V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
     if (shuffle_graph[uv].edge_type == disjunctive) {
       return edge(v, u);

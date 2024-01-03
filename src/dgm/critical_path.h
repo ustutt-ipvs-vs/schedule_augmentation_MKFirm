@@ -138,7 +138,7 @@ public:
   Result makespan_path();
   Result tardiness_path();
 
-  void print(Result res);
+  void print(Result res, const NetworkTopology &network);
 
 private:
   shuffle_graph_t &shuffle_graph;

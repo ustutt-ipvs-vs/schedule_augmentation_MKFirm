@@ -13,9 +13,6 @@ DisjunctiveGraphModel::critical_path(CriticalPath::Objective type) {
   return crit_path.path(type);
 }
 
-void DisjunctiveGraphModel::print_critical_path(CriticalPath::Objective type) {
-  crit_path.print(critical_path(type));
-}
 void DisjunctiveGraphModel::internal_commit_all(size_t index) {
   commit_flips();
 
@@ -508,11 +505,6 @@ void DisjunctiveGraphModel::remove_fifo_edges(V u, V v) {
       }
     }
   }
-}
-
-void DisjunctiveGraphModel::print() {
-  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  tsndgm::print(shuffle_graph, prop);
 }
 
 void DisjunctiveGraphModel::build() {

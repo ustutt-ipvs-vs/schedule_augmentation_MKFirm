@@ -61,14 +61,14 @@ CriticalPath::Result CriticalPath::tardiness_path() {
   return {max_tardiness.second, max_tardiness.first};
 }
 
-void CriticalPath::print(Result res) {
+void CriticalPath::print(Result res, const NetworkTopology &network) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::cout << "Critical Path: Objective = " << res.objective << std::endl
             << "[hop : weight (cost)]" << std::endl;
 
   V v = res.critical_vertex;
   while (v != prop.src) {
-    tsndgm::print(shuffle_graph, prop,
+    tsndgm::print(shuffle_graph, network,
                   boost::edge(prop.crit_pred[v], v, shuffle_graph).first);
     std::cout << " (" << prop.crit_cost[v] << ")" << std::endl;
     v = prop.crit_pred[v];
