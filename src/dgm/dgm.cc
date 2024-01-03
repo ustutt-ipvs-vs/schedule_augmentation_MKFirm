@@ -1,5 +1,4 @@
 #include "dgm.h"
-#include "complete_flip.h"
 #include <algorithm>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
@@ -17,12 +16,8 @@ DisjunctiveGraphModel::critical_path(CriticalPath::Objective type) {
 void DisjunctiveGraphModel::print_critical_path(CriticalPath::Objective type) {
   crit_path.print(critical_path(type));
 }
-
-void DisjunctiveGraphModel::commit_flips() { flip_log.clear(); }
-
-void DisjunctiveGraphModel::commit_all(size_t index) {
-  if (index == 0)
-    flip_log.clear();
+void DisjunctiveGraphModel::internal_commit_all(size_t index) {
+  commit_flips();
 
   for (size_t i = committed_shuffle_graphs.size(); i <= index; i++)
     committed_shuffle_graphs.push_back(shuffle_graph_t());
@@ -48,8 +43,9 @@ void DisjunctiveGraphModel::restore_flips(size_t n) {
   valid_crit_path = false;
 }
 
-void DisjunctiveGraphModel::restore_commit(size_t index, bool swap) {
+void DisjunctiveGraphModel::internal_restore_commit(size_t index, bool swap) {
   flip_log.clear();
+
   if (boost::num_vertices(committed_shuffle_graphs[index]) > 0) {
     shuffle_graph.clear();
     if (swap) {
@@ -68,34 +64,6 @@ void DisjunctiveGraphModel::restore_commit(size_t index, bool swap) {
   }
   valid_crit_path = false;
   renew_descriptors();
-}
-
-void DisjunctiveGraphModel::copy_commit(size_t src_index, size_t dest_index) {
-  boost::copy_graph(committed_shuffle_graphs[src_index],
-                    committed_shuffle_graphs[dest_index]);
-  boost::set_property(committed_shuffle_graphs[dest_index], boost::graph_bundle,
-                      boost::get_property(committed_shuffle_graphs[src_index],
-                                          boost::graph_bundle));
-
-  for (E e : boost::make_iterator_range(
-           boost::edges(committed_shuffle_graphs[dest_index]))) {
-    if (committed_shuffle_graphs[dest_index][e].edge_type == disjunctive) {
-      committed_shuffle_graphs[dest_index][e].state_pair->copy_commit(
-          src_index, dest_index);
-    }
-  }
-}
-
-void DisjunctiveGraphModel::swap_commit(size_t src_index, size_t dest_index) {
-  std::swap(committed_shuffle_graphs[src_index],
-            committed_shuffle_graphs[dest_index]);
-  for (E e : boost::make_iterator_range(
-           boost::edges(committed_shuffle_graphs[dest_index]))) {
-    if (committed_shuffle_graphs[dest_index][e].edge_type == disjunctive) {
-      committed_shuffle_graphs[dest_index][e].state_pair->swap_commit(
-          src_index, dest_index);
-    }
-  }
 }
 
 void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
@@ -121,7 +89,8 @@ void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
 }
 
 void DisjunctiveGraphModel::complete_flip(
-    std::set<OrientationState *> &flipped_edges, std::optional<E> uv) {
+    std::set<OrientationState *> &flipped_edges,
+    const std::set<V> &shuffled_operations, std::optional<E> uv) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
   auto find = std::find_if(flipped_edges.begin(), flipped_edges.end(),
@@ -163,7 +132,7 @@ void DisjunctiveGraphModel::complete_flip(
       reversed_dgm_traversal(
           shuffle_graph,
           visitor(complete_flip_visitor(shuffle_graph, flipped_edges,
-                                        required_flips,
+                                        shuffled_operations, required_flips,
                                         updated_machine_successors))
               .root_vertex(prop.sink));
     } while (!required_flips.empty());
@@ -186,8 +155,9 @@ void DisjunctiveGraphModel::complete_flip(
   assert_synchronicity(shuffle_graph);
 }
 
-void DisjunctiveGraphModel::lazy_shuffle(
-    E uv, std::set<OrientationState *> &flipped_edges) {
+void DisjunctiveGraphModel::complete_shuffle(
+    E uv, std::set<OrientationState *> &flipped_edges,
+    std::set<V> &shuffled_operations) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   if (shuffle_graph[uv].state() == blocked)
     uv = rev_edge(uv);
@@ -250,6 +220,7 @@ void DisjunctiveGraphModel::lazy_shuffle(
       prop.operation_to_vertex[Operation(shuffle_graph[v].edge, ms_handle)] = u;
     }
     shuffle_graph[u].shuffle(shuffle_graph, shuffle_graph[v]);
+    shuffled_operations.insert(u);
   }
 
   for (auto &[u, v] : shuffle_graph[uv].state_pair->equivalence_class) {
@@ -476,10 +447,11 @@ void DisjunctiveGraphModel::lazy_shuffle(
     try {
       // complete_flip should not modify flipped_edges here
       auto flipped_edges_copy = flipped_edges;
-      complete_flip(flipped_edges_copy, {});
+      complete_flip(flipped_edges_copy, shuffled_operations, {});
       complete = true;
     } catch (FlipGraphException &e) {
-      lazy_shuffle(edge(e.required_shuffle), flipped_edges);
+      complete_shuffle(edge(e.required_shuffle), flipped_edges,
+                       shuffled_operations);
     }
   }
   flip_log.clear();
@@ -517,7 +489,7 @@ void DisjunctiveGraphModel::split_all() {
 
   // Copy initial_shuffle_graph to shuffle_graph and reset equivalence
   // classes.
-  restore_commit(0, false);
+  internal_restore_commit(initial, false);
   apply_processing_order(processing_order);
 
   assert_synchronicity(shuffle_graph);
@@ -549,7 +521,7 @@ void DisjunctiveGraphModel::build() {
     build_stream(i);
   resize_properties();
 
-  commit_all(0);
+  internal_commit_all(initial);
 }
 
 void DisjunctiveGraphModel::resize_properties() {
@@ -771,7 +743,7 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf,
           MessageStreamHandle u_ms = buf[offset + len];
           V u = prop.operation_to_vertex[{edge, u_ms}];
           if (u != v)
-            lazy_shuffle(this->edge(u, v));
+            complete_shuffle(this->edge(u, v));
           len++;
         }
       } else {

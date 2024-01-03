@@ -3,6 +3,7 @@
 
 #include "../network/message_stream.h"
 #include "../network/topology.h"
+#include "complete_flip.h"
 #include "critical_path.h"
 #include "shuffle_graph.h"
 #include "traversal.h"
@@ -50,50 +51,40 @@ public:
     assert((shuffle_graph[e].state() == allowed));
     assert_synchronicity(shuffle_graph);
     std::set<OrientationState *> flipped_edges;
-    complete_flip(flipped_edges, e);
+    std::set<V> shuffled_operations = {};
+    complete_flip(flipped_edges, shuffled_operations, e);
   }
 
-  inline void lazy_shuffle(std::list<E> &edges) {
+  inline void complete_shuffle(std::list<E> &edges) {
     for (E e : edges)
-      lazy_shuffle(e);
+      complete_shuffle(e);
   }
-  inline void lazy_shuffle(E e) {
+  /** Notes:
+   *  - recursively shuffles until no more FlipGraphException occurs
+   *  - invalidates flip_log
+   */
+  inline void complete_shuffle(E e) {
+    internal_commit_all(shuffle_fallback);
     std::set<OrientationState *> flipped_edges;
-    lazy_shuffle(e, flipped_edges);
+    std::set<V> shuffled_operations;
+    try {
+      complete_shuffle(e, flipped_edges, shuffled_operations);
+    } catch (UnfixableCycleException &e) {
+      internal_restore_commit(shuffle_fallback, true);
+      throw;
+    }
   }
-  void lazy_shuffle(E e, std::set<OrientationState *> &flipped_edges);
   void split_all();
 
-  /** \brief Commit performed flips such that a later call to
-   * restore_last_commit does not undo previous changes.
-   *
-   * Every CompleteFlip operation logs the flipped edges, enabling an efficient
-   * rollback (which is mostly useful for enumerating a selection's
-   * neighborhood). Importantly, however, a LazyShuffle operation invalidates
-   * this log. To rollback an LazyShuffle, use commit_all().
-   */
-  void commit_flips();
-
-  /** \brief Commits the shuffle graph by copying it completely.
-   *
-   * This is required if rollbacks of LazyShuffle operations are desired.
-   * In particular, LazyShuffle operations modify the shuffle graph extensively
-   * (by merging edge equivalence classes, updating weights, and edge
-   * contraction of shuffled operations). As a result, manual logging every
-   * change is rather complex but likely does not increase performance
-   * drastically.
-   */
-  void commit_all(size_t index = 1);
-
-  // Restore all flips that are stored in flip_log
+  inline void commit_flips() { flip_log.clear(); }
   inline void restore_flips() { restore_flips(flip_log.size()); }
-  // Restore last n flips that are stored in flip_log
-  // Note that flip_log is LIFO
   void restore_flips(size_t n);
-
-  void restore_commit(size_t index = 1, bool swap = false);
-  void copy_commit(size_t src_index, size_t dest_index);
-  void swap_commit(size_t src_index, size_t dest_index);
+  inline void commit_all(size_t index = 0) {
+    internal_commit_all(index + EXTERNAL_COMMIT_OFFSET);
+  }
+  void restore_commit(size_t index = 0, bool swap = false) {
+    internal_restore_commit(index + EXTERNAL_COMMIT_OFFSET, swap);
+  }
 
   void encode(std::vector<unsigned int> &buf);
   void decode(std::vector<unsigned int> &buf, size_t last_commit = 0);
@@ -150,16 +141,28 @@ private:
   CriticalPath crit_path;
   bool valid_crit_path = false;
 
+  /** CommitIndices is used to name the internal usage of commit indices.
+   * initial: fallback: used in the split_all operation to undo all shuffles
+   * shuffle_fallback: used if shuffling results in an UnfixableCycleExcpetion
+   * EXTERNAL_OFFSET: so that external commits do not interfere
+   */
+  enum CommitIndices { initial, shuffle_fallback, EXTERNAL_COMMIT_OFFSET };
   std::vector<shuffle_graph_t> committed_shuffle_graphs;
 
   void build();
   void build_stream(MessageStreamHandle handle);
   void resize_properties();
 
+  void internal_commit_all(size_t index);
+  void internal_restore_commit(size_t index, bool swap);
+
   // If !uv.has_value(), complete_flip eliminates cycles with
   // at least one edge in flipped_edges
   void complete_flip(std::set<OrientationState *> &flipped_edges,
+                     const std::set<V> &shuffled_operations,
                      std::optional<E> uv);
+  void complete_shuffle(E e, std::set<OrientationState *> &flipped_edges,
+                        std::set<V> &shuffled_operations);
 
   void remove_fifo_edges(V u, V v);
   void renew_descriptors();

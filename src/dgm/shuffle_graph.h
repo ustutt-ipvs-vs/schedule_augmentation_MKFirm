@@ -227,9 +227,9 @@ struct ShuffleGraphEdgeProperty {
     for (auto &[u, v] : state_pair->equivalence_class) {
       auto [uv, exists] = boost::edge(u, v, shuffle_graph);
 
-      // When lazy shuffle calls consistent_flip, some edges in the equivalence
-      // class can be stale (FIFO edges). We ignore those here, before deleting
-      // the edges in merge_equivalence_classes
+      // When complete_shuffle calls consistent_flip, some edges in the
+      // equivalence class can be stale (FIFO edges). We ignore those here,
+      // before deleting the edges in merge_equivalence_classes
       if (!exists || shuffle_graph[uv].edge_type != disjunctive)
         continue;
 
