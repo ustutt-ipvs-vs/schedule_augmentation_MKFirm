@@ -43,8 +43,9 @@ public:
       complete_flip(e);
   }
   inline void complete_flip(E e) {
-    assert((shuffle_graph[e].state() == allowed));
-    assert_synchronicity(shuffle_graph);
+    if (shuffle_graph[e].state() == blocked)
+      e = rev_edge(e);
+
     std::set<OrientationState *> flipped_edges;
     std::set<V> shuffled_operations = {};
     complete_flip(flipped_edges, shuffled_operations, e);

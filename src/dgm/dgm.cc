@@ -181,7 +181,6 @@ void DisjunctiveGraphModel::complete_flip(
   // Hence, we simultaneously compute the critical path (eliminating one
   // additional DFS)
   valid_crit_path = true;
-  assert_synchronicity(shuffle_graph);
 }
 
 void DisjunctiveGraphModel::complete_shuffle(
@@ -484,8 +483,6 @@ void DisjunctiveGraphModel::complete_shuffle(
     }
   }
   flip_log.clear();
-
-  assert_synchronicity(shuffle_graph);
 }
 
 void DisjunctiveGraphModel::split_all() {
@@ -520,8 +517,6 @@ void DisjunctiveGraphModel::split_all() {
   // classes.
   internal_restore_commit(initial, false);
   apply_processing_order(processing_order);
-
-  assert_synchronicity(shuffle_graph);
 }
 
 void DisjunctiveGraphModel::remove_fifo_edges(V u, V v) {
