@@ -40,16 +40,12 @@ void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
   // note that critical_block[0] contains last operation of critical block
   if (critical_block.size() > 0) {
     for (int i = 1; i < critical_block.size(); i++) {
-      neighborhood.flip_candidates.push_back({});
-      for (int j = 0; j < i; j++)
-        neighborhood.flip_candidates.back().push_back(
-            dgm.edge(critical_block[i], critical_block[j]));
+      neighborhood.flip_candidates.push_back(
+          {dgm.edge(critical_block[i], critical_block[0])});
     }
     for (int i = 1; i < critical_block.size() - 1; i++) {
-      neighborhood.flip_candidates.push_back({});
-      for (int j = i + 1; j < critical_block.size(); j++)
-        neighborhood.flip_candidates.back().push_back(
-            dgm.edge(critical_block[j], critical_block[i]));
+      neighborhood.flip_candidates.push_back(
+          {dgm.edge(critical_block.back(), critical_block[i])});
     }
   }
 }

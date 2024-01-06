@@ -2,9 +2,8 @@
 #define TSN_DGM_TABUSEARCH_H
 
 #include "../dgm/dgm.h"
-#include "../heuristics/transform.h"
+#include "../heuristics/transformation.h"
 #include "communicator.h"
-#include "diversification.h"
 #include "intensification.h"
 #include "selection.h"
 #include <chrono>
@@ -17,8 +16,9 @@ public:
     size_t maxit;
     CriticalPath::Objective type;
     IntensificationConfig int_config;
-    DiversificationConfig div_config;
-    size_t commit_index;
+    ExhaustiveSearchConfig exhaustive_search_config;
+    size_t diversification_rounds;
+    size_t commit_index = 2;
   };
 
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
@@ -27,8 +27,9 @@ public:
 
   TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
 
-  template <class TerminationCriterion, class Intensification,
-            class Diversification, class TransformationHeuristic>
+  template <class InitialHeuristic, class TerminationCriterion,
+            class Intensification, class ExhaustiveSearch,
+            class TransformationHeuristic>
   void run(Config &config);
 
   DisjunctiveGraphModel dgm;
@@ -36,20 +37,23 @@ public:
   Communicator com;
 
 private:
-  template <class Intensification, class Diversification>
-  void run_intensification_phase(Config &config, Intensification &int_phase,
-                                 Diversification &div_phase,
-                                 BestSelection &best_selection);
+  template <class Intensification>
+  BestSelection run_intensification_phase(IntensificationConfig &config,
+                                          CriticalPath::Objective type,
+                                          bool restore_local_minimum = true);
 
-  template <class Intensification, class Diversification>
-  void run_diversification_phase(Config &config, Intensification &int_phase,
-                                 Diversification &div_phase,
-                                 BestSelection &best_selection);
+  template <class Intensification>
+  std::pair<BestSelection, bool>
+  run_exhaustive_search(BestSelection &best_selection, BestSelection &int_phase,
+                        ExhaustiveSearchConfig &config,
+                        CriticalPath::Objective type);
 
-  template <class Intensification, class Diversification>
-  bool run_exhaustive_search(Config &config, Intensification &int_phase,
-                             Diversification &div_phase,
-                             BestSelection &best_selection);
+  template <class S>
+  auto update_best_selection(BestSelection &best_selection, S &res) {
+    best_selection.objective = res.objective;
+    best_selection.secondary_objective = res.secondary_objective;
+    best_selection.committed = false;
+  }
 
   std::chrono::high_resolution_clock::time_point start;
 };

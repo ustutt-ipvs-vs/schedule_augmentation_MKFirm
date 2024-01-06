@@ -8,6 +8,15 @@ namespace tsndgm {
 struct IntensificationConfig {
   size_t maxt;  //!< max size of tabu list
   size_t maxit; //!< max iterations
+  size_t commit_index = 1;
+
+  IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index = 0)
+      : maxt(maxt), maxit(maxit), commit_index(commit_index) {}
+};
+
+struct ExhaustiveSearchConfig : public IntensificationConfig {
+  ExhaustiveSearchConfig(size_t maxt, size_t maxit, size_t commit_index = 1)
+      : IntensificationConfig(maxt, maxit, commit_index) {}
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>
@@ -92,8 +101,7 @@ protected:
         tabu_list.cbegin(),
         std::find_if(tabu_list.cbegin(), tabu_list.cend(), [&](auto &entry) {
           return std::all_of(entry.edges.begin(), entry.edges.end(), [&](E e) {
-            return this->dgm.shuffle_graph[e].state() !=
-                   boost::OrientationState::blocked;
+            return this->dgm.shuffle_graph[e].state() != blocked;
           });
         }));
   }
@@ -115,15 +123,14 @@ protected:
   inline size_t compute_first_violation(NextSelection n) {
     return std::distance(
         this->tabu_list.cbegin(),
-        std::find_if(this->tabu_list.cbegin(), this->tabu_list.cend(),
-                     [&](auto &entry) {
-                       return std::all_of(
-                           entry.edges.begin(), entry.edges.end(), [&](E e) {
-                             return this->dgm.shuffle_graph[e].state() !=
-                                        boost::OrientationState::blocked &&
-                                    entry.objective <= n.objective;
-                           });
-                     }));
+        std::find_if(
+            this->tabu_list.cbegin(), this->tabu_list.cend(), [&](auto &entry) {
+              return std::all_of(
+                  entry.edges.begin(), entry.edges.end(), [&](E e) {
+                    return this->dgm.shuffle_graph[e].state() != blocked &&
+                           entry.objective <= n.objective;
+                  });
+            }));
   }
 };
 

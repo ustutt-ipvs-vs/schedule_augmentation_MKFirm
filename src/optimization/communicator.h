@@ -21,8 +21,9 @@ public:
     std::freopen(filename.c_str(), "w", stdout);
   }
 
-  void exchange_best_selection(DisjunctiveGraphModel &dgm,
-                               BestSelection &best_selection);
+  int exchange_state(int state);
+  BestSelection exchange_best_selection(DisjunctiveGraphModel &dgm,
+                                        BestSelection &best_selection);
 
   void barrier() { MPI_Barrier(MPI_COMM_WORLD); };
 
@@ -49,7 +50,7 @@ public:
 
 private:
   MPI_Op op;
-  std::array<Delay, 3> local, global, old_global;
+  std::array<Delay, 3> local, global;
 
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);

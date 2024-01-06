@@ -20,6 +20,12 @@ struct BestSelection {
                 Delay secondary_objective = std::numeric_limits<Delay>::max())
       : commit_index(commit_index), objective(objective),
         secondary_objective(secondary_objective), committed(false) {}
+
+  bool operator<(const BestSelection &best_selection) {
+    return objective < best_selection.objective ||
+           (objective == best_selection.objective &&
+            secondary_objective < best_selection.secondary_objective);
+  }
 };
 
 struct NextSelection {
@@ -37,6 +43,12 @@ struct NextSelection {
                 Delay secondary_objective = std::numeric_limits<Delay>::max())
       : edges(edges), operation(operation), objective(objective),
         secondary_objective(secondary_objective) {}
+
+  bool operator<(const BestSelection &best_selection) {
+    return objective < best_selection.objective ||
+           (objective == best_selection.objective &&
+            secondary_objective < best_selection.secondary_objective);
+  }
 };
 
 } // namespace tsndgm
