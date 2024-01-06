@@ -38,6 +38,8 @@ struct ShuffleGraphProperty {
   std::vector<Delay> crit_cost;
   std::vector<V> crit_pred;
   std::vector<V> cycle_pred;
+
+  bool is_zips_selection;
 };
 
 struct NeighborVertex {

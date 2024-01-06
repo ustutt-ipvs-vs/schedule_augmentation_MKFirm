@@ -27,6 +27,8 @@ public:
     shuffle_graph[boost::graph_bundle].streams = streams;
 
     build();
+
+    shuffle_graph[boost::graph_bundle].is_zips_selection = true;
   }
 
   DisjunctiveGraphModel(const DisjunctiveGraphModel &other)
@@ -69,6 +71,7 @@ public:
       internal_restore_commit(shuffle_fallback, true);
       throw;
     }
+    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
   }
   void split_all();
 
