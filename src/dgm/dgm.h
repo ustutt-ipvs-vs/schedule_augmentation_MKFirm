@@ -35,7 +35,8 @@ public:
         committed_shuffle_graphs(other.committed_shuffle_graphs),
         crit_path(shuffle_graph) {}
 
-  CriticalPath::Result critical_path(CriticalPath::Objective type);
+  CriticalPath::Result critical_path(CriticalPath::Objective type,
+                                     bool reverse = true);
 
   inline void complete_flip(std::list<E> &edges) {
     for (E e : edges)

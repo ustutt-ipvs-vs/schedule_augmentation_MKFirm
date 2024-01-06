@@ -132,7 +132,7 @@ public:
     return *this;
   }
 
-  void compute_longest_paths();
+  void compute_longest_paths(bool reverse = true);
 
   Result path(Objective type);
   Result makespan_path();

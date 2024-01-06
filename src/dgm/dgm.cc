@@ -7,9 +7,10 @@
 namespace tsndgm {
 
 CriticalPath::Result
-DisjunctiveGraphModel::critical_path(CriticalPath::Objective type) {
-  if (!valid_crit_path)
-    crit_path.compute_longest_paths();
+DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
+                                     bool reverse) {
+  if (!valid_crit_path || !reverse)
+    crit_path.compute_longest_paths(reverse);
   return crit_path.path(type);
 }
 

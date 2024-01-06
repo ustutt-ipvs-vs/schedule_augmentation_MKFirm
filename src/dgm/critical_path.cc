@@ -3,11 +3,17 @@
 
 namespace tsndgm {
 
-void CriticalPath::compute_longest_paths() {
+void CriticalPath::compute_longest_paths(bool reverse) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  reversed_dgm_traversal(
-      shuffle_graph,
-      visitor(longest_path_visitor(shuffle_graph)).root_vertex(prop.sink));
+  if (reverse) {
+    reversed_dgm_traversal(
+        shuffle_graph,
+        visitor(longest_path_visitor(shuffle_graph)).root_vertex(prop.sink));
+  } else {
+    dgm_traversal(
+        shuffle_graph,
+        visitor(longest_path_visitor(shuffle_graph)).root_vertex(prop.src));
+  }
 }
 
 CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
