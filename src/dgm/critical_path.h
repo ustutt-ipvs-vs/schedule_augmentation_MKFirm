@@ -97,10 +97,14 @@ public:
   std::map<V, V> &updated_machine_successors;
 };
 
-class feasibility_visitor : public longest_path_visitor {
+class feasibility_visitor : public update_machine_successors_visitor {
 public:
-  feasibility_visitor(shuffle_graph_t &shuffle_graph, bool &feasible)
-      : longest_path_visitor(shuffle_graph), feasible(feasible) {}
+  feasibility_visitor(shuffle_graph_t &shuffle_graph,
+                      std::map<V, V> &updated_machine_successors,
+                      bool &feasible)
+      : update_machine_successors_visitor(shuffle_graph,
+                                          updated_machine_successors),
+        feasible(feasible) {}
 
   bool back_edge(E e, const shuffle_graph_t &shuffle_graph) {
     feasible = false;
