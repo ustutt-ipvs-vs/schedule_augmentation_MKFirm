@@ -90,6 +90,10 @@ public:
       apply_machine_processing_order(operations);
   };
   void apply_machine_processing_order(const std::vector<V> &operations);
+  void update_machine_successors(std::map<V, V> updates);
+
+  std::vector<V> get_processing_order(Edge edge);
+  std::vector<V> get_processing_order(V v);
 
   inline void print() { tsndgm::print(shuffle_graph, *network); }
   inline void print(V v) { tsndgm::print(shuffle_graph, *network, v); }
@@ -162,8 +166,6 @@ private:
 
   void remove_fifo_edges(V u, V v);
   void renew_descriptors();
-
-  void update_machine_successors(std::map<V, V> updates);
 };
 
 } // namespace tsndgm

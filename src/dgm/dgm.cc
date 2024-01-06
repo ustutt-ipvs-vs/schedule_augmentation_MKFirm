@@ -86,6 +86,34 @@ void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
   }
 }
 
+std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
+DisjunctiveGraphModel::get_processing_order(Edge edge) {
+  auto &prop = shuffle_graph[boost::graph_bundle];
+  MessageStreamHandle ms = *prop.edge_to_streams[edge].begin();
+  return get_processing_order(prop.operation_to_vertex[{edge, ms}]);
+}
+
+std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
+DisjunctiveGraphModel::get_processing_order(V v) {
+  assert((shuffle_graph[v].neighbors_are_valid));
+
+  std::vector<V> processing_order;
+
+  for (auto u = shuffle_graph[v].MP.transform([&](auto &nv) { return nv.v; });
+       u.has_value();
+       u = shuffle_graph[*u].MP.transform([&](auto &nv) { return nv.v; })) {
+    assert((shuffle_graph[*u].neighbors_are_valid));
+    processing_order.insert(processing_order.begin(), *u);
+  }
+  for (std::optional<V> u = v; u.has_value();
+       u = shuffle_graph[*u].MS.transform([&](auto &nv) { return nv.v; })) {
+    assert((shuffle_graph[*u].neighbors_are_valid));
+    processing_order.push_back(*u);
+  }
+
+  return processing_order;
+}
+
 void DisjunctiveGraphModel::complete_flip(
     std::set<OrientationState *> &flipped_edges,
     const std::set<V> &shuffled_operations, std::optional<E> uv) {
