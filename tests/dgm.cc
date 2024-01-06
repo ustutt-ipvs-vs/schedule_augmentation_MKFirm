@@ -3,6 +3,7 @@
 #include <random>
 #include <vector>
 
+#include "../src/dgm/complete_flip.h"
 #include "../src/dgm/critical_path.h"
 #include "../src/dgm/dgm.h"
 
@@ -12,10 +13,11 @@ using namespace tsndgm;
 class DGMTest : public testing::Test {
 protected:
   void SetUp() override {
+    unique_id = 0;
     string devices[] = {"T_1", "T_2", "B_1", "B_2", "B_3", "B_4", "L_1"};
     vector<NetworkDeviceProperty> device_properties;
     for (int i = 0; i < 7; i++)
-      device_properties.push_back(UniqueNetworkDeviceProperty(0));
+      device_properties.push_back(NetworkDeviceProperty(i, 0, devices[i]));
     vector<DataLink> data_links;
     data_links.push_back(
         make_pair(Edge(0, 2), DataLinkProperty(DataLinkType(wired))));
@@ -61,58 +63,173 @@ protected:
   std::vector<MessageStream> streams;
 };
 
-/* Perform SplitAll / LazyShuffle / CompleteFlip operations on the shuffle
- * graph and verify the following postconditions:
- *
- * SplitAll:
- *  - no message streams are shuffled
- *  - operation_to_vertex mapping is correctly reset
- *
- * LazyShuffle:
- *  - edge equivalence classes are correctly updated
- *  - operation_to_vertex mapping is correctly updated
- *  - shuffle graph is correctly updated, i.e.,
- *    - target(e) and source(e) are shuffled now
- *    - fifo edges are correctly remapped / removed
- *
- * CompleteFlip:
- *  - e is blocked now
- *  - rev_e is allowed now
- */
-TEST_F(DGMTest, CompleteFlip) {
-  DisjunctiveGraphModel dgm(network, streams);
+class DGMTest1 : public testing::Test {
+protected:
+  void SetUp() override {
+    string devices[] = {"T_1", "T_2", "T_3", "T_4", "B_1", "B_2", "B_3",
+                        "B_4", "B_5", "B_6", "L_1", "L_2", "L_3", "L_4"};
+    vector<NetworkDeviceProperty> device_properties;
+    for (int i = 0; i < 14; i++)
+      device_properties.push_back(NetworkDeviceProperty(i, 0, devices[i]));
+    vector<DataLink> data_links;
+    // T_1 -> B_1 -> B_2 -> B_3 -> L_1
+    data_links.push_back(
+        make_pair(Edge(0, 4), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(4, 5), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(5, 6), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(6, 10), DataLinkProperty(DataLinkType(wired))));
+    // T_2 -> B_4 -> B_5 -> B_1 -> B_2 -> L_2
+    data_links.push_back(
+        make_pair(Edge(1, 7), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(7, 8), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(8, 4), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(5, 11), DataLinkProperty(DataLinkType(wired))));
+    // T_3 -> B_4 -> B_5 -> B_6 -> L_3
+    data_links.push_back(
+        make_pair(Edge(2, 7), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(8, 9), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(9, 12), DataLinkProperty(DataLinkType(wired))));
+    // T_4 -> B_2 -> B_3 -> B_5 -> B_6 -> L_4
+    data_links.push_back(
+        make_pair(Edge(3, 5), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(6, 8), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(9, 13), DataLinkProperty(DataLinkType(wired))));
+
+    network = make_shared<NetworkTopology>(device_properties, data_links);
+
+    PathRoute path1 = {Edge(0, 4), Edge(4, 5), Edge(5, 6), Edge(6, 10)};
+    shared_ptr<Route> route1 = make_shared<Route>(network, std::move(path1));
+    route1->check();
+    MessageStream s1(network, route1, 1000, 20, 100);
+
+    PathRoute path2 = {Edge(1, 7), Edge(7, 8), Edge(8, 4), Edge(4, 5),
+                       Edge(5, 11)};
+    shared_ptr<Route> route2 = make_shared<Route>(network, std::move(path2));
+    route2->check();
+    MessageStream s2(network, route2, 1000, 20, 100);
+
+    PathRoute path3 = {Edge(2, 7), Edge(7, 8), Edge(8, 9), Edge(9, 12)};
+    shared_ptr<Route> route3 = make_shared<Route>(network, std::move(path3));
+    route3->check();
+    MessageStream s3(network, route3, 1000, 20, 100);
+
+    PathRoute path4 = {Edge(3, 5), Edge(5, 6), Edge(6, 8), Edge(8, 9),
+                       Edge(9, 13)};
+    shared_ptr<Route> route4 = make_shared<Route>(network, std::move(path4));
+    route4->check();
+    MessageStream s4(network, route4, 1000, 20, 100);
+
+    streams = {std::move(s1), std::move(s2), std::move(s3), std::move(s4)};
+  }
+
+  shared_ptr<NetworkTopology> network;
+  std::vector<MessageStream> streams;
+};
+
+class DGMTest2 : public testing::Test {
+protected:
+  void SetUp() override {
+    string devices[] = {"T_1", "T_2", "T_3", "T_4", "B_1", "B_2", "B_3",
+                        "B_4", "B_5", "B_6", "L_1", "L_2", "L_3", "L_4"};
+    vector<NetworkDeviceProperty> device_properties;
+    for (int i = 0; i < 14; i++)
+      device_properties.push_back(NetworkDeviceProperty(i, 0, devices[i]));
+    vector<DataLink> data_links;
+    // T_1 -> B_1 -> B_2 -> B_3 -> L_1
+    data_links.push_back(
+        make_pair(Edge(0, 4), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(4, 5), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(5, 6), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(6, 10), DataLinkProperty(DataLinkType(wired))));
+    // T_2 -> B_4 -> B_5 -> B_1 -> B_2 -> L_2
+    data_links.push_back(
+        make_pair(Edge(1, 7), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(7, 8), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(8, 4), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(5, 11), DataLinkProperty(DataLinkType(wired))));
+    // T_3 -> B_4 -> B_5 -> B_6 -> L_3
+    data_links.push_back(
+        make_pair(Edge(2, 7), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(8, 9), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(9, 12), DataLinkProperty(DataLinkType(wired))));
+    // T_4 -> B_2 -> B_3 -> B_4 -> B_5 -> L_4
+    data_links.push_back(
+        make_pair(Edge(3, 5), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(6, 7), DataLinkProperty(DataLinkType(wired))));
+    data_links.push_back(
+        make_pair(Edge(8, 13), DataLinkProperty(DataLinkType(wired))));
+
+    network = make_shared<NetworkTopology>(device_properties, data_links);
+
+    PathRoute path1 = {Edge(0, 4), Edge(4, 5), Edge(5, 6), Edge(6, 10)};
+    shared_ptr<Route> route1 = make_shared<Route>(network, std::move(path1));
+    route1->check();
+    MessageStream s1(network, route1, 1000, 20, 100);
+
+    PathRoute path2 = {Edge(1, 7), Edge(7, 8), Edge(8, 4), Edge(4, 5),
+                       Edge(5, 11)};
+    shared_ptr<Route> route2 = make_shared<Route>(network, std::move(path2));
+    route2->check();
+    MessageStream s2(network, route2, 1000, 20, 100);
+
+    PathRoute path3 = {Edge(2, 7), Edge(7, 8), Edge(8, 9), Edge(9, 12)};
+    shared_ptr<Route> route3 = make_shared<Route>(network, std::move(path3));
+    route3->check();
+    MessageStream s3(network, route3, 1000, 20, 100);
+
+    PathRoute path4 = {Edge(3, 5), Edge(5, 6), Edge(6, 7), Edge(7, 8),
+                       Edge(8, 13)};
+    shared_ptr<Route> route4 = make_shared<Route>(network, std::move(path4));
+    route4->check();
+    MessageStream s4(network, route4, 1000, 20, 100);
+
+    streams = {std::move(s1), std::move(s2), std::move(s3), std::move(s4)};
+  }
+
+  shared_ptr<NetworkTopology> network;
+  std::vector<MessageStream> streams;
+};
+
+static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
+                               int SHUFFLE, int FLIP_RESTORE) {
   CriticalPath critical_path(dgm.shuffle_graph);
   ShuffleGraphProperty &prop =
       boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 1; i < N; i++) {
     std::cout << " " << i
               << "-------------------------------------------------------"
               << std::endl;
-    if (i % 50 == 0) {
+    if (i % SPLIT == 0) {
       std::cout << "TEST Split_All" << std::endl;
       dgm.split_all();
-
-      critical_path.compute_longest_paths();
-
-      // check that no message streams are shuffled
-      for (auto vd :
-           boost::make_iterator_range(boost::vertices(dgm.shuffle_graph))) {
-        if (vd != prop.src && vd != prop.sink) {
-          ASSERT_EQ(dgm.shuffle_graph[vd].ms_handle.size(), 1);
-          ASSERT_EQ(prop.operation_to_vertex[Operation(
-                        dgm.shuffle_graph[vd].edge,
-                        dgm.shuffle_graph[vd].ms_handle.front())],
-                    vd);
-        }
-      }
-    } else if (i % 20 == 0) {
+      assert_synchronicity(dgm.shuffle_graph);
+    } else if (i % SHUFFLE == 0) {
       vector<boost::graph_traits<shuffle_graph_t>::edge_descriptor>
           eligible_edges;
       for (auto ed :
            boost::make_iterator_range(boost::edges(dgm.shuffle_graph))) {
         if (dgm.shuffle_graph[ed].edge_type == disjunctive &&
-            dgm.shuffle_graph[ed].state() == boost::allowed) {
+            dgm.shuffle_graph[ed].state() == allowed) {
           eligible_edges.push_back(ed);
         }
       }
@@ -123,110 +240,52 @@ TEST_F(DGMTest, CompleteFlip) {
       std::uniform_int_distribution<std::size_t> distribution(
           0, eligible_edges.size() - 1);
       auto ed = eligible_edges[distribution(generator)];
-      std::cout << "TEST Lazy Shuffle: ";
-      tsndgm::print(dgm.shuffle_graph,
-                    boost::get_property(dgm.shuffle_graph, boost::graph_bundle),
-                    ed);
+
+      std::cout << "TEST Shuffle: ";
+      dgm.print(ed);
       std::cout << std::endl;
 
-      std::list<MessageStreamHandle> old_list =
-          dgm.shuffle_graph[target(ed, dgm.shuffle_graph)].ms_handle;
+      try {
+        dgm.complete_shuffle(ed);
+      } catch (UnfixableCycleException &e) {
+        std::cout << "WARNING: " << e.what() << std::endl;
+      }
+      dgm.print();
+      assert_synchronicity(dgm.shuffle_graph);
 
-      dgm.lazy_shuffle(ed);
-
-      std::list<MessageStreamHandle> &new_list =
-          dgm.shuffle_graph[source(ed, dgm.shuffle_graph)].ms_handle;
-
-      // check that source(ed) and target(ed) are shuffled now
-      for (auto handle : old_list)
-        ASSERT_NE(std::find(new_list.begin(), new_list.end(), handle),
-                  new_list.end());
-
-      // verify equivalence classes and shuffle graph
-      for (auto e :
-           boost::make_iterator_range(boost::edges(dgm.shuffle_graph))) {
-        if (dgm.shuffle_graph[e].edge_type != disjunctive)
-          continue;
-
-        auto u = source(e, dgm.shuffle_graph), v = target(e, dgm.shuffle_graph);
-
-        std::list<MessageStreamHandle>::const_iterator ms_it, ms_it1;
-        std::list<const TreeRouteHop *>::iterator hop_it, hop_it1;
-        for (ms_it = dgm.shuffle_graph[v].ms_handle.begin(),
-            hop_it = dgm.shuffle_graph[v].hop.begin();
-             ms_it != dgm.shuffle_graph[v].ms_handle.end() &&
-             hop_it != dgm.shuffle_graph[v].hop.end();
-             ++ms_it, ++hop_it) {
-
-          // verify operation_to_vertex mapping
-          ASSERT_EQ(prop.operation_to_vertex[Operation(
-                        dgm.shuffle_graph[v].edge, *ms_it)],
-                    v);
-
-          if ((*hop_it)->parent->is_root())
-            continue;
-
-          // check if either fifo edge or predecessor exists
-          bool valid = false;
-
-          // fifo edge ~ e
-          auto fifo_edge = boost::edge(u,
-                                       prop.operation_to_vertex[Operation(
-                                           (*hop_it)->parent->edge, *ms_it)],
-                                       dgm.shuffle_graph);
-          if (fifo_edge.second) {
-            // std::cout << "Verify FIFO Edge: ";
-            // tsndgm::print(dgm.shuffle_graph, prop, e);
-            // std::cout << " ~ ";
-            // tsndgm::print(dgm.shuffle_graph, prop, fifo_edge.first);
-            // std::cout << std::endl;
-            valid = true;
-            ASSERT_EQ(dgm.shuffle_graph[e].relates_to(
-                          dgm.shuffle_graph[fifo_edge.first]),
-                      true);
-          }
-
-          // predecessor ~ e
-          for (ms_it1 = dgm.shuffle_graph[u].ms_handle.begin(),
-              hop_it1 = dgm.shuffle_graph[u].hop.begin();
-               ms_it1 != dgm.shuffle_graph[u].ms_handle.end() &&
-               hop_it1 != dgm.shuffle_graph[u].hop.end();
-               ++ms_it1, ++hop_it1) {
-            if ((*hop_it1)->parent->is_root())
-              continue;
-
-            auto pred_edge =
-                boost::edge(prop.operation_to_vertex[Operation(
-                                (*hop_it1)->parent->edge, *ms_it1)],
-                            prop.operation_to_vertex[Operation(
-                                (*hop_it)->parent->edge, *ms_it)],
-                            dgm.shuffle_graph);
-            if (pred_edge.second) {
-              // std::cout << "Verify PRED Edge: ";
-              // tsndgm::print(dgm.shuffle_graph, prop, e);
-              // std::cout << " ~ ";
-              // tsndgm::print(dgm.shuffle_graph, prop, pred_edge.first);
-              // std::cout << std::endl;
-              valid = true;
-              ASSERT_EQ(dgm.shuffle_graph[e].relates_to(
-                            dgm.shuffle_graph[pred_edge.first]),
-                        true);
-            }
-          }
-
-          ASSERT_EQ(valid, true);
+      for (auto v :
+           boost::make_iterator_range(boost::vertices(dgm.shuffle_graph))) {
+        for (auto ms : dgm.shuffle_graph[v].ms_handle) {
+          ASSERT_TRUE(std::any_of(
+              dgm.shuffle_graph[v].JS.begin(), dgm.shuffle_graph[v].JS.end(),
+              [&](auto &nv) {
+                return nv.v == 1 ||
+                       std::find(dgm.shuffle_graph[nv.v].ms_handle.begin(),
+                                 dgm.shuffle_graph[nv.v].ms_handle.end(),
+                                 ms) != dgm.shuffle_graph[nv.v].ms_handle.end();
+              }));
+          ASSERT_TRUE(std::any_of(
+              dgm.shuffle_graph[v].JP.begin(), dgm.shuffle_graph[v].JP.end(),
+              [&](auto &nv) {
+                return nv.v == 0 ||
+                       std::find(dgm.shuffle_graph[nv.v].ms_handle.begin(),
+                                 dgm.shuffle_graph[nv.v].ms_handle.end(),
+                                 ms) != dgm.shuffle_graph[nv.v].ms_handle.end();
+              }));
         }
       }
 
-      // throws runtime_error if shuffle_graph is acyclic
-      critical_path.compute_longest_paths();
+    } else if (i % FLIP_RESTORE == 0) {
+      std::cout << "TEST Flip Restore: " << std::endl;
+      dgm.restore_flips();
+      assert_synchronicity(dgm.shuffle_graph);
     } else {
       vector<boost::graph_traits<shuffle_graph_t>::edge_descriptor>
           eligible_edges;
       for (auto ed :
            boost::make_iterator_range(boost::edges(dgm.shuffle_graph))) {
         if (dgm.shuffle_graph[ed].edge_type == disjunctive &&
-            dgm.shuffle_graph[ed].state() == boost::allowed) {
+            dgm.shuffle_graph[ed].state() == allowed) {
           eligible_edges.push_back(ed);
         }
       }
@@ -239,22 +298,50 @@ TEST_F(DGMTest, CompleteFlip) {
       auto ed = eligible_edges[distribution(generator)];
 
       std::cout << "TEST Complete Flip: ";
-      tsndgm::print(dgm.shuffle_graph,
-                    boost::get_property(dgm.shuffle_graph, boost::graph_bundle),
-                    ed);
+      dgm.print(ed);
       std::cout << std::endl;
 
-      // ed should be blocked now, and rev_ed allowed
-      dgm.complete_flip(ed);
-      ASSERT_EQ(dgm.shuffle_graph[ed].state(), boost::blocked);
-      auto rev_ed =
-          boost::edge(boost::target(ed, dgm.shuffle_graph),
-                      boost::source(ed, dgm.shuffle_graph), dgm.shuffle_graph)
-              .first;
-      ASSERT_EQ(dgm.shuffle_graph[rev_ed].state(), boost::allowed);
-
-      // throws runtime_error if shuffle_graph is acyclic
-      critical_path.compute_longest_paths();
+      try {
+        dgm.complete_flip(ed);
+      } catch (FlipGraphException &e) {
+        std::cout << "WARNING: " << e.what() << ": " << e.required_shuffle
+                  << std::endl;
+      }
+      dgm.print();
+      assert_synchronicity(dgm.shuffle_graph);
     }
   }
+}
+
+// The following snipped can be used to recreate initial situations
+// dgm.complete_flip(dgm.edge(19, 9));
+// dgm.complete_shuffle(dgm.edge(9, 19));
+
+// std::map<Edge,
+//          std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>>
+//     processing_order = {{Edge(0, 2), {2, 6}},   {Edge(2, 3), {3, 7}},
+//                         {Edge(3, 4), {4, 8}},   {Edge(2, 5), {13, 17}},
+//                         {Edge(5, 4), {14, 18}}, {Edge(4, 6), {5, 11, 15,
+//                         9}}};
+// dgm.apply_processing_order(processing_order);
+// dgm.print();
+// dgm.complete_shuffle(dgm.edge(2, 6));
+// dgm.print();
+
+TEST_F(DGMTest, DGMOperation) {
+  DisjunctiveGraphModel dgm(network, streams);
+
+  perform_operations(dgm, 10000, 50, 15, 5);
+}
+
+TEST_F(DGMTest1, DGMOperation) {
+  DisjunctiveGraphModel dgm(network, streams);
+
+  perform_operations(dgm, 10000, 100, 25, 5);
+}
+
+TEST_F(DGMTest2, DGMOperation) {
+  DisjunctiveGraphModel dgm(network, streams);
+
+  perform_operations(dgm, 10000, 100, 20, 5);
 }

@@ -5,6 +5,7 @@
 
 #include "../src/dgm/critical_path.h"
 #include "../src/dgm/dgm.h"
+#include "../src/heuristics/initial.h"
 #include "../src/optimization/neighborhood.h"
 #include "../src/optimization/tabu_search.h"
 #include "../src/optimization/termination.h"
@@ -111,37 +112,19 @@ TEST_F(DGMTest, TabuSearchTardiness) {
   typedef StrictAdmissionIntensification<DefaultTerminationCriterion,
                                          SelectionFullNeighborhood>
       IntensificationPhase;
-  typedef FrequencyCountDiversification<SelectionFullNeighborhood>
-      DiversificationPhase;
 
-  TabuSearch::Config config = {
-      1,
-      CriticalPath::Objective::tardiness,
-      IntensificationConfig(7, 2, 1000),
-      DiversificationConfig(10),
-      1,
-  };
+  using InitialHeuristic = NoInitial;
+  using TerminationCriterion = DefaultTerminationCriterion;
+  using Intensification =
+      StrictAdmissionIntensification<DefaultTerminationCriterion,
+                                     SelectionFullNeighborhood>;
+  using ExhaustiveSearch = Intensification;
+  using TransformationHeuristic = NoTransformation;
 
-  tabu_search.run<DefaultTerminationCriterion, IntensificationPhase,
-                  DiversificationPhase>(config);
-}
+  TabuSearch::Config config = {5, CriticalPath::Objective::makespan,
+                               IntensificationConfig(5, 50),
+                               ExhaustiveSearchConfig(5, 20), 3};
 
-TEST_F(DGMTest1, TabuSearchMakespan) {
-  TabuSearch tabu_search(network, streams);
-  typedef StrictAdmissionIntensification<DifferentialTerminationCriterion,
-                                         SelectionFullNeighborhood>
-      IntensificationPhase;
-  typedef FrequencyCountDiversification<SelectionFullNeighborhood>
-      DiversificationPhase;
-
-  TabuSearch::Config config = {
-      1,
-      CriticalPath::Objective::makespan,
-      IntensificationConfig(7, 2, 10),
-      DiversificationConfig(10),
-      1,
-  };
-
-  tabu_search.run<DifferentialTerminationCriterion, IntensificationPhase,
-                  DiversificationPhase>(config);
+  tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
+                  ExhaustiveSearch, TransformationHeuristic>(config);
 }

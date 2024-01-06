@@ -6,6 +6,7 @@
 #include <iostream>
 
 using namespace boost;
+using namespace tsndgm;
 
 template <typename TimeMap>
 class dfs_time_visitor : public default_dfs_visitor {
@@ -26,14 +27,16 @@ public:
   }
 
   template <typename Edge, typename Graph>
-  void back_edge(Edge v, const Graph &g) const {
+  bool back_edge(Edge v, const Graph &g) const {
     std::cout << "Back edge: " << source(v, g) << " -> " << target(v, g)
               << std::endl;
+    return false;
   }
 
   TimeMap m_dtimemap;
   TimeMap m_ftimemap;
   T &m_time;
+  bool reversed = true;
 };
 
 int main() {
@@ -42,7 +45,7 @@ int main() {
   struct EdgeProperty {
     OrientationState _state;
 
-    const boost::OrientationState &state() const { return _state; }
+    const OrientationState &state() const { return _state; }
   };
 
   typedef adjacency_list<vecS, vecS, bidirectionalS, VertexProperty,
