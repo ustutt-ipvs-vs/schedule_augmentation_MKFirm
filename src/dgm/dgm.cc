@@ -133,6 +133,9 @@ void DisjunctiveGraphModel::complete_flip(
   std::list<E> required_flips;
   std::set<OrientationState *> required_flips_classes;
   if (uv.has_value()) {
+    required_flips.push_back(*uv);
+    required_flips_classes.insert(shuffle_graph[*uv].state_pair->state.get());
+
     V u = source(*uv, shuffle_graph), v = target(*uv, shuffle_graph), w = u;
     while (w != v && shuffle_graph[w].neighbors_are_valid) {
       E wv = edge(w, v);
