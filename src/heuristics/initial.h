@@ -2,6 +2,7 @@
 #define TSN_DGM_HEURISTIC_INITIAL_H
 
 #include "../dgm/dgm.h"
+#include "transformation.h"
 #include <random>
 
 namespace tsndgm {
@@ -11,20 +12,31 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  InitialSelectionHeuristic(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
+  InitialSelectionHeuristic(DisjunctiveGraphModel &dgm,
+                            CriticalPath::Objective type)
+      : dgm(dgm), type(type) {}
 
-  virtual void generate(CriticalPath::Objective type) = 0;
+  virtual void generate() = 0;
 
 protected:
   DisjunctiveGraphModel &dgm;
+  CriticalPath::Objective type;
+};
+
+class NoInitial : public InitialSelectionHeuristic {
+public:
+  NoInitial(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type) {}
+
+  void generate() {}
 };
 
 class RandomInitial : public InitialSelectionHeuristic {
 public:
-  RandomInitial(DisjunctiveGraphModel &dgm)
-      : InitialSelectionHeuristic(dgm), gen(rd()) {}
+  RandomInitial(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type), gen(rd()) {}
 
-  void generate(CriticalPath::Objective type);
+  void generate();
 
 protected:
   std::random_device rd;
@@ -39,11 +51,23 @@ protected:
 // In the original version, the authors propose using the processing order that
 // minimizes the cost of the longest path from src -> sink that contains the
 // newly inserted operation
-class INSA : public RandomInitial {
+class InsertionInitialHeuristic : public RandomInitial {
 public:
-  INSA(DisjunctiveGraphModel &dgm) : RandomInitial(dgm) {}
+  InsertionInitialHeuristic(DisjunctiveGraphModel &dgm,
+                            CriticalPath::Objective type)
+      : RandomInitial(dgm, type) {}
 
-  void generate(CriticalPath::Objective type);
+  void generate();
+};
+
+class RandomTransformHeuristic : public RandomInitial, public Transformation {
+public:
+  RandomTransformHeuristic(DisjunctiveGraphModel &dgm,
+                           CriticalPath::Objective type)
+      : RandomInitial(dgm, type), Transformation(dgm, type) {}
+
+  void generate();
+  void transform(int k);
 };
 
 } // namespace tsndgm

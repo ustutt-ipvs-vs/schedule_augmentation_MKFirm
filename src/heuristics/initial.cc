@@ -2,26 +2,25 @@
 
 namespace tsndgm {
 
-void RandomInitial::generate(CriticalPath::Objective type) {
+void RandomInitial::generate() {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
-  std::discrete_distribution<int> d({1, 1});
-  std::set<boost::OrientationState *> flipped_edges;
-  std::list<E> edge_list;
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
-  for (E e : boost::make_iterator_range(boost::edges(shuffle_graph))) {
-    if (shuffle_graph[e].edge_type == disjunctive &&
-        shuffle_graph[e].state() == boost::OrientationState::allowed &&
-        d(gen) == 1 &&
-        !flipped_edges.contains(shuffle_graph[e].state_pair->state.get())) {
-      edge_list.push_back(e);
-      flipped_edges.insert(shuffle_graph[e].state_pair->state.get());
+  for (auto &[edge, streams] : prop.edge_to_streams) {
+    std::vector<MessageStreamHandle> out;
+    std::sample(streams.begin(), streams.end(), std::back_inserter(out),
+                streams.size(), gen);
+    for (int i = 0; i < out.size() - 1; i++) {
+      V u = prop.operation_to_vertex[{edge, out[i]}];
+      V v = prop.operation_to_vertex[{edge, out[i + 1]}];
+      if (u == v)
+        continue;
+      dgm.complete_flip(dgm.edge(u, v));
     }
   }
-
-  dgm.complete_flip(edge_list);
 }
 
-void INSA::generate(CriticalPath::Objective type) {
+void InsertionInitialHeuristic::generate() {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
@@ -58,10 +57,16 @@ void INSA::generate(CriticalPath::Objective type) {
       edge_processing_order[oc.second.first] = {fixed_ms};
   }
 
-  // initially, set all disjunctive edges to blocked
+  // initially, set all disjunctive edges to blocked and clear MP,MS,FP,FS
   for (E e : boost::make_iterator_range(boost::edges(shuffle_graph))) {
     if (shuffle_graph[e].edge_type == disjunctive)
-      *shuffle_graph[e].state_pair->state = boost::OrientationState::blocked;
+      *shuffle_graph[e].state_pair->state = blocked;
+  }
+  for (V v : boost::make_iterator_range(boost::vertices(shuffle_graph))) {
+    shuffle_graph[v].MP = {};
+    shuffle_graph[v].MS = {};
+    shuffle_graph[v].FP.clear();
+    shuffle_graph[v].FS.clear();
   }
 
   // incrementally, add operations
@@ -81,21 +86,33 @@ void INSA::generate(CriticalPath::Objective type) {
     // initially, o is processed before all other operations (hence, allowing v
     // -> u)
     auto &processing_order = edge_processing_order[e];
+    V u = prop.operation_to_vertex[{e, processing_order[0]}];
+    TreeRouteHop *u_hop_parent = shuffle_graph[u].hop.front()->parent;
+    shuffle_graph[v].MS = {u, dgm.edge(v, u)};
+    shuffle_graph[u].MP = {v, dgm.edge(v, u)};
+    if (!u_hop_parent->is_root()) {
+      V u_parent =
+          prop.operation_to_vertex[{u_hop_parent->edge, processing_order[0]}];
+      shuffle_graph[v].FS.push_back({u_parent, dgm.edge(v, u_parent)});
+      shuffle_graph[u_parent].FP[u] = {v, dgm.edge(v, u_parent)};
+    }
     for (MessageStreamHandle other : processing_order) {
       V u = prop.operation_to_vertex[{e, other}];
-      *shuffle_graph[dgm.edge(v, u)].state_pair->state =
-          boost::OrientationState::allowed;
+      *shuffle_graph[dgm.edge(v, u)].state_pair->state = allowed;
     }
 
-    // get processing order with minimal makespan
+    // get processing order with minimal objective
     std::pair<Delay, int> min_d = {std::numeric_limits<Delay>::max(), 0};
     for (int i = 0; i <= processing_order.size(); i++) {
+      std::map<V, V> updates;
       bool feasible = true;
       reversed_dgm_traversal(
-          shuffle_graph, visitor(feasibility_visitor(shuffle_graph, feasible))
-                             .root_vertex(prop.sink));
+          shuffle_graph,
+          visitor(feasibility_visitor(shuffle_graph, updates, feasible))
+              .root_vertex(prop.sink));
 
       if (feasible) {
+        dgm.update_machine_successors(updates);
         auto res = dgm.critical_path(type);
         if (res.objective < min_d.first) {
           dgm.commit_flips();
@@ -106,13 +123,43 @@ void INSA::generate(CriticalPath::Objective type) {
       if (i < processing_order.size()) {
         V u = prop.operation_to_vertex[{e, processing_order[i]}];
         E e = dgm.edge(v, u);
-        shuffle_graph[e].consistent_flip();
+        dgm.shuffle_graph[e].consistent_flip(shuffle_graph);
         dgm.flip_log.push_back(e);
       }
     }
 
     processing_order.insert(processing_order.begin() + min_d.second, ms_handle);
     dgm.restore_flips();
+  }
+}
+
+void RandomTransformHeuristic::transform(int k) {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+
+  shuffle_graph_t &shuffle_graph = Transformation::dgm.shuffle_graph;
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
+  int n = boost::num_vertices(shuffle_graph);
+  // 0 is src, 1 is sink
+  std::uniform_int_distribution<V> d(2, n - 1);
+  while (k > 0) {
+    V v = d(Transformation::gen);
+    if (prop.edge_to_streams[shuffle_graph[v].edge].size() > 1) {
+      compute_best_permutation(v);
+      k--;
+    }
+  }
+}
+
+void RandomTransformHeuristic::generate() {
+  RandomInitial::generate();
+
+  Delay best_res = std::numeric_limits<Delay>::max();
+  auto res = Transformation::dgm.critical_path(Transformation::type);
+
+  while (res.objective < best_res) {
+    best_res = res.objective;
+    transform(5);
   }
 }
 
