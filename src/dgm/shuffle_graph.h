@@ -4,7 +4,6 @@
 #include "../network/message_stream.h"
 #include "../network/route.h"
 #include <boost/graph/adjacency_list.hpp>
-#include <format>
 #include <iomanip>
 
 namespace tsndgm {

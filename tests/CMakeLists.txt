@@ -6,8 +6,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-add_executable(boost_graph boost_graph.cc)
-
 add_executable(topology_test topology.cc)
 target_link_libraries(topology_test network)
 

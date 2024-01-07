@@ -21,8 +21,5 @@ endif()
 # we use nlohmann_json to read it
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
-# Google Benchmarks
-find_package(benchmark REQUIRED)
-
 add_executable(jsp jsp.cc)
 target_link_libraries(jsp initial_heuristics optimization)
