@@ -11,11 +11,17 @@
 
 namespace tsndgm {
 
+#define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
+#define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
+
 class DisjunctiveGraphModel {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef std::vector<V> MachineProcessingOrder;
+  typedef std::map<Edge, MachineProcessingOrder> ProcessingOrder;
 
+  unsigned long total_flips = 0;
   shuffle_graph_t shuffle_graph;
   std::list<E> flip_log;
 
@@ -47,6 +53,8 @@ public:
   inline void complete_flip(E e) {
     if (shuffle_graph[e].state() == blocked)
       e = rev_edge(e);
+    else if (shuffle_graph[e].edge_type == fifo)
+      e = fifo_to_disjunctive_edge(e);
 
     std::set<OrientationState *> flipped_edges;
     std::set<V> shuffled_operations = {};
@@ -85,19 +93,40 @@ public:
     internal_restore_commit(index + EXTERNAL_COMMIT_OFFSET, swap);
   }
 
-  void encode(std::vector<unsigned int> &buf);
-  void decode(std::vector<unsigned int> &buf, size_t last_commit = 0);
+  inline void encode(std::vector<unsigned int> &buf) {
+    encode(buf, shuffle_graph);
+  }
+  inline void encode(std::vector<unsigned int> &buf, int index) {
+    encode(buf, committed_shuffle_graphs[index + EXTERNAL_COMMIT_OFFSET]);
+  }
+  void decode(std::vector<unsigned int> &buf);
 
   inline void apply_processing_order(
       const std::map<Edge, std::vector<V>> &processing_order) {
     for (auto &[edge, operations] : processing_order)
       apply_machine_processing_order(operations);
   };
-  void apply_machine_processing_order(const std::vector<V> &operations);
+  void apply_machine_processing_order(const MachineProcessingOrder &operations);
   void update_machine_successors(std::map<V, V> updates);
 
-  std::vector<V> get_processing_order(Edge edge);
-  std::vector<V> get_processing_order(V v);
+  inline MachineProcessingOrder get_processing_order(Edge edge) {
+    return get_processing_order(shuffle_graph, edge);
+  }
+  inline MachineProcessingOrder get_processing_order(V v) {
+    return get_processing_order(shuffle_graph, v);
+  }
+  inline ProcessingOrder get_processing_order() {
+    return get_processing_order(shuffle_graph);
+  }
+  MachineProcessingOrder get_processing_order(shuffle_graph_t &g, Edge edge);
+  MachineProcessingOrder get_processing_order(shuffle_graph_t &g, V v);
+  inline ProcessingOrder get_processing_order(shuffle_graph_t &g) {
+    ProcessingOrder processing_order;
+    for (auto &[edge, _] : g[boost::graph_bundle].edge_to_streams) {
+      processing_order[edge] = get_processing_order(edge);
+    }
+    return processing_order;
+  }
 
   inline void print() { tsndgm::print(shuffle_graph, *network); }
   inline void print(V v) { tsndgm::print(shuffle_graph, *network, v); }
@@ -139,6 +168,24 @@ public:
                              std::to_string(shuffle_graph[uv].edge_type));
   }
 
+  inline E fifo_to_disjunctive_edge(E uv) {
+    if (shuffle_graph[uv].edge_type == disjunctive) {
+      return uv;
+    } else if (shuffle_graph[uv].edge_type == fifo) {
+      V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+      for (NeighborVertex &JS : shuffle_graph[v].JS) {
+        auto e = boost::edge(u, JS.v, shuffle_graph);
+        if (e.second) {
+          return e.first;
+        }
+      }
+      // this should never happen
+      throw std::runtime_error("shuffle graph is invalid");
+    }
+    throw std::runtime_error("operation not supported for edges of type: " +
+                             std::to_string(shuffle_graph[uv].edge_type));
+  }
+
 private:
   std::shared_ptr<NetworkTopology> network;
 
@@ -159,6 +206,8 @@ private:
 
   void internal_commit_all(size_t index);
   void internal_restore_commit(size_t index, bool swap);
+
+  void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g);
 
   // If !uv.has_value(), complete_flip eliminates cycles with
   // at least one edge in flipped_edges

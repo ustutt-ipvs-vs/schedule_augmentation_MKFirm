@@ -8,8 +8,8 @@ void RandomInitial::generate() {
 
   for (auto &[edge, streams] : prop.edge_to_streams) {
     std::vector<MessageStreamHandle> out;
-    std::sample(streams.begin(), streams.end(), std::back_inserter(out),
-                streams.size(), gen);
+    std::copy(streams.begin(), streams.end(), std::back_inserter(out));
+    std::shuffle(out.begin(), out.end(), gen);
     for (int i = 0; i < out.size() - 1; i++) {
       V u = prop.operation_to_vertex[{edge, out[i]}];
       V v = prop.operation_to_vertex[{edge, out[i + 1]}];

@@ -14,20 +14,22 @@ public:
   Transformation(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
       : dgm(dgm), type(type), gen(rd()) {}
 
-  void compute_best_permutation(V v);
+  bool compute_best_permutation(V v);
   virtual void transform(int k) = 0;
 
 protected:
   DisjunctiveGraphModel &dgm;
   CriticalPath::Objective type;
+  CriticalPath::Result int_phase_result;
   std::random_device rd;
   std::mt19937 gen;
 
   virtual bool accept(const std::vector<V> &processing_order,
                       const std::pair<Delay, int> &min_d,
-                      const CriticalPath::Result &int_phase_result,
                       const CriticalPath::Result &div_result, int v_pos,
-                      int cur_pos);
+                      int cur_pos) {
+    return false;
+  };
 
   void update_machine_successors();
   void print_before_and_after(std::map<Edge, std::vector<V>> &before);
@@ -53,7 +55,6 @@ protected:
 
   bool accept(const std::vector<V> &processing_order,
               const std::pair<Delay, int> &min_d,
-              const CriticalPath::Result &int_phase_result,
               const CriticalPath::Result &div_result, int v_pos, int cur_pos);
 };
 
@@ -63,6 +64,16 @@ public:
                                    CriticalPath::Objective type)
       : RandomOperationTransformation(dgm, type) {}
   virtual void transform(int k);
+};
+
+class SlackTransformation : public RandomOperationTransformation {
+public:
+  SlackTransformation(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
+      : RandomOperationTransformation(dgm, type) {}
+  virtual void transform(int k);
+
+protected:
+  auto sample_operation();
 };
 
 } // namespace tsndgm

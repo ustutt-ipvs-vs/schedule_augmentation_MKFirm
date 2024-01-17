@@ -121,9 +121,12 @@ TEST_F(DGMTest, TabuSearchTardiness) {
   using ExhaustiveSearch = Intensification;
   using TransformationHeuristic = NoTransformation;
 
-  TabuSearch::Config config = {5, CriticalPath::Objective::makespan,
+  TabuSearch::Config config = {5,
+                               CriticalPath::Objective::makespan,
                                IntensificationConfig(5, 50),
-                               ExhaustiveSearchConfig(5, 20), 3};
+                               ExhaustiveSearchConfig(5, 20),
+                               RelinkingConfig(IntensificationConfig(5, 10)),
+                               3};
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   ExhaustiveSearch, TransformationHeuristic>(config);

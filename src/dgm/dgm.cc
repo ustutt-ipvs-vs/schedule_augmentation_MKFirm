@@ -15,6 +15,12 @@ DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
 }
 
 void DisjunctiveGraphModel::internal_commit_all(size_t index) {
+  std::map<V, V> updates;
+  reversed_dgm_traversal(
+      shuffle_graph,
+      visitor(update_machine_successors_visitor(shuffle_graph, updates))
+          .root_vertex(shuffle_graph[boost::graph_bundle].sink));
+  update_machine_successors(updates);
   commit_flips();
 
   for (size_t i = committed_shuffle_graphs.size(); i <= index; i++)
@@ -87,27 +93,25 @@ void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
 }
 
 std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
-DisjunctiveGraphModel::get_processing_order(Edge edge) {
-  auto &prop = shuffle_graph[boost::graph_bundle];
+DisjunctiveGraphModel::get_processing_order(shuffle_graph_t &g, Edge edge) {
+  auto &prop = g[boost::graph_bundle];
   MessageStreamHandle ms = *prop.edge_to_streams[edge].begin();
-  return get_processing_order(prop.operation_to_vertex[{edge, ms}]);
+  return get_processing_order(g, prop.operation_to_vertex[{edge, ms}]);
 }
 
 std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>
-DisjunctiveGraphModel::get_processing_order(V v) {
-  assert((shuffle_graph[v].neighbors_are_valid));
+DisjunctiveGraphModel::get_processing_order(shuffle_graph_t &g, V v) {
+  assert((g[v].neighbors_are_valid));
 
   std::vector<V> processing_order;
-
-  for (auto u = shuffle_graph[v].MP.transform([&](auto &nv) { return nv.v; });
-       u.has_value();
-       u = shuffle_graph[*u].MP.transform([&](auto &nv) { return nv.v; })) {
-    assert((shuffle_graph[*u].neighbors_are_valid));
+  for (auto u = g[v].MP.transform([&](auto &nv) { return nv.v; });
+       u.has_value(); u = g[*u].MP.transform([&](auto &nv) { return nv.v; })) {
+    assert((g[*u].neighbors_are_valid));
     processing_order.insert(processing_order.begin(), *u);
   }
   for (std::optional<V> u = v; u.has_value();
-       u = shuffle_graph[*u].MS.transform([&](auto &nv) { return nv.v; })) {
-    assert((shuffle_graph[*u].neighbors_are_valid));
+       u = g[*u].MS.transform([&](auto &nv) { return nv.v; })) {
+    assert((g[*u].neighbors_are_valid));
     processing_order.push_back(*u);
   }
 
@@ -158,6 +162,7 @@ void DisjunctiveGraphModel::complete_flip(
       }
       required_flips.clear();
 
+      total_flips++;
       reversed_dgm_traversal(
           shuffle_graph,
           visitor(complete_flip_visitor(shuffle_graph, flipped_edges,
@@ -502,7 +507,6 @@ void DisjunctiveGraphModel::split_all() {
 
     processing_order[edge] = {};
     while (u.has_value()) {
-      shuffle_graph[*u].ms_handle.sort();
       for (auto &s : shuffle_graph[*u].ms_handle) {
         processing_order[edge].push_back(
             z_prop.operation_to_vertex[Operation(edge, s)]);
@@ -690,54 +694,30 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
   }
 }
 
-#define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
-#define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
-
-void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf) {
-  auto &prop = shuffle_graph[boost::graph_bundle];
+void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf,
+                                   shuffle_graph_t &g) {
+  auto &prop = g[boost::graph_bundle];
   buf.clear();
 
-  int offset = 0;
   for (auto &[e, streams] : prop.edge_to_streams) {
-    buf.insert(buf.begin() + offset, {MACHINE_SEPARATOR, e.first, e.second});
-    offset += 3;
-    int len = 0;
+    buf.insert(buf.end(), {MACHINE_SEPARATOR, e.first, e.second});
 
-    for (auto &ms : streams) {
-      V v = prop.operation_to_vertex[{e, ms}];
-
-      int i;
-      for (i = offset; i < offset + len; i++) {
-        if (buf[i] == SHUFFLE_SEPARATOR)
-          continue;
-
-        V u = prop.operation_to_vertex[{e, buf[i]}];
-        if (u == v) { // u and v are shuffled
-          if (i == offset || buf[i - 1] != SHUFFLE_SEPARATOR) {
-            buf.insert(buf.begin() + i + 1, SHUFFLE_SEPARATOR);
-            buf.insert(buf.begin() + i, SHUFFLE_SEPARATOR);
-            i += 1;
-            len += 2;
-          }
-          break;
-        } else {
-          E e = edge(v, u);
-          if (shuffle_graph[e].state() == allowed) {
-            break;
-          }
-        }
+    auto processing_order = get_processing_order(g, e);
+    for (V v : processing_order) {
+      if (g[v].ms_handle.size() > 1) {
+        buf.push_back(SHUFFLE_SEPARATOR);
+        for (auto ms : g[v].ms_handle)
+          buf.push_back(ms);
+        buf.push_back(SHUFFLE_SEPARATOR);
+      } else {
+        buf.push_back(g[v].ms_handle.front());
       }
-      buf.insert(buf.begin() + i, ms);
-      len += 1;
     }
-    offset += len;
   }
   buf.push_back(MACHINE_SEPARATOR);
 }
 
-void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf,
-                                   size_t last_commit) {
-  restore_commit(last_commit, false);
+void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
   auto &prop = shuffle_graph[boost::graph_bundle];
 
   std::map<Edge, std::vector<V>> processing_order;
@@ -806,6 +786,7 @@ void DisjunctiveGraphModel::apply_machine_processing_order(
       if (j == i + 1)
         update_machine_successor(shuffle_graph, u, v);
     }
+    shuffle_graph[u].neighbors_are_valid = true;
   }
 
   shuffle_graph[u].MS = {};

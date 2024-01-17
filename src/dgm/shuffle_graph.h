@@ -79,6 +79,7 @@ struct ShuffleGraphVertexProperty {
   void shuffle(shuffle_graph_t &shuffle_graph,
                ShuffleGraphVertexProperty &other) {
     ms_handle.splice(ms_handle.end(), other.ms_handle);
+    ms_handle.sort();
     hop.splice(hop.end(), other.hop);
     root.splice(root.end(), other.root);
   }
@@ -284,10 +285,8 @@ public:
       std::list<NeighborVertex> const *JN, T const *FN, size_t it = 0,
       std::optional<std::list<NeighborVertex>::const_iterator> jit = {},
       std::optional<typename T::const_iterator> fit = {})
-      : MN(MN), JN(JN), FN(FN), it(it), type(restricted) {
-    this->jit = jit.has_value() ? jit.value() : JN->begin();
-    this->fit = fit.has_value() ? fit.value() : FN->begin();
-  }
+      : MN(MN), JN(JN), FN(FN), it(it), type(restricted),
+        jit(jit.value_or(JN->begin())), fit(fit.value_or(FN->begin())) {}
 
   NeighborVertexIterator() = default;
   NeighborVertexIterator &
@@ -390,32 +389,22 @@ public:
       std::list<NeighborVertex> const *JN, T const *FN, size_t it = 0,
       std::optional<std::list<NeighborVertex>::const_iterator> jit = {},
       std::optional<typename T::const_iterator> fit = {})
-      : MN(MN), JN(JN), FN(FN), it(it) {
-    this->jit = jit.has_value() ? jit.value() : JN->begin();
-    this->fit = fit.has_value() ? fit.value() : FN->begin();
+      : _begin(MN, JN, FN, it, jit.value_or(JN->begin()),
+               fit.value_or(FN->begin())),
+        _end(MN, JN, FN, MN->has_value() ? 1 : 0, JN->end(), FN->end()) {}
+
+  std::pair<const NeighborVertexIterator<T> &,
+            const NeighborVertexIterator<T> &>
+  pair() const {
+    return {_begin, _end};
   }
 
-  std::pair<NeighborVertexIterator<T>, NeighborVertexIterator<T>> pair() const {
-    return {begin(), end()};
-  }
+  const NeighborVertexIterator<T> &begin() const { return _begin; }
 
-  NeighborVertexIterator<T> begin() const {
-    return NeighborVertexIterator(MN, JN, FN, it, jit, fit);
-  }
-
-  NeighborVertexIterator<T> end() const {
-    return NeighborVertexIterator(MN, JN, FN, MN->has_value() ? 1 : 0,
-                                  JN->end(), FN->end());
-  }
+  const NeighborVertexIterator<T> &end() const { return _end; }
 
 private:
-  size_t it;
-  std::list<NeighborVertex>::const_iterator jit;
-  T::const_iterator fit;
-
-  std::optional<NeighborVertex> const *MN;
-  std::list<NeighborVertex> const *JN;
-  T const *FN;
+  NeighborVertexIterator<T> _begin, _end;
 };
 
 static auto

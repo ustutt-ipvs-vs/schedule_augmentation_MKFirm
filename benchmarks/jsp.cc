@@ -40,9 +40,10 @@ void print(DisjunctiveGraphModel &dgm,
   }
 }
 
-void check_solution(DisjunctiveGraphModel &dgm,
-                    std::map<int, Edge> &machine_to_datalink, int machines,
-                    int jobs) {
+void set_initial_solution(DisjunctiveGraphModel &dgm,
+                          std::map<int, Edge> &machine_to_datalink,
+                          int machines, int jobs) {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   auto &prop = dgm.shuffle_graph[boost::graph_bundle];
 
   auto file = fs::path("../data/solution");
@@ -51,28 +52,21 @@ void check_solution(DisjunctiveGraphModel &dgm,
 
   std::ifstream f(file);
 
+  std::map<Edge, std::vector<V>> processing_order;
   for (int i = 0; i < machines; i++) {
-    std::vector<int> processing_order(jobs);
-    for (int j = 0; j < jobs; j++)
-      f >> processing_order[j];
-
+    processing_order[machine_to_datalink[i]] = std::vector<V>(jobs);
+    auto &machine_processing_order = processing_order[machine_to_datalink[i]];
     for (int j = 0; j < jobs; j++) {
-      auto u = prop.operation_to_vertex[{machine_to_datalink[i],
-                                         processing_order[j]}];
-      for (int k = j + 1; k < jobs; k++) {
-        auto v = prop.operation_to_vertex[{machine_to_datalink[i],
-                                           processing_order[k]}];
-        auto uv = dgm.edge(u, v);
-        if (dgm.shuffle_graph[uv].state() != OrientationState::allowed)
-          dgm.shuffle_graph[uv].consistent_flip(dgm.shuffle_graph);
-      }
+      int job;
+      f >> job;
+      machine_processing_order[j] =
+          prop.operation_to_vertex[{machine_to_datalink[i], job}];
     }
   }
 
+  dgm.apply_processing_order(processing_order);
+
   dgm.commit_flips();
-  print(dgm, machine_to_datalink);
-  std::cout << dgm.critical_path(CriticalPath::Objective::makespan).objective
-            << std::endl;
 }
 
 template <class InitialHeuristic, class TerminationCriterion,
@@ -112,9 +106,11 @@ void benchmark_instance(
 
   std::map<int, Edge> machine_to_datalink;
   for (int i = 0; i < machines; i++) {
-    device_properties.push_back(UniqueNetworkDeviceProperty(0));
+    device_properties.push_back(
+        NetworkDeviceProperty(2 * i, 0, "M" + std::to_string(i) + "1"));
     DeviceId id1 = device_properties.back().id;
-    device_properties.push_back(UniqueNetworkDeviceProperty(0));
+    device_properties.push_back(
+        NetworkDeviceProperty(2 * i + 1, 0, "M" + std::to_string(i) + "2"));
     DeviceId id2 = device_properties.back().id;
 
     machine_to_datalink[i] = Edge(id1, id2);
@@ -131,12 +127,12 @@ void benchmark_instance(
       Edge edge = machine_to_datalink[operations[i][j]];
       rti_map[edge] = RTI(operations[i][j + 1], operations[i][j + 1]);
       path.push_back(edge);
-      auto device = UniqueNetworkDeviceProperty(0);
-      network->add_device(device);
-      edge = Edge(edge.second, device.id);
-      network->add_data_link(
-          DataLink(edge, DataLinkProperty(DataLinkType(wired))));
-      path.push_back(edge);
+      // auto device = UniqueNetworkDeviceProperty(0);
+      // network->add_device(device);
+      // edge = Edge(edge.second, device.id);
+      // network->add_data_link(
+      //     DataLink(edge, DataLinkProperty(DataLinkType(wired))));
+      // path.push_back(edge);
       if (j + 2 < 2 * machines) {
         Edge n_edge = machine_to_datalink[operations[i][j + 2]];
         network->add_data_link(DataLink(Edge(edge.second, n_edge.first),
@@ -152,17 +148,29 @@ void benchmark_instance(
 
   auto c = config(machines, jobs);
   DisjunctiveGraphModel dgm(network, streams);
-  // check_solution(dgm, machine_to_datalink, machines, jobs);
-  //  exit(0);
+  // set_initial_solution(dgm, machine_to_datalink, machines, jobs);
 
   TabuSearch tabu_search(dgm);
 
   cout << benchmark_data["name"].template get<std::string>() << std::endl;
 
+  if (!benchmark_data["optimum"].is_null()) {
+    c.termination_bound = benchmark_data["optimum"].template get<Delay>();
+  } else {
+    c.termination_bound =
+        benchmark_data["bounds"]["lower"].template get<Delay>();
+  }
+
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   ExhaustiveSearch, TransformationHeuristic>(c);
 
-  cout << "Known Optimal Solution: " << benchmark_data["optimum"] << std::endl;
+  if (!benchmark_data["optimum"].is_null()) {
+    cout << "Known Optimal Solution: " << benchmark_data["optimum"]
+         << std::endl;
+  } else {
+    cout << "Known Optimal Solution: [" << benchmark_data["bounds"]["lower"]
+         << ", " << benchmark_data["bounds"]["upper"] << "]" << std::endl;
+  }
 
   tabu_search.dgm.restore_commit(c.commit_index);
   print(dgm, machine_to_datalink);
@@ -192,22 +200,27 @@ int main(int argc, char **argv) {
   }
 
   auto config = [](int machines, int jobs) {
-    return TabuSearch::Config{5, CriticalPath::Objective::makespan,
-                              IntensificationConfig(machines, 50),
-                              ExhaustiveSearchConfig(machines, 50), 3};
+    return TabuSearch::Config{
+        5,
+        CriticalPath::Objective::makespan,
+        IntensificationConfig(machines, 10 * machines * jobs),
+        ExhaustiveSearchConfig(machines, 10 * machines * jobs),
+        RelinkingConfig(IntensificationConfig(machines, 10 * machines * jobs)),
+        5,
+        5};
   };
 
   int benchmark_id = stoi(argv[1]);
 
-  using InitialHeuristic = InsertionInitialHeuristic;
+  using InitialHeuristic = RandomInitial;
   using TerminationCriterion = DifferentialTerminationCriterion;
   using Intensification =
-      TestRelaxedIntensification<DifferentialTerminationCriterion,
-                                 ReducedSelectionCriticalBlockNeighborhood>;
+      TestStrictIntensification<DifferentialTerminationCriterion,
+                                ReducedSelectionCriticalBlockNeighborhood>;
   using ExhaustiveSearch =
-      TestRelaxedIntensification<DifferentialTerminationCriterion,
-                                 SelectionCriticalBlockNeighborhood>;
-  using TransformationHeuristic = RandomCriticalPathTransformation;
+      TestStrictIntensification<DifferentialTerminationCriterion,
+                                ReducedSelectionCriticalBlockNeighborhood>;
+  using TransformationHeuristic = SlackTransformation;
 
   benchmark<InitialHeuristic, TerminationCriterion, Intensification,
             ExhaustiveSearch, TransformationHeuristic>(config, benchmark_id);

@@ -8,23 +8,32 @@ namespace tsndgm {
 enum DGMOperation { flip, shuffle };
 
 struct BestSelection {
-  size_t commit_index;
+  size_t *commit_index;
   Delay objective;
-  Delay secondary_objective;
   bool committed;
 
   BestSelection() {}
 
-  BestSelection(size_t commit_index,
-                Delay objective = std::numeric_limits<Delay>::max(),
-                Delay secondary_objective = std::numeric_limits<Delay>::max())
-      : commit_index(commit_index), objective(objective),
-        secondary_objective(secondary_objective), committed(false) {}
+  BestSelection(size_t *commit_index,
+                Delay objective = std::numeric_limits<Delay>::max())
+      : commit_index(commit_index), objective(objective), committed(false) {}
 
   bool operator<(const BestSelection &best_selection) {
-    return objective < best_selection.objective ||
-           (objective == best_selection.objective &&
-            secondary_objective < best_selection.secondary_objective);
+    return objective < best_selection.objective;
+  }
+
+  bool operator<=(const BestSelection &best_selection) {
+    return objective <= best_selection.objective;
+  }
+};
+
+struct EncodedSelection {
+  Delay objective;
+  std::vector<unsigned int> buf;
+
+  EncodedSelection(DisjunctiveGraphModel &dgm, BestSelection &best_selection)
+      : objective(best_selection.objective) {
+    dgm.encode(buf, *best_selection.commit_index);
   }
 };
 
@@ -34,20 +43,13 @@ struct NextSelection {
   std::list<E> edges;
   DGMOperation operation;
   Delay objective;
-  Delay secondary_objective;
 
-  NextSelection()
-      : objective(std::numeric_limits<Delay>::max()),
-        secondary_objective(std::numeric_limits<Delay>::max()) {}
-  NextSelection(std::list<E> edges, DGMOperation operation, Delay objective,
-                Delay secondary_objective = std::numeric_limits<Delay>::max())
-      : edges(edges), operation(operation), objective(objective),
-        secondary_objective(secondary_objective) {}
+  NextSelection() : objective(std::numeric_limits<Delay>::max()) {}
+  NextSelection(std::list<E> edges, DGMOperation operation, Delay objective)
+      : edges(edges), operation(operation), objective(objective) {}
 
   bool operator<(const BestSelection &best_selection) {
-    return objective < best_selection.objective ||
-           (objective == best_selection.objective &&
-            secondary_objective < best_selection.secondary_objective);
+    return objective < best_selection.objective;
   }
 };
 

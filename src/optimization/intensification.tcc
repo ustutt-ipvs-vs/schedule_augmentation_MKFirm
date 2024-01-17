@@ -11,48 +11,49 @@ NextSelection
 StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
     compute_next_selection(CriticalPath::Objective type) {
   CriticalPath::Result res = this->dgm.critical_path(type);
-  Neighborhood neighborhood = selection_neighborhood.compute(res);
   ExtendedNextSelection next_selection;
-  Delay secondary_objective = 0;
 
   // store current DGM, which is used to undo flips
   this->dgm.commit_flips();
+  int extension_level = 0;
+  do {
+    Neighborhood neighborhood =
+        selection_neighborhood.extend(res, extension_level);
 
-  // compute next neighbor
-  for (auto &edges : neighborhood.flip_candidates) {
-    this->dgm.complete_flip(edges);
-    auto res = this->dgm.critical_path(type);
-    size_t violation = compute_first_violation({edges, flip, res.objective});
-    secondary_objective += res.objective;
+    // compute next neighbor
+    for (auto &edges : neighborhood.flip_candidates) {
+      this->dgm.complete_flip(edges);
+      auto res = this->dgm.critical_path(type);
+      size_t violation = compute_first_violation({edges, flip, res.objective});
 
-    if (res.objective <
-        std::min(this->best_selection.objective, next_selection.objective)) {
-      // res.objective is better than the objective of the best selection
-      // found in this intensification phase (aspiration criterion)
-      next_selection = {edges, flip, res.objective, this->config.maxt};
-    } else {
-      // Check tabu list otherwise.
-      // In case every neighbor violates the tabu list, we ensure that
-      // we return the neighbor which violates the oldest entry.
-      if (violation > next_selection.violation ||
-          (violation == next_selection.violation &&
-           res.objective < next_selection.objective)) {
-        next_selection = {edges, flip, res.objective, violation};
+      if (res.objective <
+          std::min(this->best_selection.objective, next_selection.objective)) {
+        // res.objective is better than the objective of the best selection
+        // found in this intensification phase (aspiration criterion)
+        next_selection = {edges, flip, res.objective, this->config.maxt};
+      } else {
+        // Check tabu list otherwise.
+        // In case every neighbor violates the tabu list, we ensure that
+        // we return the neighbor which violates the oldest entry.
+        if (violation > next_selection.violation ||
+            (violation == next_selection.violation &&
+             res.objective < next_selection.objective)) {
+          next_selection = {edges, flip, res.objective, violation};
+        }
       }
+
+      this->dgm.restore_flips();
     }
 
-    this->dgm.restore_flips();
-  }
-
-  if (next_selection.objective < this->best_selection.objective)
-    this->best_selection.objective = next_selection.objective;
+    if (next_selection.objective < this->best_selection.objective)
+      this->best_selection.objective = next_selection.objective;
+    extension_level++;
+  } while (extension_level <= SelectionNeighborhood::max_extension &&
+           next_selection.violation < tabu_list.size());
 
   if (tabu_list.size() != 0)
     tabu_list.resize(next_selection.violation, tabu_list.back());
   update_tabu_list({next_selection.edges, this->best_selection.objective});
-
-  next_selection.secondary_objective =
-      secondary_objective / neighborhood.flip_candidates.size();
 
   return next_selection;
 }

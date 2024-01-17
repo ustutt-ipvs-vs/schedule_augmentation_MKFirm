@@ -74,6 +74,19 @@ public:
     V old_pred = prop.cycle_pred[u];
     prop.cycle_pred[u] = v;
 
+    // if cycle contains edge to be flipped, there's nothing to do
+    do {
+      E e = boost::edge(w, prop.cycle_pred[w], shuffle_graph).first;
+
+      if (required_flips_classes.contains(
+              shuffle_graph[e].state_pair->state.get())) {
+        prop.cycle_pred[u] = old_pred;
+        return false;
+      }
+
+      w = prop.cycle_pred[w];
+    } while (w != v);
+
     std::optional<E> last_disjunctive_edge = {};
     std::optional<E> breaking_edge = {};
     std::optional<V> breaking_operation = {};
@@ -100,13 +113,6 @@ public:
       // conjunctive edges cannot be flipped, continue
       if (shuffle_graph[e].edge_type == conjunctive) {
         continue;
-      }
-
-      // if cycle contains edge to be flipped, there's nothing to do
-      if (required_flips_classes.contains(
-              shuffle_graph[e].state_pair->state.get())) {
-        prop.cycle_pred[u] = old_pred;
-        return false;
       }
 
       if (!flipped_edges.contains(

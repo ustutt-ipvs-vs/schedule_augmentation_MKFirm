@@ -8,7 +8,7 @@ namespace tsndgm {
 struct IntensificationConfig {
   size_t maxt;  //!< max size of tabu list
   size_t maxit; //!< max iterations
-  size_t commit_index = 1;
+  size_t commit_index;
 
   IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index = 0)
       : maxt(maxt), maxit(maxit), commit_index(commit_index) {}
@@ -26,9 +26,10 @@ public:
   typedef TerminationCriterion ITerminationCriterion;
   typedef SelectionNeighborhood ISelectionNeighborhood;
 
-  Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config)
+  Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config,
+                  Delay termination_bound = 0)
       : dgm(dgm), config(config), best_selection(0),
-        termination_criterion(config.maxit){};
+        termination_criterion(config.maxit, termination_bound){};
 
   virtual NextSelection
   compute_next_selection(CriticalPath::Objective type) = 0;
@@ -70,18 +71,16 @@ public:
 
     ExtendedNextSelection() : NextSelection(), violation(0) {}
 
-    ExtendedNextSelection(
-        std::list<E> edges, DGMOperation operation, Delay objective,
-        size_t violation,
-        Delay secondary_objective = std::numeric_limits<Delay>::max())
-        : NextSelection(edges, operation, objective, secondary_objective),
-          violation(violation) {}
+    ExtendedNextSelection(std::list<E> edges, DGMOperation operation,
+                          Delay objective, size_t violation)
+        : NextSelection(edges, operation, objective), violation(violation) {}
   };
 
   StrictAdmissionIntensification(DisjunctiveGraphModel &dgm,
-                                 IntensificationConfig &config)
-      : Intensification<TerminationCriterion, SelectionNeighborhood>(dgm,
-                                                                     config),
+                                 IntensificationConfig &config,
+                                 Delay termination_bound = 0)
+      : Intensification<TerminationCriterion, SelectionNeighborhood>(
+            dgm, config, termination_bound),
         selection_neighborhood(dgm) {}
 
   NextSelection compute_next_selection(CriticalPath::Objective type);
@@ -113,9 +112,11 @@ class TestStrictIntensification
                                             SelectionNeighborhood> {
 public:
   TestStrictIntensification(DisjunctiveGraphModel &dgm,
-                            IntensificationConfig &config)
+                            IntensificationConfig &config,
+                            Delay termination_bound = 0)
       : StrictAdmissionIntensification<TerminationCriterion,
-                                       SelectionNeighborhood>(dgm, config) {}
+                                       SelectionNeighborhood>(
+            dgm, config, termination_bound) {}
 
 protected:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
@@ -140,9 +141,11 @@ class RelaxedAdmissionIntensification
                                             SelectionNeighborhood> {
 public:
   RelaxedAdmissionIntensification(DisjunctiveGraphModel &dgm,
-                                  IntensificationConfig &config)
+                                  IntensificationConfig &config,
+                                  Delay termination_bound = 0)
       : StrictAdmissionIntensification<TerminationCriterion,
-                                       SelectionNeighborhood>(dgm, config) {}
+                                       SelectionNeighborhood>(
+            dgm, config, termination_bound) {}
 
   void update_tabu_list(
       StrictAdmissionIntensification<
@@ -181,9 +184,11 @@ class TestRelaxedIntensification
                                              SelectionNeighborhood> {
 public:
   TestRelaxedIntensification(DisjunctiveGraphModel &dgm,
-                             IntensificationConfig &config)
+                             IntensificationConfig &config,
+                             Delay termination_bound = 0)
       : RelaxedAdmissionIntensification<TerminationCriterion,
-                                        SelectionNeighborhood>(dgm, config) {}
+                                        SelectionNeighborhood>(
+            dgm, config, termination_bound) {}
 
 protected:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;

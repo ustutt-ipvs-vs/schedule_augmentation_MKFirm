@@ -74,8 +74,11 @@ SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
 
         if (dgm.shuffle_graph[e].edge_type == disjunctive)
           critical_block = {v, u};
-        else
+        else if (dgm.shuffle_graph[v_old].edge == dgm.shuffle_graph[u].edge)
           critical_block = {v_old, u};
+        else
+          critical_block = {u};
+
         edge = dgm.shuffle_graph[u].edge;
       }
     }
@@ -92,7 +95,7 @@ void ReducedSelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
     const std::vector<V> &critical_block, CriticalBlockType type) {
   // note that critical_block[0] contains last operation of critical block
   size_t n = critical_block.size();
-  if (n > 0) {
+  if (n > 1) {
     if (type != last) {
       neighborhood.flip_candidates.push_back(
           {dgm.edge(critical_block[1], critical_block[0])});
