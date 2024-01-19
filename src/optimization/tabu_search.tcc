@@ -13,7 +13,6 @@ void TabuSearch::run(Config &config) {
   BestSelection res;
   size_t phase;
 
-  start = std::chrono::high_resolution_clock::now();
   auto print_result = [&](Delay res) {
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = duration_cast<std::chrono::seconds>(stop - start);
@@ -60,9 +59,6 @@ void TabuSearch::run(Config &config) {
     relinking.update_candidates(res);
     print_result(res.objective);
 
-    std::cout << "test " << dgm.critical_path(config.type).objective
-              << std::endl;
-
     std::cout << " Intensify: " << std::endl;
     res = run_exhaustive_search<ExhaustiveSearch>(
         best_selection, res, config.exhaustive_search_config, config.type);
@@ -72,8 +68,17 @@ void TabuSearch::run(Config &config) {
       update_best_selection(res);
     print_result(res.objective);
   }
-
   std::cout << "Global Solution: " << best_selection.objective << std::endl;
+  dgm.restore_commit(*best_selection.commit_index);
+  std::cout << dgm.critical_path(config.type).objective << std::endl;
+
+  if (config.compress) {
+    run_compression_phase<Intensification>(config.int_config, config.type,
+                                           config.termination_bound);
+    best_selection = com.exchange_best_selection(dgm, best_selection);
+    std::cout << "Compressed Solution: " << best_selection.objective
+              << std::endl;
+  }
 }
 
 template <class InitialHeuristic, class Intensification>
@@ -128,10 +133,21 @@ TabuSearch::run_intensification_phase(IntensificationConfig &config,
       best_selection.committed = true;
     }
 
-    if (next_selection.operation == flip)
-      dgm.complete_flip(next_selection.edges);
-    else
-      dgm.complete_shuffle(next_selection.edges);
+    if (next_selection.operation == flip) {
+      try {
+        dgm.complete_flip(next_selection.edges);
+      } catch (FlipGraphException &e) {
+        if (config.recursive_shuffle) {
+          dgm.complete_shuffle(e.required_shuffle, false);
+          int_phase.clear_tabu_list();
+        } else {
+          continue;
+        }
+      }
+    } else {
+      dgm.complete_shuffle(next_selection.edges, false);
+      int_phase.clear_tabu_list();
+    }
   }
 
   // best_selection might not be committed if next_selection.objective ==
@@ -167,7 +183,6 @@ BestSelection TabuSearch::run_exhaustive_search(BestSelection &best_selection,
     this->dgm.complete_flip(edges);
     res = run_intensification_phase<Intensification>(config, type,
                                                      termination_bound);
-    std::cout << res.objective << std::endl;
     Communicator::State state = res < best_selection
                                     ? Communicator::found_better
                                     : Communicator::running;
@@ -205,7 +220,6 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
 
       BestSelection res = run_intensification_phase<Intensification>(
           config.local_search_config, type);
-      std::cout << res.objective << std::endl;
       Communicator::State state = res < this->best_selection
                                       ? Communicator::found_better
                                       : Communicator::running;
@@ -228,6 +242,56 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
   }
 
   com.sync();
+  return best_selection;
+}
+
+template <class Intensification>
+BestSelection TabuSearch::run_compression_phase(IntensificationConfig &config,
+                                                CriticalPath::Objective type,
+                                                Delay termination_bound) {
+  config.recursive_shuffle = true;
+
+  BestSelection res;
+  CompressionNeighborhood neighborhood(dgm);
+  bool improvement_found = true;
+  while (improvement_found) {
+    improvement_found = false;
+    dgm.restore_commit(*best_selection.commit_index);
+
+    auto &shuffle_candidates =
+        neighborhood.compute(dgm.critical_path(type)).shuffle_candidates;
+
+    for (auto edges : shuffle_candidates) {
+      // edge descriptors in neighborhood might be invalidated after restoring
+      for (auto &e : edges)
+        e = dgm.edge(e);
+
+      try {
+        dgm.complete_shuffle(edges);
+        res = run_intensification_phase<Intensification>(config, type,
+                                                         termination_bound);
+      } catch (UnfixableCycleException &e) {
+        // complete_shuffle already restores the fallback, there is no need
+        // to call undo_last_shuffle
+        continue;
+      }
+
+      if (res < best_selection) {
+        dgm.restore_commit(*res.commit_index);
+        update_best_selection(best_selection, res);
+        improvement_found = true;
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = duration_cast<std::chrono::seconds>(stop - start);
+        std::cout << "  -> New Compressed Selection: "
+                  << best_selection.objective << " (" << duration << ")"
+                  << std::endl;
+      }
+
+      dgm.undo_last_shuffle();
+    }
+  }
+
+  config.recursive_shuffle = false;
   return best_selection;
 }
 

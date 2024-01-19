@@ -46,6 +46,8 @@ public:
   CriticalPath::Result critical_path(CriticalPath::Objective type,
                                      bool reverse = true);
 
+  void update_rti(MessageStreamHandle ms, RTIMap rti_map);
+
   inline void complete_flip(std::list<E> &edges) {
     for (E e : edges)
       complete_flip(e);
@@ -61,25 +63,44 @@ public:
     complete_flip(flipped_edges, shuffled_operations, e);
   }
 
-  inline void complete_shuffle(std::list<E> &edges) {
-    for (E e : edges)
-      complete_shuffle(e);
+  inline void complete_shuffle(const std::list<E> &edges,
+                               bool commit_fallback = true) {
+    if (commit_fallback)
+      internal_commit_all(shuffle_fallback);
+    try {
+      for (E e : edges) {
+        std::set<OrientationState *> flipped_edges;
+        std::set<V> shuffled_operations;
+        complete_shuffle(e, flipped_edges, shuffled_operations);
+      }
+    } catch (UnfixableCycleException &e) {
+      internal_restore_commit(shuffle_fallback, false);
+      throw;
+    }
+    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+    renew_descriptors();
   }
+
   /** Notes:
    *  - recursively shuffles until no more FlipGraphException occurs
    *  - invalidates flip_log
    */
-  inline void complete_shuffle(E e) {
-    internal_commit_all(shuffle_fallback);
+  inline void complete_shuffle(E e, bool commit_fallback = true) {
+    if (commit_fallback)
+      internal_commit_all(shuffle_fallback);
     std::set<OrientationState *> flipped_edges;
     std::set<V> shuffled_operations;
     try {
       complete_shuffle(e, flipped_edges, shuffled_operations);
     } catch (UnfixableCycleException &e) {
-      internal_restore_commit(shuffle_fallback, true);
+      internal_restore_commit(shuffle_fallback, false);
       throw;
     }
     shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+    renew_descriptors();
+  }
+  inline void undo_last_shuffle() {
+    internal_restore_commit(shuffle_fallback, false);
   }
   void split_all();
 

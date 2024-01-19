@@ -17,15 +17,10 @@ SelectionFullNeighborhood::compute(CriticalPath::Result res) {
   while (v != prop.src) {
     E e = dgm.edge(prop.crit_pred[v], v);
 
-    // only by flipping disjunctive and FIFO edges, or merging FIFO edges
-    // we can potentially reduce the objective
     if (dgm.shuffle_graph[e].edge_type == disjunctive) {
       neighborhood.flip_candidates.push_back({e});
     } else if (dgm.shuffle_graph[e].edge_type == fifo) {
-      neighborhood.flip_candidates.push_back(
-          {dgm.edge(prop.crit_pred[v], v_old)});
-      neighborhood.shuffle_candidates.push_back(
-          {dgm.edge(prop.crit_pred[v], v_old)});
+      neighborhood.flip_candidates.push_back({dgm.fifo_to_disjunctive_edge(e)});
     }
 
     v_old = v;
@@ -72,12 +67,12 @@ SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
         critical_block_to_neighbors(critical_block, type);
         type = intermediate;
 
-        if (dgm.shuffle_graph[e].edge_type == disjunctive)
+        if (dgm.shuffle_graph[e].edge_type == disjunctive) {
           critical_block = {v, u};
-        else if (dgm.shuffle_graph[v_old].edge == dgm.shuffle_graph[u].edge)
-          critical_block = {v_old, u};
-        else
-          critical_block = {u};
+        } else {
+          E de = dgm.fifo_to_disjunctive_edge(e);
+          critical_block = {target(de, dgm.shuffle_graph), u};
+        }
 
         edge = dgm.shuffle_graph[u].edge;
       }
@@ -105,6 +100,41 @@ void ReducedSelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
           {dgm.edge(critical_block[n - 1], critical_block[n - 2])});
     }
   }
+}
+
+const Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  shuffle_graph_t &shuffle_graph = dgm.shuffle_graph;
+  ShuffleGraphProperty &prop =
+      boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
+
+  neighborhood.clear();
+  V v = res.critical_vertex;
+  std::optional<E> vw;
+
+  while (v != prop.src) {
+    V u = prop.crit_pred[v];
+    E uv = dgm.edge(u, v);
+
+    if (shuffle_graph[uv].edge_type == fifo && vw.has_value()) {
+      if (shuffle_graph[*vw].edge_type == conjunctive) {
+        V w = target(*vw, shuffle_graph);
+        auto [uw, found] = boost::edge(u, w, shuffle_graph);
+        if (found && shuffle_graph[uv].weight + shuffle_graph[*vw].weight >
+                         shuffle_graph[uw].weight) {
+          neighborhood.shuffle_candidates.push_back({uv});
+        }
+      } else {
+        neighborhood.shuffle_candidates.push_back({uv});
+      }
+    }
+
+    v = u;
+    vw = uv;
+  }
+  return neighborhood;
 }
 
 } // namespace tsndgm

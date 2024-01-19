@@ -22,7 +22,19 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
 
     // compute next neighbor
     for (auto &edges : neighborhood.flip_candidates) {
-      this->dgm.complete_flip(edges);
+      try {
+        this->dgm.complete_flip(edges);
+      } catch (FlipGraphException &e) {
+        this->dgm.restore_flips();
+        if (this->config.recursive_shuffle) {
+          auto res = this->dgm.critical_path(type);
+          next_selection = {
+              {e.required_shuffle}, shuffle, res.objective, this->config.maxt};
+          return next_selection;
+        } else {
+          continue;
+        }
+      }
       auto res = this->dgm.critical_path(type);
       size_t violation = compute_first_violation({edges, flip, res.objective});
 

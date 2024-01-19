@@ -14,6 +14,100 @@ DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
   return crit_path.path(type);
 }
 
+void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
+  // F2 requires that we also update the weight of JP[v] -> v. To this end, we
+  // extend rti_map to contain all relevant job predecessors
+  for (auto &[edge, rti] : rti_map) {
+    V v = prop.operation_to_vertex[{edge, ms}];
+    for (auto &nv : shuffle_graph[v].JP) {
+      V u = nv.v;
+      Edge edge = shuffle_graph[u].edge;
+      bool u_contains_ms = std::find(shuffle_graph[u].ms_handle.begin(),
+                                     shuffle_graph[u].ms_handle.end(),
+                                     ms) != shuffle_graph[u].ms_handle.end();
+      if (u_contains_ms && !rti_map.contains(edge)) {
+        rti_map[edge] = prop.streams[ms].rti_map[edge];
+      }
+    }
+  }
+
+  // Update weights of all outgoing edges
+  for (auto &[edge, rti] : rti_map) {
+    V v = prop.operation_to_vertex[{edge, ms}];
+    for (E vw :
+         boost::make_iterator_range(boost::out_edges(v, shuffle_graph))) {
+      V w = target(vw, shuffle_graph);
+      bool w_contains_ms = std::find(shuffle_graph[w].ms_handle.begin(),
+                                     shuffle_graph[w].ms_handle.end(),
+                                     ms) != shuffle_graph[w].ms_handle.end();
+      if (shuffle_graph[vw].edge_type == conjunctive && w_contains_ms) {
+        Delay d_max_old = std::accumulate(
+            shuffle_graph[v].ms_handle.begin(),
+            shuffle_graph[v].ms_handle.end(), (Delay)0,
+            [&](Delay d_max, auto ms1) {
+              if (ms == ms1)
+                return d_max;
+              return std::max(d_max, prop.streams[ms1].rti_map[edge].d_max());
+            });
+        if (rti_map[edge].d_max() > d_max_old) {
+          d_max_old =
+              std::max(d_max_old, prop.streams[ms].rti_map[edge].d_max());
+          shuffle_graph[vw].weight += rti_map[edge].d_max() - d_max_old;
+        } else {
+          Edge n_edge = shuffle_graph[w].edge;
+          Delay delta_old = std::max(
+              (Delay)0, prop.streams[ms].rti_map[edge].d_trans_max() -
+                            prop.streams[ms].rti_map[n_edge].d_trans_min());
+          Delay delta_new;
+          if (rti_map.contains(n_edge)) {
+            delta_new = std::max((Delay)0, rti_map[edge].d_trans_max() -
+                                               rti_map[n_edge].d_trans_min());
+          } else {
+            delta_new = std::max(
+                (Delay)0, rti_map[edge].d_trans_max() -
+                              prop.streams[ms].rti_map[n_edge].d_trans_min());
+          }
+          shuffle_graph[vw].weight += delta_new - delta_old;
+        }
+      } else {
+        shuffle_graph[vw].weight +=
+            rti_map[edge].d_trans_max() -
+            prop.streams[ms].rti_map[edge].d_trans_max();
+      }
+    }
+  }
+
+  // Update weights of all ingoing FIFO edges
+  for (auto &[edge, rti] : rti_map) {
+    V v = prop.operation_to_vertex[{edge, ms}];
+    for (E uv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
+      if (shuffle_graph[uv].edge_type == fifo) {
+        Delay d_min_old = std::accumulate(
+            shuffle_graph[v].ms_handle.begin(),
+            shuffle_graph[v].ms_handle.end(), std::numeric_limits<Delay>::max(),
+            [&](Delay d_min, auto ms1) {
+              if (ms == ms1)
+                return d_min;
+              return std::min(d_min, prop.streams[ms1].rti_map[edge].d_min());
+            });
+
+        if (rti_map[edge].d_min() < d_min_old) {
+          d_min_old =
+              std::min(d_min_old, prop.streams[ms].rti_map[edge].d_min());
+          shuffle_graph[uv].weight -= rti_map[edge].d_min() - d_min_old;
+        }
+      }
+    }
+  }
+
+  // Update stored rti_maps
+  for (auto &[edge, rti] : rti_map) {
+    prop.streams[ms].rti_map[edge] = rti_map[edge];
+  }
+}
+
 void DisjunctiveGraphModel::internal_commit_all(size_t index) {
   std::map<V, V> updates;
   reversed_dgm_traversal(
@@ -156,6 +250,7 @@ void DisjunctiveGraphModel::complete_flip(
   try {
     do {
       for (E e : required_flips) {
+        assert((shuffle_graph[e].edge_type != conjunctive));
         shuffle_graph[e].consistent_flip(shuffle_graph);
         flipped_edges.insert(shuffle_graph[e].state_pair->state.get());
         flip_log.push_front(e);
@@ -194,6 +289,8 @@ void DisjunctiveGraphModel::complete_shuffle(
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   if (shuffle_graph[uv].state() == blocked)
     uv = rev_edge(uv);
+  else if (shuffle_graph[uv].edge_type == fifo)
+    uv = fifo_to_disjunctive_edge(uv);
 
   bool closed = false;
   while (!closed) {
@@ -736,15 +833,18 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
       if (buf[offset + len] == SHUFFLE_SEPARATOR) {
         MessageStreamHandle v_ms = buf[offset + len + 1];
         V v = prop.operation_to_vertex[{edge, v_ms}];
-        processing_order[edge].push_back(v);
         len += 2;
         while (buf[offset + len] != SHUFFLE_SEPARATOR) {
           MessageStreamHandle u_ms = buf[offset + len];
           V u = prop.operation_to_vertex[{edge, u_ms}];
-          if (u != v)
-            complete_shuffle(this->edge(u, v));
+          if (u != v) {
+            complete_shuffle(this->edge(v, u));
+            if (shuffle_graph[v].ms_handle.empty())
+              v = u;
+          }
           len++;
         }
+        processing_order[edge].push_back(v);
       } else {
         MessageStreamHandle ms = buf[offset + len];
         processing_order[edge].push_back(prop.operation_to_vertex[{edge, ms}]);

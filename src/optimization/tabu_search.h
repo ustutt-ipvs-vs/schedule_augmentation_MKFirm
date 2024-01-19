@@ -21,6 +21,7 @@ public:
     RelinkingConfig relinking_config;
     size_t diversification_rounds;
     size_t initial_solutions = 1;
+    bool compress = false;
     Delay termination_bound = 0;
     size_t commit_index = 2;
   };
@@ -29,10 +30,12 @@ public:
              const std::vector<MessageStream> &streams)
       : dgm(network, streams) {
     relinking.initialize(&this->dgm);
+    start = std::chrono::high_resolution_clock::now();
   }
 
   TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm) {
     relinking.initialize(&this->dgm);
+    start = std::chrono::high_resolution_clock::now();
   }
 
   template <class InitialHeuristic, class TerminationCriterion,
@@ -40,16 +43,11 @@ public:
             class TransformationHeuristic>
   void run(Config &config);
 
-  DisjunctiveGraphModel dgm;
-  Relinking relinking;
-  BestSelection best_selection;
-  Communicator com;
-
-private:
   template <class InitialHeuristic, class Intensification>
   BestSelection
   run_initial_phase(int initial_solutions, IntensificationConfig &config,
                     CriticalPath::Objective type, Delay termination_bound = 0);
+
   template <class Intensification>
   BestSelection run_intensification_phase(IntensificationConfig &config,
                                           CriticalPath::Objective type,
@@ -64,8 +62,20 @@ private:
 
   template <class Intensification>
   BestSelection run_relinking_phase(RelinkingConfig &config,
-                                    CriticalPath::Objective type, Delay bound);
+                                    CriticalPath::Objective type,
+                                    Delay termination_bound);
 
+  template <class Intensification>
+  BestSelection run_compression_phase(IntensificationConfig &config,
+                                      CriticalPath::Objective type,
+                                      Delay termination_bound);
+
+  DisjunctiveGraphModel dgm;
+  Relinking relinking;
+  BestSelection best_selection;
+  Communicator com;
+
+private:
   auto update_best_selection(BestSelection &best_selection,
                              NextSelection &res) {
     best_selection.objective = res.objective;

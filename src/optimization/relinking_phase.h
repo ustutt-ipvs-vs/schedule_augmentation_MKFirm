@@ -9,12 +9,23 @@
 namespace tsndgm {
 struct RelinkingConfig {
   IntensificationConfig local_search_config;
-  int min_separation = 2;
-  double p = 0.5;
-  size_t min_stored_solutions = 8;
-  size_t max_stored_solutions = 30;
-  size_t best_commit_index = 3;
-  size_t backup_commit_index = 4;
+  int min_separation;
+  double p;
+  size_t min_stored_solutions;
+  size_t max_stored_solutions;
+  size_t best_commit_index;
+  size_t backup_commit_index;
+
+  RelinkingConfig(IntensificationConfig local_search_config,
+                  int min_separation = 2, double p = 0.5,
+                  size_t min_stored_solutions = 8,
+                  size_t max_stored_solutions = 30)
+      : local_search_config(local_search_config.maxt, local_search_config.maxit,
+                            5, false),
+        min_separation(min_separation), p(p),
+        min_stored_solutions(min_stored_solutions),
+        max_stored_solutions(max_stored_solutions), best_commit_index(3),
+        backup_commit_index(4) {}
 };
 
 class Relinking {

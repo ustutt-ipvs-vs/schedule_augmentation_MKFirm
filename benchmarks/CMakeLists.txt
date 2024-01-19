@@ -23,3 +23,6 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(jsp jsp.cc)
 target_link_libraries(jsp initial_heuristics optimization)
+
+add_executable(converter converter.cc)
+target_link_libraries(converter initial_heuristics optimization)

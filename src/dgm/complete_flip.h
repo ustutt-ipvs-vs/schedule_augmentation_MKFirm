@@ -55,14 +55,14 @@ public:
     V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
     V w = prop.cycle_pred[v];
     do {
-      auto wv = boost::edge(w, v, shuffle_graph);
-      if (wv.second && shuffle_graph[wv.first].state() == allowed) {
-        bool new_flip =
-            required_flips_classes
-                .insert(shuffle_graph[wv.first].state_pair->state.get())
-                .second;
+      auto [wv, found] = boost::edge(w, v, shuffle_graph);
+      if (found && shuffle_graph[wv].edge_type != conjunctive &&
+          shuffle_graph[wv].state() == allowed) {
+        bool new_flip = required_flips_classes
+                            .insert(shuffle_graph[wv].state_pair->state.get())
+                            .second;
         if (new_flip)
-          required_flips.push_back(wv.first);
+          required_flips.push_back(wv);
       }
       w = prop.cycle_pred[w];
     } while (w != v);

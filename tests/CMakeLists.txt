@@ -24,7 +24,7 @@ add_executable(dgm_test dgm.cc)
 target_link_libraries(dgm_test dgm GTest::gtest_main)
 
 add_executable(tabu_search_test tabu_search.cc)
-target_link_libraries(tabu_search_test optimization GTest::gtest_main)
+target_link_libraries(tabu_search_test optimization initial_heuristics GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(dgm_test)

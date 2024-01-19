@@ -9,14 +9,24 @@ struct IntensificationConfig {
   size_t maxt;  //!< max size of tabu list
   size_t maxit; //!< max iterations
   size_t commit_index;
+  bool recursive_shuffle;
 
-  IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index = 0)
-      : maxt(maxt), maxit(maxit), commit_index(commit_index) {}
+  IntensificationConfig(size_t maxt, size_t maxit)
+      : maxt(maxt), maxit(maxit), commit_index(0), recursive_shuffle(false) {}
+
+private:
+  IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index,
+                        bool recursive_shuffle = false)
+      : maxt(maxt), maxit(maxit), commit_index(commit_index),
+        recursive_shuffle(recursive_shuffle) {}
+
+  friend class ExhaustiveSearchConfig;
+  friend class RelinkingConfig;
 };
 
 struct ExhaustiveSearchConfig : public IntensificationConfig {
-  ExhaustiveSearchConfig(size_t maxt, size_t maxit, size_t commit_index = 1)
-      : IntensificationConfig(maxt, maxit, commit_index) {}
+  ExhaustiveSearchConfig(size_t maxt, size_t maxit)
+      : IntensificationConfig(maxt, maxit, 1, false) {}
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>

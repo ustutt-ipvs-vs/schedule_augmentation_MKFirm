@@ -481,7 +481,8 @@ static void print(const shuffle_graph_t &shuffle_graph,
   print(shuffle_graph, network, source(e, shuffle_graph));
   std::cout << " -> ";
   print(shuffle_graph, network, target(e, shuffle_graph));
-  std::cout << ": " << shuffle_graph[e].weight;
+  std::cout << ": " << shuffle_graph[e].weight << ", "
+            << shuffle_graph[e].edge_type;
 }
 
 static void print_processing_order(
