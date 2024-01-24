@@ -8,7 +8,6 @@
 
 namespace tsndgm {
 
-typedef unsigned int MessageStreamHandle;
 typedef std::pair<Edge, MessageStreamHandle> Operation;
 enum OrientationState { allowed, blocked };
 
@@ -60,7 +59,6 @@ struct ShuffleGraphVertexProperty {
   Edge edge;
   std::list<MessageStreamHandle> ms_handle;
   std::list<const TreeRouteHop *> hop;
-  std::list<V> root;
 
   std::optional<NeighborVertex> MP, MS;
   std::list<NeighborVertex> JP, JS, FS;
@@ -81,7 +79,6 @@ struct ShuffleGraphVertexProperty {
     ms_handle.splice(ms_handle.end(), other.ms_handle);
     ms_handle.sort();
     hop.splice(hop.end(), other.hop);
-    root.splice(root.end(), other.root);
   }
 
   void invalidate_neighbors(shuffle_graph_t &shuffle_graph) {
@@ -134,16 +131,15 @@ struct PtrOrientationStatePair {
     }
   }
 
-  void copy_commit(size_t src_index, size_t dest_index) {
-    committed_equivalence_classes[dest_index] =
-        committed_equivalence_classes[src_index];
-    committed_states[dest_index] = committed_states[src_index];
-  }
+  void copy_commit(size_t src_index, size_t dst_index) {
+    for (size_t i = committed_equivalence_classes.size(); i <= dst_index; i++) {
+      committed_equivalence_classes.push_back({});
+      committed_states.push_back(*state);
+    }
 
-  void swap_commit(size_t src_index, size_t dest_index) {
-    std::swap(committed_equivalence_classes[src_index],
-              committed_equivalence_classes[dest_index]);
-    std::swap(committed_states[dest_index], committed_states[src_index]);
+    committed_equivalence_classes[dst_index] =
+        committed_equivalence_classes[src_index];
+    committed_states[dst_index] = committed_states[src_index];
   }
 
   PtrOrientationStatePair(std::shared_ptr<OrientationState> state,
@@ -176,33 +172,13 @@ static void update_machine_successor(
   shuffle_graph[u].FS.clear();
   for (auto &v_parent : shuffle_graph[v].JP) {
     if (v_parent.v != shuffle_graph[boost::graph_bundle].src) {
-      auto fuv = boost::edge(u, v_parent.v, shuffle_graph).first;
-      shuffle_graph[u].FS.push_back({v_parent.v, fuv});
-      shuffle_graph[v_parent.v].FP[v] = {u, fuv};
+      auto [fuv, found] = boost::edge(u, v_parent.v, shuffle_graph);
+      if (found) {
+        shuffle_graph[u].FS.push_back({v_parent.v, fuv});
+        shuffle_graph[v_parent.v].FP[v] = {u, fuv};
+      }
     }
   }
-}
-
-static void swap_machine_successors(
-    shuffle_graph_t &shuffle_graph,
-    boost::graph_traits<shuffle_graph_t>::vertex_descriptor u,
-    boost::graph_traits<shuffle_graph_t>::vertex_descriptor v) {
-  if (shuffle_graph[v].MS.has_value()) {
-    update_machine_successor(shuffle_graph, shuffle_graph[v].MP.value().v,
-                             shuffle_graph[v].MS.value().v);
-  } else {
-    shuffle_graph[shuffle_graph[v].MP.value().v].MS = {};
-    shuffle_graph[shuffle_graph[v].MP.value().v].FS.clear();
-  }
-  if (shuffle_graph[u].MP.has_value()) {
-    update_machine_successor(shuffle_graph, shuffle_graph[u].MP.value().v, v);
-  } else {
-    shuffle_graph[v].MP = {};
-    for (auto &v_parent : shuffle_graph[v].JP) {
-      shuffle_graph[v_parent.v].FP.erase(v);
-    }
-  }
-  update_machine_successor(shuffle_graph, v, u);
 }
 
 struct ShuffleGraphEdgeProperty {

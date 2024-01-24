@@ -14,6 +14,16 @@ namespace tsndgm {
 #define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
 #define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
 
+class JitterBoundViolation : public std::exception {
+public:
+  JitterBoundViolation(MessageStreamHandle ms, Delay bound)
+      : ms(ms), bound(bound) {}
+  const char *what() { return "jitter exceeds the allowed bound"; }
+
+  MessageStreamHandle ms;
+  Delay bound;
+};
+
 class DisjunctiveGraphModel {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
@@ -73,7 +83,7 @@ public:
         std::set<V> shuffled_operations;
         complete_shuffle(e, flipped_edges, shuffled_operations);
       }
-    } catch (UnfixableCycleException &e) {
+    } catch (std::exception &e) {
       internal_restore_commit(shuffle_fallback, false);
       throw;
     }
@@ -92,7 +102,7 @@ public:
     std::set<V> shuffled_operations;
     try {
       complete_shuffle(e, flipped_edges, shuffled_operations);
-    } catch (UnfixableCycleException &e) {
+    } catch (std::exception &e) {
       internal_restore_commit(shuffle_fallback, false);
       throw;
     }
@@ -104,14 +114,20 @@ public:
   }
   void split_all();
 
+  Delay compute_jitter_bound(MessageStreamHandle ms);
+
   inline void commit_flips() { flip_log.clear(); }
   inline void restore_flips() { restore_flips(flip_log.size()); }
   void restore_flips(size_t n);
   inline void commit_all(size_t index = 0) {
     internal_commit_all(index + EXTERNAL_COMMIT_OFFSET);
   }
-  void restore_commit(size_t index = 0, bool swap = false) {
+  inline void restore_commit(size_t index = 0, bool swap = false) {
     internal_restore_commit(index + EXTERNAL_COMMIT_OFFSET, swap);
+  }
+  inline void copy_commit(size_t src_index, size_t dst_index) {
+    internal_copy_commit(src_index + EXTERNAL_COMMIT_OFFSET,
+                         dst_index + EXTERNAL_COMMIT_OFFSET);
   }
 
   inline void encode(std::vector<unsigned int> &buf) {
@@ -227,6 +243,7 @@ private:
 
   void internal_commit_all(size_t index);
   void internal_restore_commit(size_t index, bool swap);
+  void internal_copy_commit(size_t src_index, size_t dst_index);
 
   void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g);
 
