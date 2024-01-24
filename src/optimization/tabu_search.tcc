@@ -233,13 +233,20 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
       (config.backup_commit_index != config.local_search_config.commit_index));
 
   BestSelection best_selection(&config.best_commit_index);
+
+  // For the guiding selection, we either use the solution from the previous
+  // transformation phase, or another stored solution (depending on which one is
+  // better)
   EncodedSelection guiding(dgm, type);
-  EncodedSelection &initial = relinking.sample(config);
+  EncodedSelection &guiding_alt = relinking.sample(config, config.p_guiding);
+  if (guiding_alt.objective < guiding.objective)
+    guiding = guiding_alt;
+  EncodedSelection &initial = relinking.sample(config, config.p_initial);
   dgm.decode(initial.buf);
+
   auto differing_machines =
       relinking.compute_differing_machines(initial, guiding);
   int steps = config.min_separation;
-
   for (int it = 0;; it++) {
     bool success = relinking.step_towards(guiding, differing_machines, steps);
     if (!success)

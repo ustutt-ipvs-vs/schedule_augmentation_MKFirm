@@ -10,20 +10,21 @@ namespace tsndgm {
 struct RelinkingConfig {
   IntensificationConfig local_search_config;
   int min_separation;
-  double p;
+  double p_initial;
+  double p_guiding;
   size_t min_stored_solutions;
   size_t max_stored_solutions;
   size_t best_commit_index;
   size_t backup_commit_index;
 
   RelinkingConfig(IntensificationConfig local_search_config,
-                  int min_separation = 2, double p = 0.5,
-                  size_t min_stored_solutions = 2,
-                  size_t max_stored_solutions = 10)
+                  int min_separation = 2, double p_initial = 0.5,
+                  double p_guiding = 0.2, size_t min_stored_solutions = 2,
+                  size_t max_stored_solutions = 20)
       : local_search_config(local_search_config.maxt, local_search_config.maxit,
                             6, false),
-        min_separation(min_separation), p(p),
-        min_stored_solutions(min_stored_solutions),
+        min_separation(min_separation), p_initial(p_initial),
+        p_guiding(p_guiding), min_stored_solutions(min_stored_solutions),
         max_stored_solutions(max_stored_solutions), best_commit_index(4),
         backup_commit_index(5) {}
 };
@@ -50,7 +51,7 @@ public:
     return compute_differing_machines(res, guiding).size() > 0;
   }
 
-  EncodedSelection &sample(RelinkingConfig &config);
+  EncodedSelection &sample(RelinkingConfig &config, double p);
 
   DifferingMachines compute_differing_machines(int initial_index,
                                                int guiding_index);

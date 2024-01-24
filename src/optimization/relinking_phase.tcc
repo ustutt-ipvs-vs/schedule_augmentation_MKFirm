@@ -16,16 +16,16 @@ void Relinking::update_candidates(BestSelection &res) {
     encoded_best_selections.insert(it, encoded_res);
 }
 
-EncodedSelection &Relinking::sample(RelinkingConfig &config) {
+EncodedSelection &Relinking::sample(RelinkingConfig &config, double p) {
   if (encoded_best_selections.size() > config.max_stored_solutions)
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       config.max_stored_solutions,
                                   encoded_best_selections.end());
 
-  std::geometric_distribution<int> dg(config.p);
-  int guiding_index =
+  std::geometric_distribution<int> dg(p);
+  int index =
       std::min(dg(gen), static_cast<int>(encoded_best_selections.size()) - 1);
-  return encoded_best_selections[guiding_index];
+  return encoded_best_selections[index];
 }
 
 bool Relinking::step_towards(EncodedSelection &guiding_selection,
