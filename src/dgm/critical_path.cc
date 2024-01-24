@@ -36,31 +36,26 @@ CriticalPath::Result CriticalPath::tardiness_path() {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
 
-  for (auto ed :
-       boost::make_iterator_range(boost::out_edges(prop.src, shuffle_graph))) {
-    V u = boost::target(ed, shuffle_graph);
-    for (auto handle : shuffle_graph[u].ms_handle) {
-      Delay tardiness = prop.crit_cost[u] - prop.streams[handle].phase -
-                        prop.streams[handle].period;
-      if (tardiness > max_tardiness.second)
-        max_tardiness = std::make_pair(u, tardiness);
-    }
-  }
+  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+    auto &stream = prop.streams[ms];
+    Edge talker = stream.route->get_talker();
+    const std::list<Edge> &listeners = stream.route->get_listeners();
 
-  std::list<MessageStreamHandle>::const_iterator it1;
-  std::list<V>::const_iterator it2;
-  for (auto ed :
-       boost::make_iterator_range(boost::in_edges(prop.sink, shuffle_graph))) {
-    V u = boost::source(ed, shuffle_graph);
-    for (it1 = shuffle_graph[u].ms_handle.begin(),
-        it2 = shuffle_graph[u].root.begin();
-         it1 != shuffle_graph[u].ms_handle.end() &&
-         it2 != shuffle_graph[u].root.end();
-         ++it1, ++it2) {
-      Delay tardiness = prop.crit_cost[u] + shuffle_graph[ed].weight -
-                        prop.crit_cost[*it2] - prop.streams[*it1].e2e_latency;
+    // compute tardiness of stream's release
+    V v_talker = prop.operation_to_vertex[{talker, ms}];
+    Delay release_tardiness =
+        prop.crit_cost[v_talker] - stream.phase - stream.period;
+    if (release_tardiness > max_tardiness.second)
+      max_tardiness = std::make_pair(v_talker, release_tardiness);
+
+    // compute tardiness of stream's end-to-end latency
+    for (Edge listener : listeners) {
+      V v_listener = prop.operation_to_vertex[{listener, ms}];
+      Delay tardiness = prop.crit_cost[v_listener] +
+                        stream.rti_map[listener].d_max() -
+                        prop.crit_cost[v_talker] - stream.e2e_latency;
       if (tardiness > max_tardiness.second)
-        max_tardiness = std::make_pair(u, tardiness);
+        max_tardiness = std::make_pair(v_listener, tardiness);
     }
   }
 
