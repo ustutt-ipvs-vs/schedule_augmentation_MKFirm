@@ -75,14 +75,7 @@ void StrictAdmissionIntensification<TerminationCriterion,
                                     SelectionNeighborhood>::reset_phase() {
   this->termination_criterion = TerminationCriterion(this->config.maxit);
   this->best_selection = BestSelection(0);
-
-  for (TabuListEntry &entry : tabu_list) {
-    for (E &e : entry.edges) {
-      V s = source(e, this->dgm.shuffle_graph);
-      V t = target(e, this->dgm.shuffle_graph);
-      e = this->dgm.edge(s, t);
-    }
-  }
+  this->clear_tabu_list();
 }
 
 template <class TerminationCriterion, class SelectionNeighborhood>

@@ -10,38 +10,22 @@ void Relinking::update_candidates(BestSelection &res) {
                          encoded_best_selections.end(),
                          [&](auto &s) { return s.objective >= res.objective; });
   EncodedSelection encoded_res(*dgm, res);
-  for (auto temp_it = it; temp_it != encoded_best_selections.end() &&
-                          (*temp_it).objective == res.objective;
-       ++temp_it) {
-    if (compute_differing_machines(encoded_res, *it).size() == 0)
-      return;
-  }
-  encoded_best_selections.insert(it, encoded_res);
+  if (it != encoded_best_selections.end() && it->objective == res.objective)
+    std::swap(encoded_res, *it);
+  else
+    encoded_best_selections.insert(it, encoded_res);
 }
 
-std::pair<int, int> Relinking::sample(RelinkingConfig &config) {
-  for (auto it = encoded_best_selections.begin();
-       it != encoded_best_selections.end() &&
-       it - encoded_best_selections.begin() <= config.max_stored_solutions;) {
-    if ((*(it - config.min_stored_solutions)).objective == (*it).objective)
-      it = encoded_best_selections.erase(it);
-    else
-      ++it;
-  }
-
+EncodedSelection &Relinking::sample(RelinkingConfig &config) {
   if (encoded_best_selections.size() > config.max_stored_solutions)
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       config.max_stored_solutions,
                                   encoded_best_selections.end());
 
-  // randomly select initial and guiding selection for relinking phase
   std::geometric_distribution<int> dg(config.p);
-  int initial_index =
-      std::min(dg(gen), static_cast<int>(encoded_best_selections.size()) - 2);
-  std::uniform_int_distribution<int> du(initial_index + 1,
-                                        encoded_best_selections.size() - 1);
-  int guiding_index = du(gen);
-  return {initial_index, guiding_index};
+  int guiding_index =
+      std::min(dg(gen), static_cast<int>(encoded_best_selections.size()) - 1);
+  return encoded_best_selections[guiding_index];
 }
 
 bool Relinking::step_towards(EncodedSelection &guiding_selection,
@@ -137,10 +121,16 @@ Relinking::compute_differing_machines(int initial_index, int guiding_index) {
 }
 
 Relinking::DifferingMachines
-Relinking::compute_differing_machines(BestSelection &res, int guiding_index) {
+Relinking::compute_differing_machines(BestSelection &res,
+                                      EncodedSelection &guiding) {
   EncodedSelection initial(*dgm, res);
-  EncodedSelection &guiding = encoded_best_selections[guiding_index];
+  return compute_differing_machines(initial, guiding);
+}
 
+Relinking::DifferingMachines
+Relinking::compute_differing_machines(EncodedSelection &guiding,
+                                      CriticalPath::Objective type) {
+  EncodedSelection initial(*dgm, type);
   return compute_differing_machines(initial, guiding);
 }
 

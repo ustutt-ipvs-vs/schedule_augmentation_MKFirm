@@ -14,7 +14,7 @@ public:
   Transformation(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
       : dgm(dgm), type(type), gen(rd()) {}
 
-  bool compute_best_permutation(V v);
+  virtual bool compute_best_permutation(V v);
   virtual void transform(int k) = 0;
 
 protected:
@@ -28,7 +28,8 @@ protected:
                       const std::pair<Delay, int> &min_d,
                       const CriticalPath::Result &div_result, int v_pos,
                       int cur_pos) {
-    return false;
+    return div_result.objective <=
+           std::min(min_d.first, int_phase_result.objective);
   };
 
   void update_machine_successors();
@@ -74,6 +75,16 @@ public:
 
 protected:
   auto sample_operation();
+};
+
+class ExhaustiveSearchTransformation : public Transformation {
+public:
+  ExhaustiveSearchTransformation(DisjunctiveGraphModel &dgm,
+                                 CriticalPath::Objective type)
+      : Transformation(dgm, type) {}
+
+  void transform(int k){};
+  bool compute_best_permutation(V v);
 };
 
 } // namespace tsndgm

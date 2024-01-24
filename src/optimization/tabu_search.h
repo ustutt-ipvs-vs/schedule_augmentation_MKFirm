@@ -23,7 +23,7 @@ public:
     size_t initial_solutions = 1;
     bool compress = false;
     Delay termination_bound = 0;
-    size_t commit_index = 2;
+    size_t commit_index = 0;
   };
 
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
@@ -54,8 +54,7 @@ public:
                                           Delay termination_bound = 0);
 
   template <class Intensification>
-  BestSelection run_exhaustive_search(BestSelection &best_selection,
-                                      BestSelection &int_phase,
+  BestSelection run_exhaustive_search(BestSelection &int_phase,
                                       ExhaustiveSearchConfig &config,
                                       CriticalPath::Objective type,
                                       Delay termination_bound = 0);
@@ -66,7 +65,8 @@ public:
                                     Delay termination_bound);
 
   template <class Intensification>
-  BestSelection run_compression_phase(IntensificationConfig &config,
+  BestSelection run_compression_phase(BestSelection &best_selection,
+                                      IntensificationConfig &config,
                                       CriticalPath::Objective type,
                                       Delay termination_bound);
 
@@ -82,10 +82,14 @@ private:
     best_selection.committed = false;
   }
 
-  auto update_best_selection(BestSelection &best_selection,
-                             BestSelection &res) {
+  auto update_best_selection(BestSelection &best_selection, BestSelection &res,
+                             bool swap = true) {
     best_selection.objective = res.objective;
-    std::swap(*best_selection.commit_index, *res.commit_index);
+    if (swap)
+      std::swap(*best_selection.commit_index, *res.commit_index);
+    else
+      dgm.copy_commit(*res.commit_index, *best_selection.commit_index);
+
     best_selection.committed = true;
   }
 

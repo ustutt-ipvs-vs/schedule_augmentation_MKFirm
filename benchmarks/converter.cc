@@ -8,6 +8,9 @@
 #include "../src/dgm/dgm.h"
 #include "setup.h"
 
+#define MAX_RETRIES 5
+#define EPSILON 0.1
+
 typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
 typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
@@ -56,11 +59,14 @@ int main(int argc, char **argv) {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  Delay zips_bound = optimal_makespan;
+  Delay fips_bound = optimal_makespan;
+  bool found = false, repeat = true;
 
-  while (true) {
-    int retries, max_retries = 100;
-    for (retries = 0; retries < max_retries; retries++) {
+  while (repeat) {
+    repeat = false;
+    int retries;
+    dgm.commit_all(4);
+    for (retries = 0; retries < MAX_RETRIES; retries++) {
       int N = 1, N_max = boost::num_vertices(shuffle_graph) - 2;
       std::set<V> modified_operations;
       for (int i = 0; i < std::min(N, N_max); i++) {
@@ -84,16 +90,22 @@ int main(int argc, char **argv) {
         RTI old_rti = prop.streams[shuffle_graph[v].ms_handle.front()]
                           .rti_map[shuffle_graph[v].edge];
 
-        // now, set d_min to zero
+        std::uniform_int_distribution<> ds(0, slack);
+        slack = ds(gen);
         RTIMap new_rti = {
             {shuffle_graph[v].edge, RTI(old_rti.d_trans_max() + slack, 0)}};
         dgm.update_rti(shuffle_graph[v].ms_handle.front(), new_rti);
         res = dgm.critical_path(CriticalPath::Objective::makespan);
 
-        if (res.objective == optimal_makespan) {
+        // modification is uninteresting if we do not exceed the previous bound
+        if (res.objective <= fips_bound) {
           N++;
+          dgm.update_rti(shuffle_graph[v].ms_handle.front(),
+                         {{shuffle_graph[v].edge, old_rti}});
           continue;
         }
+
+        // run compression phase to check if there exists a better result
         std::cout << "\nInitial: " << res.objective << " " << commit_index
                   << " " << config.commit_index << std::endl;
         dgm.commit_all(3);
@@ -104,38 +116,66 @@ int main(int argc, char **argv) {
         std::cout << "Compression:" << std::endl;
         auto compressed_selection =
             tabu_search.run_compression_phase<Intensification>(
-                config, CriticalPath::Objective::makespan, optimal_makespan);
+                tabu_search.best_selection, config,
+                CriticalPath::Objective::makespan, optimal_makespan);
         std::cout << "Result: " << compressed_selection.objective << std::endl;
-        if (compressed_selection.objective <= optimal_makespan) {
-          std::cout << " -> eligible for benchmarking" << std::endl;
-          dgm.restore_commit(*tabu_search.best_selection.commit_index);
-          zips_bound = res.objective;
+
+        // compressed result must be smaller than ZIPS objective and within
+        // EPSILON bound of optimal selection
+        if (compressed_selection.objective <
+            std::min(static_cast<Delay>((1 + EPSILON) * optimal_makespan),
+                     res.objective)) {
+          dgm.restore_commit(*compressed_selection.commit_index);
+          fips_bound = compressed_selection.objective;
+          dgm.commit_all(4);
+          found = true;
         } else {
           std::cout << " -> ineligible for benchmarking" << std::endl;
           N++;
           dgm.restore_commit(3);
+          dgm.update_rti(shuffle_graph[v].ms_handle.front(),
+                         {{shuffle_graph[v].edge, old_rti}});
         }
       }
       // if N <= N_max, we were successful
       if (N <= N_max) {
-        std::cout << "next stage" << std::endl;
         break;
+      } else {
+        dgm.restore_commit(4);
       }
     }
-    if (retries == max_retries) {
-      break;
-    } else {
-      print(tabu_search.dgm, jsp.machine_to_datalink);
-      save(dgm, jsp.machine_to_datalink, "converted",
-           benchmark_data["name"].template get<std::string>());
-      save_instance(dgm, benchmark_data["name"].template get<std::string>());
-    }
+  }
+  if (!found) {
+    std::cout << "no interesting benchmark was found" << std::endl;
+    return 1;
   }
 
+  dgm.restore_commit(4);
+  dgm.split_all();
+  Delay zips_bound =
+      dgm.critical_path(CriticalPath::Objective::makespan).objective;
+  if (zips_bound <= fips_bound) {
+    std::cout << "no interesting benchmark was found: " << zips_bound << " "
+              << fips_bound << std::endl;
+    return 1;
+  }
   std::cout << "\n\nGenerated Benchmark:" << std::endl;
+  std::cout << "-------------------------------------------------" << std::endl;
   std::cout << "ZIPS: (LB, UB) = (" << optimal_makespan << ", " << zips_bound
             << ")" << std::endl;
-  std::cout << "FIPS: (LB, UB) = (" << optimal_makespan << ", "
-            << optimal_makespan << ")" << std::endl;
-  print(tabu_search.dgm, jsp.machine_to_datalink);
+  std::cout << "Witness:" << std::endl;
+  print(dgm, jsp.machine_to_datalink);
+
+  dgm.restore_commit(4);
+  std::cout << "-------------------------------------------------" << std::endl;
+  std::cout << "FIPS: (LB, UB) = (" << optimal_makespan << ", " << fips_bound
+            << ")" << std::endl;
+  std::cout << "Witness:" << std::endl;
+  print(dgm, jsp.machine_to_datalink);
+
+  save(dgm, jsp.machine_to_datalink, "converted",
+       benchmark_data["name"].template get<std::string>());
+  save_instance(dgm, benchmark_data["name"].template get<std::string>());
+
+  return 0;
 }

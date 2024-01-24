@@ -114,7 +114,7 @@ public:
 
   static const int max_extension = 0;
 
-private:
+protected:
   Neighborhood neighborhood;
 };
 

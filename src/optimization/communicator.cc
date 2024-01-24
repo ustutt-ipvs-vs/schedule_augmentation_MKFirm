@@ -45,6 +45,8 @@ Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
                                       BestSelection &best_selection) {
   if (size == 1) {
     dgm.restore_commit(*best_selection.commit_index, false);
+    assert((best_selection.objective ==
+            dgm.critical_path(CriticalPath::Objective::makespan).objective));
     return best_selection;
   }
 
@@ -57,6 +59,8 @@ Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
   if (global[1] == rank) {
     // broadcast selection to every other MPI process
     dgm.restore_commit(*best_selection.commit_index, false);
+    assert((best_selection.objective ==
+            dgm.critical_path(CriticalPath::Objective::makespan).objective));
     dgm.encode(buf);
     buf_size = buf.size();
     MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
@@ -67,6 +71,9 @@ Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
     buf.resize(buf_size);
     MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, global[1], MPI_COMM_WORLD);
     dgm.decode(buf);
+
+    assert((global[0] ==
+            dgm.critical_path(CriticalPath::Objective::makespan).objective));
 
     best_selection = {best_selection.commit_index, global[0]};
     dgm.commit_all(*best_selection.commit_index);

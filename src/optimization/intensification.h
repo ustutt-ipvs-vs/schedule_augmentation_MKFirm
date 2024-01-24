@@ -12,7 +12,7 @@ struct IntensificationConfig {
   bool recursive_shuffle;
 
   IntensificationConfig(size_t maxt, size_t maxit)
-      : maxt(maxt), maxit(maxit), commit_index(0), recursive_shuffle(false) {}
+      : maxt(maxt), maxit(maxit), commit_index(1), recursive_shuffle(false) {}
 
 private:
   IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index,
@@ -25,8 +25,10 @@ private:
 };
 
 struct ExhaustiveSearchConfig : public IntensificationConfig {
+  size_t best_commit_index;
+
   ExhaustiveSearchConfig(size_t maxt, size_t maxit)
-      : IntensificationConfig(maxt, maxit, 1, false) {}
+      : IntensificationConfig(maxt, maxit, 2, false), best_commit_index(3) {}
 };
 
 template <class TerminationCriterion, class SelectionNeighborhood>

@@ -23,7 +23,7 @@ void benchmark_instance(
     json &benchmark_data,
     const std::function<TabuSearch::Config(int, int)> &config) {
 
-  JSPwithFIFOSetup jsp;
+  JSPSetup jsp;
   jsp.setup(benchmark_data);
 
   auto c = config(jsp.machines, jsp.jobs);
@@ -34,10 +34,10 @@ void benchmark_instance(
         benchmark_data["bounds"]["lower"].template get<Delay>();
   }
 
-  DisjunctiveGraphModel dgm(jsp.network, jsp.streams);
-  // set_initial_solution(dgm, machine_to_datalink, machines, jobs);
+  TabuSearch tabu_search(jsp.network, jsp.streams);
+  DisjunctiveGraphModel &dgm = tabu_search.dgm;
 
-  TabuSearch tabu_search(dgm);
+  // set_initial_solution(dgm, machine_to_datalink, machines, jobs);
 
   cout << benchmark_data["name"].template get<std::string>() << std::endl;
 
@@ -81,21 +81,22 @@ int main(int argc, char **argv) {
   }
 
   auto config = [](int machines, int jobs) {
+    int maxt = 10 + jobs / machines;
     return TabuSearch::Config{
-        5,
+        3000,
         CriticalPath::Objective::makespan,
-        IntensificationConfig(machines, 10 * machines * jobs),
-        ExhaustiveSearchConfig(machines, 10 * machines * jobs),
-        RelinkingConfig(IntensificationConfig(machines, 10 * machines * jobs)),
+        IntensificationConfig(maxt, 3 * machines * jobs),
+        ExhaustiveSearchConfig(maxt, 10 * machines * jobs),
+        RelinkingConfig(IntensificationConfig(maxt, 10 * machines * jobs)),
         5,
-        5,
-        true};
+        2,
+        false};
   };
 
   int benchmark_id = stoi(argv[1]);
 
   using InitialHeuristic = RandomInitial;
-  using TerminationCriterion = DifferentialTerminationCriterion;
+  using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification =
       TestStrictIntensification<DifferentialTerminationCriterion,
                                 ReducedSelectionCriticalBlockNeighborhood>;

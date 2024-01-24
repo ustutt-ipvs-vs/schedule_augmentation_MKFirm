@@ -33,7 +33,7 @@ void Transformation::update_machine_successors() {
 bool RandomOperationTransformation::accept(
     const std::vector<V> &processing_order, const std::pair<Delay, int> &min_d,
     const CriticalPath::Result &div_result, int v_pos, int cur_pos) {
-  if (div_result.objective <
+  if (div_result.objective <=
       std::min(min_d.first, int_phase_result.objective)) {
     return true;
   } else if (min_d.first > int_phase_result.objective) {
@@ -57,18 +57,15 @@ bool Transformation::compute_best_permutation(V v) {
   int i = std::find(processing_order.begin(), processing_order.end(), v) -
           processing_order.begin();
 
-  // select best (i.e., minimal objective) position of v in processing order
   std::pair<Delay, int> min_d = {std::numeric_limits<Delay>::max(), -1};
   for (int j = 0; j < processing_order.size(); j++) {
-    if (processing_order[j] == v)
+    if (j == i)
       continue;
 
     dgm.complete_flip(dgm.edge(v, processing_order[j]));
     auto div_result = dgm.critical_path(this->type);
-
     if (this->accept(processing_order, min_d, div_result, i, j))
       min_d = {div_result.objective, j};
-
     dgm.restore_flips();
   }
 
@@ -163,6 +160,67 @@ void SlackTransformation::transform(int k) {
       i--;
     }
   }
+}
+
+bool ExhaustiveSearchTransformation::compute_best_permutation(V v) {
+  shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
+  update_machine_successors();
+  dgm.commit_flips();
+
+  // compute last operation of v's critical block
+  for (V w = v; shuffle_graph[w].MS.has_value(); w = shuffle_graph[w].MS->v) {
+    V u = prop.crit_pred[w];
+    if (shuffle_graph[u].edge == shuffle_graph[w].edge)
+      continue;
+    E uw = dgm.edge(u, w);
+    u = prop.crit_pred[u];
+    if (shuffle_graph[uw].edge_type == conjunctive &&
+        shuffle_graph[u].edge == shuffle_graph[w].edge)
+      continue;
+    v = shuffle_graph[w].MP->v;
+    break;
+  }
+
+  // transform_solution, as proposed by (Pardalos and Shylo, 2006)
+  auto best_res = dgm.critical_path(type);
+  for (auto JP_v : shuffle_graph[v].JP) {
+    V w = JP_v.v;
+    while (w != prop.src && w != v && shuffle_graph[w].MP.has_value()) {
+      auto JS_w = std::find_if(
+          shuffle_graph[w].JS.begin(), shuffle_graph[w].JS.end(), [&](auto nv) {
+            E e = dgm.edge(w, nv.v);
+            return prop.crit_cost[w] + shuffle_graph[e].weight <
+                   prop.crit_cost[nv.v];
+          });
+      if (JS_w != shuffle_graph[w].JS.end()) {
+        w = JS_w->v;
+        continue;
+      }
+
+      auto JP_w = std::find_if(
+          shuffle_graph[w].JP.begin(), shuffle_graph[w].JP.end(), [&](auto nv) {
+            if (nv.v == prop.src)
+              return false;
+            E e = dgm.edge(nv.v, w);
+            return prop.crit_cost[nv.v] + shuffle_graph[e].weight ==
+                   prop.crit_cost[w];
+          });
+      if (JP_w != shuffle_graph[w].JP.end()) {
+        w = JP_w->v;
+        continue;
+      }
+
+      dgm.complete_flip(dgm.edge(shuffle_graph[w].MP->v, w));
+      auto res = dgm.critical_path(type);
+      if (res.objective > best_res.objective)
+        break;
+      best_res = res;
+    }
+  }
+
+  return true;
 }
 
 } // namespace tsndgm

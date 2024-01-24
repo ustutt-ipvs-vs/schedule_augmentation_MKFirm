@@ -26,3 +26,6 @@ target_link_libraries(jsp initial_heuristics optimization)
 
 add_executable(converter converter.cc)
 target_link_libraries(converter initial_heuristics optimization)
+
+add_executable(dumbbell dumbbell.cc)
+target_link_libraries(dumbbell initial_heuristics optimization)

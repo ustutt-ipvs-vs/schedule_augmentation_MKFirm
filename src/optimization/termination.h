@@ -2,6 +2,7 @@
 #define TSN_DGM_TERMINATION_H
 
 #include "../dgm/critical_path.h"
+#include <chrono>
 
 namespace tsndgm {
 
@@ -44,10 +45,23 @@ struct DifferentialTerminationCriterion : public TerminationCriterion {
   BestSolution best_solution = {std::numeric_limits<Delay>::max(), 0};
 };
 
-// Extension 1: Termination criterion via timer (e.g. run tabu search for 2
-// minutes)
+struct TimeoutTerminationCriterion : public TerminationCriterion {
+  TimeoutTerminationCriterion(size_t timeout, Delay bound = 0)
+      : TerminationCriterion(timeout, bound),
+        timeout(static_cast<std::chrono::seconds>(timeout)) {
+    start = std::chrono::high_resolution_clock::now();
+  }
 
-// Extension 2: max_iterations after finding last best solution
+  bool satisfied(size_t iteration, Delay objective) {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(now - start);
+    return duration >= timeout || objective <= bound;
+  }
+
+protected:
+  std::chrono::high_resolution_clock::time_point start;
+  std::chrono::seconds timeout;
+};
 
 } // namespace tsndgm
 

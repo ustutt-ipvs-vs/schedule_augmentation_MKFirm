@@ -35,6 +35,11 @@ struct EncodedSelection {
       : objective(best_selection.objective) {
     dgm.encode(buf, *best_selection.commit_index);
   }
+
+  EncodedSelection(DisjunctiveGraphModel &dgm, CriticalPath::Objective type) {
+    objective = dgm.critical_path(type).objective;
+    dgm.encode(buf);
+  }
 };
 
 struct NextSelection {
