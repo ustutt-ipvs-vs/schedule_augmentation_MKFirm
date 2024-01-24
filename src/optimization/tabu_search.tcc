@@ -243,12 +243,16 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
   EncodedSelection guiding(dgm, type);
   EncodedSelection &guiding_alt = relinking.sample(config, config.p_guiding);
   if (initial.objective != guiding_alt.objective &&
-      guiding_alt.objective < guiding.objective)
+      guiding_alt.objective < guiding.objective) {
+    std::cout << "replaced: " << guiding.objective << " "
+              << guiding_alt.objective << std::endl;
     guiding = guiding_alt;
+  }
 
   auto differing_machines =
       relinking.compute_differing_machines(initial, guiding);
   int steps = config.min_separation;
+  Communicator::State state = Communicator::running;
   for (int it = 0;; it++) {
     bool success = relinking.step_towards(guiding, differing_machines, steps);
     if (!success)
@@ -258,9 +262,8 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
 
     BestSelection res = run_intensification_phase<Intensification>(
         config.local_search_config, type);
-    Communicator::State state = res < this->best_selection
-                                    ? Communicator::found_better
-                                    : Communicator::running;
+    state = res < this->best_selection ? Communicator::found_better
+                                       : Communicator::running;
     state = com.exchange_state(state);
     if (state == Communicator::found_better) {
       return res;
@@ -277,7 +280,7 @@ BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
     dgm.restore_commit(config.backup_commit_index);
     assert((backup == dgm.critical_path(type).objective));
   }
-  if (best_selection.committed)
+  if (state == Communicator::running)
     com.sync();
   return best_selection;
 }
