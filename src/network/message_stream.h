@@ -7,6 +7,7 @@
 namespace tsndgm {
 
 typedef unsigned int FrameSize;
+typedef unsigned short PCPValue;
 
 class RTI {
 public:
@@ -33,6 +34,8 @@ static RTI WIRED_RTI(FrameSize frame_size, DataRate data_rate, Delay prop = 0) {
 typedef std::map<Edge, RTI> RTIMap;
 typedef std::list<Edge> WirelessLinks;
 
+typedef unsigned int MessageStreamHandle;
+
 class MessageStream {
 public:
   std::shared_ptr<Route> route;
@@ -44,35 +47,38 @@ public:
 
   Delay e2e_latency;
   Delay jitter;
+  PCPValue pcp;
 
   WirelessLinks wireless_links;
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network,
                 const std::shared_ptr<Route> &route, Tick period,
                 FrameSize frame_size, Delay e2e_latency,
-                const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0)
+                const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0,
+                PCPValue pcp = 0)
       : network(network), route(route), period(period), frame_size(frame_size),
         e2e_latency(e2e_latency), rti_map(rti_map), phase(phase),
-        jitter(jitter) {
+        jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network, Route &&route,
                 Tick period, FrameSize frame_size, Delay e2e_latency,
-                const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0)
+                const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0,
+                PCPValue pcp = 0)
       : network(network), route(std::make_shared<Route>(std::move(route))),
         period(period), frame_size(frame_size), e2e_latency(e2e_latency),
-        rti_map(rti_map), phase(phase), jitter(jitter) {
+        rti_map(rti_map), phase(phase), jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network,
                 const Route &route, Tick period, FrameSize frame_size,
                 Delay e2e_latency, const RTIMap &rti_map = {}, Tick phase = 0,
-                Delay jitter = 0)
+                Delay jitter = 0, PCPValue pcp = 0)
       : network(network), route(std::make_shared<Route>(route)), period(period),
         frame_size(frame_size), e2e_latency(e2e_latency), rti_map(rti_map),
-        phase(phase), jitter(jitter) {
+        phase(phase), jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
   }
 

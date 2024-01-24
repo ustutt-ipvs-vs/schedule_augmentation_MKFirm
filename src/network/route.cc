@@ -86,4 +86,12 @@ void Route::print_route() {
   }
 }
 
+void Route::compute_talker_and_listeners() {
+  talker = root.childs.front().edge;
+  for (const TreeRouteHop &hop : *this) {
+    if (hop.is_leaf())
+      listeners.push_back(hop.edge);
+  }
+}
+
 } // namespace tsndgm

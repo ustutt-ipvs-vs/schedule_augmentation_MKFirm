@@ -70,6 +70,11 @@ private:
   std::list<std::reference_wrapper<const TreeRouteHop>> visited_hops;
   bool valid = false;
 
+  Edge talker;
+  std::list<Edge> listeners;
+
+  void compute_talker_and_listeners();
+
 public:
   TreeRouteHop root; /**< Root hop of the route. */
 
@@ -79,7 +84,10 @@ public:
    */
   template <class T>
   Route(const std::shared_ptr<NetworkTopology> &network, T &&root)
-      : network(network), root(std::forward<T>(root)) {}
+      : network(network), root(std::forward<T>(root)) {
+    check();
+    compute_talker_and_listeners();
+  }
 
   Route(Route &&other) = default;
   Route(const Route &other) = default;
@@ -93,6 +101,8 @@ public:
   void add_path(const PathRoute &route) {
     valid = false;
     root.add_path(route);
+    check();
+    compute_talker_and_listeners();
   }
 
   /** \brief Check if the route is valid.
@@ -104,7 +114,17 @@ public:
    * - Every path shares the same talker
    */
   void check();
-  bool is_valid() { return valid; }
+
+  inline Edge get_talker() {
+    if (!valid)
+      compute_talker_and_listeners();
+    return talker;
+  }
+  inline const std::list<Edge> &get_listeners() {
+    if (!valid)
+      compute_talker_and_listeners();
+    return listeners;
+  }
 
   void print_route();
 
