@@ -51,10 +51,11 @@ public:
   template <class Intensification>
   BestSelection run_intensification_phase(IntensificationConfig &config,
                                           CriticalPath::Objective type,
-                                          Delay termination_bound = 0);
+                                          Delay termination_bound = 0,
+                                          TabuList tabu_list = {});
 
   template <class Intensification>
-  BestSelection run_exhaustive_search(BestSelection &int_phase,
+  BestSelection run_exhaustive_search(BestSelection &initial_res,
                                       ExhaustiveSearchConfig &config,
                                       CriticalPath::Objective type,
                                       Delay termination_bound = 0);

@@ -56,6 +56,22 @@ void TabuSearch::run(Config &config) {
     update_best_selection(res, false);
     print_result(res.objective);
 
+    if (termination_criterion.satisfied(phase, best_selection.objective))
+      break;
+
+    if (res.objective == best_selection.objective) {
+      Delay objective;
+      do {
+        std::cout << " Exhaustive Search: " << std::endl;
+        objective = best_selection.objective;
+        res = run_exhaustive_search<ExhaustiveSearch>(
+            best_selection, config.exhaustive_search_config, config.type);
+        res = com.exchange_best_selection(dgm, res);
+        update_best_selection(res, true);
+        print_result(res.objective);
+      } while (res.objective < objective);
+    }
+
     EncodedSelection &next = relinking.sample(config.relinking_config, 0.5);
     dgm.decode(next.buf);
 
@@ -81,6 +97,7 @@ void TabuSearch::run(Config &config) {
     // update_best_selection(res);
     // print_result(res.objective);
   }
+
   if (config.compress) {
     std::cout << " Compress: " << std::endl;
     res = run_compression_phase<Intensification>(best_selection,
@@ -125,11 +142,11 @@ BestSelection TabuSearch::run_initial_phase(int initial_solutions,
 }
 
 template <class Intensification>
-BestSelection
-TabuSearch::run_intensification_phase(IntensificationConfig &config,
-                                      CriticalPath::Objective type,
-                                      Delay termination_bound) {
+BestSelection TabuSearch::run_intensification_phase(
+    IntensificationConfig &config, CriticalPath::Objective type,
+    Delay termination_bound, TabuList tabu_list) {
   Intensification int_phase(dgm, config, termination_bound);
+  int_phase.tabu_list = tabu_list;
   NextSelection next_selection;
   BestSelection best_selection(&config.commit_index,
                                dgm.critical_path(type).objective);
@@ -186,16 +203,16 @@ TabuSearch::run_intensification_phase(IntensificationConfig &config,
 }
 
 template <class Intensification>
-BestSelection TabuSearch::run_exhaustive_search(BestSelection &int_phase,
+BestSelection TabuSearch::run_exhaustive_search(BestSelection &initial_res,
                                                 ExhaustiveSearchConfig &config,
                                                 CriticalPath::Objective type,
                                                 Delay termination_bound) {
   assert((*best_selection.commit_index != config.commit_index));
-  assert((*int_phase.commit_index != config.commit_index));
+  assert((*initial_res.commit_index != config.commit_index));
+  assert((*initial_res.commit_index != config.best_commit_index));
 
   BestSelection res, best_selection(&config.best_commit_index);
   SelectionCriticalBlockNeighborhood selection_neighborhood(dgm);
-  ExhaustiveSearchTransformation transform(dgm, type);
   auto neighborhood =
       selection_neighborhood.compute(this->dgm.critical_path(type))
           .flip_candidates;
@@ -210,10 +227,10 @@ BestSelection TabuSearch::run_exhaustive_search(BestSelection &int_phase,
       e = dgm.edge(e);
 
     this->dgm.complete_flip(edges);
-    transform.compute_best_permutation(
-        target(edges.front(), dgm.shuffle_graph));
-    res = run_intensification_phase<Intensification>(config, type,
-                                                     termination_bound);
+    TabuList tabu_list = {
+        TabuListEntry(edges, dgm.critical_path(type).objective)};
+    res = run_intensification_phase<Intensification>(
+        config, type, termination_bound, tabu_list);
     if (res < best_selection)
       update_best_selection(best_selection, res);
     state = best_selection < this->best_selection ? Communicator::found_better
@@ -221,8 +238,8 @@ BestSelection TabuSearch::run_exhaustive_search(BestSelection &int_phase,
     state = com.exchange_state(state);
     if (state != Communicator::running)
       return best_selection;
-    dgm.restore_commit(*int_phase.commit_index);
-    assert((int_phase.objective == dgm.critical_path(type).objective));
+    dgm.restore_commit(*initial_res.commit_index);
+    assert((initial_res.objective == dgm.critical_path(type).objective));
   }
   if (state == Communicator::running)
     com.sync();

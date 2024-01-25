@@ -31,6 +31,13 @@ struct ExhaustiveSearchConfig : public IntensificationConfig {
       : IntensificationConfig(maxt, maxit, 2, false), best_commit_index(3) {}
 };
 
+struct TabuListEntry {
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  std::list<E> edges;
+  Delay objective;
+};
+typedef std::list<TabuListEntry> TabuList;
+
 template <class TerminationCriterion, class SelectionNeighborhood>
 class Intensification {
 public:
@@ -58,6 +65,7 @@ public:
   virtual ~Intensification() = default;
 
   BestSelection best_selection;
+  TabuList tabu_list;
 
 protected:
   DisjunctiveGraphModel &dgm;
@@ -71,12 +79,6 @@ class StrictAdmissionIntensification
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
-
-  struct TabuListEntry {
-    std::list<E> edges;
-    Delay objective;
-  };
-  typedef std::list<TabuListEntry> TabuList;
 
   struct ExtendedNextSelection : public NextSelection {
     size_t violation;
@@ -100,21 +102,21 @@ public:
   virtual void update_tabu_list(TabuListEntry entry);
 
   void reset_phase();
-  inline void clear_tabu_list() { tabu_list.clear(); }
-
-  TabuList tabu_list;
+  inline void clear_tabu_list() { this->tabu_list.clear(); }
 
 protected:
   SelectionNeighborhood selection_neighborhood;
 
   virtual inline size_t compute_first_violation(NextSelection n) {
     return std::distance(
-        tabu_list.cbegin(),
-        std::find_if(tabu_list.cbegin(), tabu_list.cend(), [&](auto &entry) {
-          return std::all_of(entry.edges.begin(), entry.edges.end(), [&](E e) {
-            return this->dgm.shuffle_graph[e].state() != blocked;
-          });
-        }));
+        this->tabu_list.cbegin(),
+        std::find_if(
+            this->tabu_list.cbegin(), this->tabu_list.cend(), [&](auto &entry) {
+              return std::all_of(
+                  entry.edges.begin(), entry.edges.end(), [&](E e) {
+                    return this->dgm.shuffle_graph[e].state() != blocked;
+                  });
+            }));
   }
 };
 

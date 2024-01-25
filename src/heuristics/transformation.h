@@ -27,11 +27,7 @@ protected:
   virtual bool accept(const std::vector<V> &processing_order,
                       const std::pair<Delay, int> &min_d,
                       const CriticalPath::Result &div_result, int v_pos,
-                      int cur_pos) {
-    return div_result.objective <=
-           std::min(min_d.first, int_phase_result.objective);
-  };
-
+                      int cur_pos) = 0;
   void update_machine_successors();
   void print_before_and_after(std::map<Edge, std::vector<V>> &before);
 };
@@ -83,8 +79,17 @@ public:
                                  CriticalPath::Objective type)
       : Transformation(dgm, type) {}
 
-  void transform(int k){};
   bool compute_best_permutation(V v);
+  void transform(int k){};
+
+protected:
+  virtual bool accept(const std::vector<V> &processing_order,
+                      const std::pair<Delay, int> &min_d,
+                      const CriticalPath::Result &div_result, int v_pos,
+                      int cur_pos) {
+    return div_result.objective <=
+           std::min(min_d.first, int_phase_result.objective);
+  };
 };
 
 } // namespace tsndgm

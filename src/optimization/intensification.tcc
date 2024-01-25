@@ -61,10 +61,10 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
       this->best_selection.objective = next_selection.objective;
     extension_level++;
   } while (extension_level <= SelectionNeighborhood::max_extension &&
-           next_selection.violation < tabu_list.size());
+           next_selection.violation < this->tabu_list.size());
 
-  if (tabu_list.size() != 0)
-    tabu_list.resize(next_selection.violation, tabu_list.back());
+  if (this->tabu_list.size() != 0)
+    this->tabu_list.resize(next_selection.violation, this->tabu_list.back());
   update_tabu_list({next_selection.edges, this->best_selection.objective});
 
   return next_selection;
@@ -82,10 +82,10 @@ template <class TerminationCriterion, class SelectionNeighborhood>
 void StrictAdmissionIntensification<
     TerminationCriterion, SelectionNeighborhood>::update_tabu_list(TabuListEntry
                                                                        entry) {
-  tabu_list.push_front(entry);
+  this->tabu_list.push_front(entry);
 
-  if (tabu_list.size() > this->config.maxt)
-    tabu_list.pop_back();
+  if (this->tabu_list.size() > this->config.maxt)
+    this->tabu_list.pop_back();
 }
 
 } // namespace tsndgm

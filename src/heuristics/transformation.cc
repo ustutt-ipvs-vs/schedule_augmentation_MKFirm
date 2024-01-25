@@ -38,9 +38,8 @@ bool RandomOperationTransformation::accept(
     return true;
   } else if (min_d.first > int_phase_result.objective) {
     double r = d(gen);
-    double b = exp(
-        -(static_cast<double>(div_result.objective * processing_order.size()) /
-          (int_phase_result.objective * abs(v_pos - cur_pos))));
+    double b = exp(-static_cast<double>(div_result.objective) /
+                   int_phase_result.objective);
     return r < b;
   }
   return false;

@@ -83,10 +83,10 @@ int main(int argc, char **argv) {
   auto config = [](int machines, int jobs) {
     int maxt = 10 + jobs / machines;
     return TabuSearch::Config{
-        30,
+        100,
         CriticalPath::Objective::makespan,
         IntensificationConfig(maxt, 5 * machines * jobs),
-        ExhaustiveSearchConfig(maxt, 3 * machines * jobs),
+        ExhaustiveSearchConfig(maxt, 5 * machines * jobs),
         RelinkingConfig(IntensificationConfig(maxt, 5 * machines * jobs)),
         10,
         1,
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
                                 ReducedSelectionCriticalBlockNeighborhood>;
   using ExhaustiveSearch =
       TestStrictIntensification<DifferentialTerminationCriterion,
-                                SelectionCriticalBlockNeighborhood>;
+                                ReducedSelectionCriticalBlockNeighborhood>;
   using TransformationHeuristic = SlackTransformation;
 
   benchmark<InitialHeuristic, TerminationCriterion, Intensification,
