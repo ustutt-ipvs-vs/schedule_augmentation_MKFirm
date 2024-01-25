@@ -35,10 +35,14 @@ void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
   // note that critical_block[0] contains last operation of critical block
   if (critical_block.size() > 0) {
     for (int i = 1; i < critical_block.size(); i++) {
-      neighborhood.flip_candidates.push_back(
-          {dgm.edge(critical_block[i], critical_block[0])});
+      // move critical_block[i] after critical_block[0]
+      std::list<E> edges = {};
+      for (int j = i - 1; j >= 0; j--)
+        edges.push_back(dgm.edge(critical_block[i], critical_block[j]));
+      neighborhood.flip_candidates.push_back(edges);
     }
     for (int i = 1; i < critical_block.size() - 1; i++) {
+      // move critical_block[i] before critical_block[-1]
       neighborhood.flip_candidates.push_back(
           {dgm.edge(critical_block.back(), critical_block[i])});
     }
@@ -91,11 +95,9 @@ void ReducedSelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
   // note that critical_block[0] contains last operation of critical block
   size_t n = critical_block.size();
   if (n > 1) {
-    if (type != last) {
-      neighborhood.flip_candidates.push_back(
-          {dgm.edge(critical_block[1], critical_block[0])});
-    }
-    if (type != first && n > 2) {
+    neighborhood.flip_candidates.push_back(
+        {dgm.edge(critical_block[1], critical_block[0])});
+    if (n > 2) {
       neighborhood.flip_candidates.push_back(
           {dgm.edge(critical_block[n - 1], critical_block[n - 2])});
     }

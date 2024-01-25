@@ -28,12 +28,12 @@ public:
 
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
              const std::vector<MessageStream> &streams)
-      : dgm(network, streams) {
+      : dgm(network, streams), gen(rd()) {
     relinking.initialize(&this->dgm);
     start = std::chrono::high_resolution_clock::now();
   }
 
-  TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm) {
+  TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm), gen(rd()) {
     relinking.initialize(&this->dgm);
     start = std::chrono::high_resolution_clock::now();
   }
@@ -60,9 +60,9 @@ public:
                                       Delay termination_bound = 0);
 
   template <class Intensification>
-  BestSelection run_relinking_phase(RelinkingConfig &config,
-                                    CriticalPath::Objective type,
-                                    Delay termination_bound);
+  BestSelection
+  run_relinking_phase(BestSelection &transform_phase, RelinkingConfig &config,
+                      CriticalPath::Objective type, Delay termination_bound);
 
   template <class Intensification>
   BestSelection run_compression_phase(BestSelection &best_selection,
@@ -76,6 +76,9 @@ public:
   Communicator com;
 
 private:
+  std::random_device rd;
+  std::mt19937 gen;
+
   auto update_best_selection(BestSelection &best_selection,
                              NextSelection &res) {
     best_selection.objective = res.objective;
