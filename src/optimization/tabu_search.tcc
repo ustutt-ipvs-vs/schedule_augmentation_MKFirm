@@ -59,17 +59,13 @@ void TabuSearch::run(Config &config) {
     if (termination_criterion.satisfied(phase, best_selection.objective))
       break;
 
-    if (res.objective == best_selection.objective) {
-      Delay objective;
-      do {
-        std::cout << " Exhaustive Search: " << std::endl;
-        objective = best_selection.objective;
-        res = run_exhaustive_search<ExhaustiveSearch>(
-            best_selection, config.exhaustive_search_config, config.type);
-        res = com.exchange_best_selection(dgm, res);
-        update_best_selection(res, true);
-        print_result(res.objective);
-      } while (res.objective < objective);
+    if (res.objective <= 1.1 * best_selection.objective) {
+      std::cout << " Exhaustive Search: " << std::endl;
+      res = run_exhaustive_search<ExhaustiveSearch>(
+          best_selection, config.exhaustive_search_config, config.type);
+      res = com.exchange_best_selection(dgm, res);
+      update_best_selection(res, true);
+      print_result(res.objective);
     }
 
     EncodedSelection &next = relinking.sample(config.relinking_config, 0.5);
