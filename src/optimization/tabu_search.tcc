@@ -59,7 +59,7 @@ void TabuSearch::run(Config &config) {
     if (termination_criterion.satisfied(phase, best_selection.objective))
       break;
 
-    if (res.objective <= 1.1 * best_selection.objective) {
+    if (res.objective <= 1.01 * best_selection.objective) {
       std::cout << " Exhaustive Search: " << std::endl;
       res = run_exhaustive_search<ExhaustiveSearch>(
           best_selection, config.exhaustive_search_config, config.type);
@@ -208,7 +208,8 @@ BestSelection TabuSearch::run_exhaustive_search(BestSelection &initial_res,
   assert((*initial_res.commit_index != config.best_commit_index));
 
   BestSelection res, best_selection(&config.best_commit_index);
-  SelectionCriticalBlockNeighborhood selection_neighborhood(dgm);
+  typename Intensification::ISelectionNeighborhood selection_neighborhood(dgm);
+  ExhaustiveSearchTransformation heuristic(dgm, type);
   auto neighborhood =
       selection_neighborhood.compute(this->dgm.critical_path(type))
           .flip_candidates;
@@ -222,11 +223,18 @@ BestSelection TabuSearch::run_exhaustive_search(BestSelection &initial_res,
     for (auto &e : edges)
       e = dgm.edge(e);
 
+    // flip edges and transform solution according to (Pardalos and Shylo, 2006)
     this->dgm.complete_flip(edges);
-    TabuList tabu_list = {
-        TabuListEntry(edges, dgm.critical_path(type).objective)};
+    Delay objective = dgm.critical_path(type).objective;
+    heuristic.transform_solution(source(edges.front(), dgm.shuffle_graph));
+
+    // populate tabu_list and run local search
+    TabuList tabu_list = {TabuListEntry(edges, objective)};
+    for (auto [e, o] : heuristic.flipped_edges)
+      tabu_list.push_back(TabuListEntry({e}, o));
     res = run_intensification_phase<Intensification>(
         config, type, termination_bound, tabu_list);
+
     if (res < best_selection)
       update_best_selection(best_selection, res);
     state = best_selection < this->best_selection ? Communicator::found_better

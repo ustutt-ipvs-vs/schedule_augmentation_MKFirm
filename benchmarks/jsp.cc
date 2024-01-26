@@ -86,9 +86,9 @@ int main(int argc, char **argv) {
         100,
         CriticalPath::Objective::makespan,
         IntensificationConfig(maxt, 5 * machines * jobs),
-        ExhaustiveSearchConfig(maxt, 5 * machines * jobs),
+        ExhaustiveSearchConfig(maxt, 10 * machines * jobs),
         RelinkingConfig(IntensificationConfig(maxt, 5 * machines * jobs)),
-        10,
+        static_cast<size_t>(machines),
         1,
         false};
   };

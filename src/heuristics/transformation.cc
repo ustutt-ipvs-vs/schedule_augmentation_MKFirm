@@ -161,10 +161,12 @@ void SlackTransformation::transform(int k) {
   }
 }
 
-bool ExhaustiveSearchTransformation::compute_best_permutation(V v) {
+// transform_solution, as proposed by (Pardalos and Shylo, 2006)
+void ExhaustiveSearchTransformation::transform_solution(V v) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
+  flipped_edges.clear();
   update_machine_successors();
   dgm.commit_flips();
 
@@ -182,11 +184,10 @@ bool ExhaustiveSearchTransformation::compute_best_permutation(V v) {
     break;
   }
 
-  // transform_solution, as proposed by (Pardalos and Shylo, 2006)
   auto best_res = dgm.critical_path(type);
   for (auto JP_v : shuffle_graph[v].JP) {
     V w = JP_v.v;
-    while (w != prop.src && w != v && shuffle_graph[w].MP.has_value()) {
+    while (w != prop.src && w != v) {
       auto JS_w = std::find_if(
           shuffle_graph[w].JS.begin(), shuffle_graph[w].JS.end(), [&](auto nv) {
             E e = dgm.edge(w, nv.v);
@@ -211,15 +212,17 @@ bool ExhaustiveSearchTransformation::compute_best_permutation(V v) {
         continue;
       }
 
-      dgm.complete_flip(dgm.edge(shuffle_graph[w].MP->v, w));
+      if (!shuffle_graph[w].MP.has_value())
+        break;
+      E e = dgm.edge(shuffle_graph[w].MP->v, w);
+      dgm.complete_flip(e);
       auto res = dgm.critical_path(type);
+      flipped_edges.push_back({e, res.objective});
       if (res.objective > best_res.objective)
         break;
       best_res = res;
     }
   }
-
-  return true;
 }
 
 } // namespace tsndgm

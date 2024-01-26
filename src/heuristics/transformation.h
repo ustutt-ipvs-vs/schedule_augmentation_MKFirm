@@ -79,8 +79,11 @@ public:
                                  CriticalPath::Objective type)
       : Transformation(dgm, type) {}
 
-  bool compute_best_permutation(V v);
+  bool compute_best_permutation(V v) { return false; }
   void transform(int k){};
+  void transform_solution(V v);
+
+  std::list<std::pair<E, Delay>> flipped_edges;
 
 protected:
   virtual bool accept(const std::vector<V> &processing_order,
