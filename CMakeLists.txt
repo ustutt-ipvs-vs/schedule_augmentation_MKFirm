@@ -9,13 +9,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(TESTING "1" CACHE STRING "Enable Testing")
 set(BENCHMARKING "1" CACHE STRING "Enable Testing")
 
-#set(CMAKE_CXX_CLANG_TIDY
-#    clang-tidy;
-#    -checks=clang-analyzer-*,boost-*,cert-*,google-*,performance-*               # Specify the checks you want
-#    -header-filter=.*       # Filter headers
-#)
-
 add_subdirectory(src)
+
+add_library(tsndgm INTERFACE)
+target_link_libraries(tsndgm INTERFACE optimization heuristics)
 
 if (TESTING EQUAL "1") 
   enable_testing()

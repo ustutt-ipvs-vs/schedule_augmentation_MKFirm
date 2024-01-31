@@ -5,8 +5,7 @@
 
 namespace tsndgm {
 
-template <class TemperatureSchedule>
-double Transformation<TemperatureSchedule>::p_barrier(E uv) {
+template <class T> double Transformation<T>::p_barrier(E uv) {
   assert((dgm.shuffle_graph[uv].edge_type != conjunctive));
   if (dgm.shuffle_graph[uv].edge_type == fifo)
     uv = dgm.fifo_to_disjunctive_edge(uv);
@@ -30,18 +29,17 @@ double Transformation<TemperatureSchedule>::p_barrier(E uv) {
   assert((uv_objective > 0 || vu_objective > 0));
 
   // no best_selection contains the edge uv; hence, always flip
-  if (temperature > 0 && uv_objective == 0)
+  if (temperature > temperature_schedule.c && uv_objective == 0)
     return 0;
   // no best_selection contains the edge vu; hence, never flip
-  else if (temperature > 0 && vu_objective == 0)
+  else if (temperature > temperature_schedule.c && vu_objective == 0)
     return 1;
 
   return p / (p + (1 - p) * exp(-temperature * (vu_objective - uv_objective)));
 }
 
-template <class TemperatureSchedule>
-bool Transformation<TemperatureSchedule>::transform(
-    Neighborhood &neighborhood) {
+template <class T>
+bool Transformation<T>::transform(Neighborhood &neighborhood) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   auto &candidates = neighborhood.flip_candidates;
@@ -52,10 +50,13 @@ bool Transformation<TemperatureSchedule>::transform(
     std::swap(candidates[i], candidates[j]);
 
     while (candidates[i].size() > 0) {
-      double r = d(gen);
-      double b = p_barrier(candidates[i].back());
-      if (r > b) {
-        dgm.complete_flip(candidates[i]);
+      if (!already_flipped(candidates[i]) &&
+          d(gen) > p_barrier(candidates[i].back())) {
+        try {
+          dgm.complete_flip(candidates[i]);
+        } catch (FlipGraphException &e) {
+          break;
+        }
         flipped_edges.push_front(candidates[i]);
         return true;
       }
@@ -66,22 +67,29 @@ bool Transformation<TemperatureSchedule>::transform(
   return false;
 }
 
-template <class TemperatureSchedule>
-int RandomCriticalPathTransformation<TemperatureSchedule>::transform(int k) {
+template <class T> int RandomCriticalPathTransformation<T>::transform(int k) {
   shuffle_graph_t &shuffle_graph = this->dgm.shuffle_graph;
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   this->flipped_edges.clear();
 
-  while (k > 0) {
+  for (int i = 0; i < k; i++) {
     SelectionCriticalBlockNeighborhood selection_neighborhood(this->dgm);
     Neighborhood neighborhood =
         selection_neighborhood.compute(this->dgm.critical_path(this->type));
-    if (Transformation<TemperatureSchedule>::transform(neighborhood))
-      k--;
-    else
-      break;
+    if (!Transformation<T>::transform(neighborhood))
+      return i;
   }
   return k;
+}
+
+template <class T> bool Transformation<T>::already_flipped(std::list<E> edges) {
+  for (E e : edges) {
+    for (auto &entry : flipped_edges) {
+      if (std::find(entry.begin(), entry.end(), e) != entry.end())
+        return true;
+    }
+  }
+  return false;
 }
 
 } // namespace tsndgm

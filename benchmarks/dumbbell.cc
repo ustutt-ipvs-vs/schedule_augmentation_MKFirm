@@ -1,4 +1,5 @@
 #include "../src/optimization/tabu_search.h"
+
 #include "setup.h"
 
 #define WIRELESS_DMAX 400
@@ -66,28 +67,22 @@ int main(int argc, char **argv) {
 
   TabuSearch tabu_search(network, message_streams);
 
-  TabuSearch::Config config{
-      1,
-      CriticalPath::Objective::makespan,
-      IntensificationConfig(10, 5 * streams),
-      ExhaustiveSearchConfig(10, 10),
-      RelinkingConfig(IntensificationConfig(10, 5 * streams)),
-      5,
-      5,
-      true};
+  TabuSearchConfig config{CriticalPath::Objective::makespan,
+                          TerminationConfig(10),
+                          IntensificationConfig(10, 5 * streams),
+                          DiversificationConfig(5),
+                          1,
+                          true};
 
   using InitialHeuristic = RandomInitial;
   using TerminationCriterion = DifferentialTerminationCriterion;
-  using Intensification =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using ExhaustiveSearch =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using TransformationHeuristic = SlackTransformation;
+  using Intensification = StrictAdmissionIntensification<
+      DifferentialTerminationCriterion,
+      ReducedSelectionCriticalBlockNeighborhood<>>;
+  using TransformationHeuristic = NoTransformation;
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
-                  ExhaustiveSearch, TransformationHeuristic>(config);
+                  TransformationHeuristic>(config);
 
   tabu_search.dgm.print_critical_path(config.type);
 

@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "../src/heuristics/initial.h"
+#include "../src/heuristics/transformation.h"
 #include "../src/optimization/neighborhood.h"
 #include "../src/optimization/tabu_search.h"
 #include "../src/optimization/termination.h"

@@ -29,9 +29,9 @@ int main(int argc, char **argv) {
   JSPwithFIFOSetup jsp;
   jsp.setup(benchmark_data);
 
-  using Intensification =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
+  using Intensification = StrictAdmissionIntensification<
+      DifferentialTerminationCriterion,
+      ReducedSelectionCriticalBlockNeighborhood<>>;
   IntensificationConfig config = {
       static_cast<size_t>(jsp.machines),
       static_cast<size_t>(10 * jsp.machines * jsp.jobs)};

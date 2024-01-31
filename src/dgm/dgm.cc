@@ -182,6 +182,19 @@ void DisjunctiveGraphModel::internal_restore_commit(size_t index, bool swap) {
   renew_descriptors();
 }
 
+void DisjunctiveGraphModel::update_machine_successors() {
+  if (valid_crit_path)
+    return;
+
+  // ensure that processing_order is computed correctly
+  std::map<V, V> updates;
+  reversed_dgm_traversal(
+      shuffle_graph,
+      visitor(update_machine_successors_visitor(shuffle_graph, updates))
+          .root_vertex(shuffle_graph[boost::graph_bundle].sink));
+  update_machine_successors(updates);
+}
+
 void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
   for (auto &[u, v] : updates) {
     if (!shuffle_graph[u].MS.has_value() || shuffle_graph[u].MS->v == v)
@@ -228,6 +241,48 @@ DisjunctiveGraphModel::get_processing_order(shuffle_graph_t &g, V v) {
   }
 
   return processing_order;
+}
+
+void DisjunctiveGraphModel::complete_flip(std::list<E> &edges, bool combined) {
+  if (!combined) {
+    for (E e : edges)
+      complete_flip(e);
+  } else {
+    for (E &e : edges) {
+      if (shuffle_graph[e].state() == blocked)
+        e = rev_edge(e);
+      else if (shuffle_graph[e].edge_type == fifo)
+        e = fifo_to_disjunctive_edge(e);
+    }
+
+    std::set<OrientationState *> flipped_edges;
+    std::set<V> shuffled_operations = {};
+    size_t initial_flip_log_size = flip_log.size();
+    for (E e : edges) {
+      assert((shuffle_graph[e].edge_type != conjunctive));
+      shuffle_graph[e].consistent_flip(shuffle_graph);
+      flipped_edges.insert(shuffle_graph[e].state_pair->state.get());
+      flip_log.push_front(e);
+    }
+    try {
+      complete_flip(flipped_edges, shuffled_operations, {});
+    } catch (FlipGraphException &e) {
+      // restore initial state
+      restore_flips(flip_log.size() - initial_flip_log_size);
+      throw;
+    }
+  }
+}
+
+void DisjunctiveGraphModel::complete_flip(E e) {
+  if (shuffle_graph[e].state() == blocked)
+    e = rev_edge(e);
+  else if (shuffle_graph[e].edge_type == fifo)
+    e = fifo_to_disjunctive_edge(e);
+
+  std::set<OrientationState *> flipped_edges;
+  std::set<V> shuffled_operations = {};
+  complete_flip(flipped_edges, shuffled_operations, e);
 }
 
 void DisjunctiveGraphModel::complete_flip(
@@ -299,6 +354,39 @@ void DisjunctiveGraphModel::complete_flip(
   // Hence, we simultaneously compute the critical path (eliminating one
   // additional DFS)
   valid_crit_path = true;
+}
+
+void DisjunctiveGraphModel::complete_shuffle(const std::list<E> &edges,
+                                             bool commit_fallback) {
+  if (commit_fallback)
+    internal_commit_all(shuffle_fallback);
+  try {
+    for (E e : edges) {
+      std::set<OrientationState *> flipped_edges;
+      std::set<V> shuffled_operations;
+      complete_shuffle(e, flipped_edges, shuffled_operations);
+    }
+  } catch (std::exception &e) {
+    internal_restore_commit(shuffle_fallback, false);
+    throw;
+  }
+  shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+  renew_descriptors();
+}
+
+void DisjunctiveGraphModel::complete_shuffle(E e, bool commit_fallback) {
+  if (commit_fallback)
+    internal_commit_all(shuffle_fallback);
+  std::set<OrientationState *> flipped_edges;
+  std::set<V> shuffled_operations;
+  try {
+    complete_shuffle(e, flipped_edges, shuffled_operations);
+  } catch (std::exception &e) {
+    internal_restore_commit(shuffle_fallback, false);
+    throw;
+  }
+  shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+  renew_descriptors();
 }
 
 void DisjunctiveGraphModel::complete_shuffle(
@@ -846,11 +934,12 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
 }
 
 void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf,
-                                   shuffle_graph_t &g) {
+                                   shuffle_graph_t &g, OffsetMap &offset_map) {
   auto &prop = g[boost::graph_bundle];
   buf.clear();
 
   for (auto &[e, streams] : prop.edge_to_streams) {
+    offset_map[e] = buf.end() - buf.begin();
     buf.insert(buf.end(), {MACHINE_SEPARATOR, e.first, e.second});
 
     auto processing_order = get_processing_order(g, e);

@@ -2,7 +2,6 @@
 #define TSN_DGM_INTENSIFICATION_TCC
 
 #include "intensification.h"
-#include "neighborhood.h"
 
 namespace tsndgm {
 

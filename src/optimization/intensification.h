@@ -1,34 +1,16 @@
 #ifndef TSN_DGM_INTENSIFICATION_H
 #define TSN_DGM_INTENSIFICATION_H
 
+#include "neighborhood.h"
 #include "selection.h"
 
 namespace tsndgm {
 
 struct IntensificationConfig {
-  size_t maxt;  //!< max size of tabu list
-  size_t maxit; //!< max iterations
-  size_t commit_index;
-  bool recursive_shuffle;
-
-  IntensificationConfig(size_t maxt, size_t maxit)
-      : maxt(maxt), maxit(maxit), commit_index(1), recursive_shuffle(false) {}
-
-private:
-  IntensificationConfig(size_t maxt, size_t maxit, size_t commit_index,
-                        bool recursive_shuffle = false)
-      : maxt(maxt), maxit(maxit), commit_index(commit_index),
-        recursive_shuffle(recursive_shuffle) {}
-
-  friend class ExhaustiveSearchConfig;
-  friend class RelinkingConfig;
-};
-
-struct ExhaustiveSearchConfig : public IntensificationConfig {
-  size_t best_commit_index;
-
-  ExhaustiveSearchConfig(size_t maxt, size_t maxit)
-      : IntensificationConfig(maxt, maxit, 2, false), best_commit_index(3) {}
+  size_t maxt = 10;               //!< max size of tabu list
+  size_t maxit = 10;              //!< max iterations
+  size_t commit_index = 1;        //!< commit of local minimum
+  bool recursive_shuffle = false; //!< shuffle on FlipGraphException
 };
 
 struct TabuListEntry {
@@ -36,7 +18,15 @@ struct TabuListEntry {
   std::list<E> edges;
   Delay objective;
 };
+
 typedef std::list<TabuListEntry> TabuList;
+
+TabuList create_tabu_list(auto &flipped_edges) {
+  TabuList tabu_list;
+  for (auto &edges : flipped_edges)
+    tabu_list.push_back({edges, std::numeric_limits<Delay>::max()});
+  return tabu_list;
+}
 
 template <class TerminationCriterion, class SelectionNeighborhood>
 class Intensification {
@@ -47,13 +37,13 @@ public:
 
   Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config,
                   Delay termination_bound = 0)
-      : dgm(dgm), config(config), best_selection(0),
+      : dgm(dgm), config(config), best_selection(&config.commit_index),
         termination_criterion(config.maxit, termination_bound){};
 
   virtual NextSelection
   compute_next_selection(CriticalPath::Objective type) = 0;
 
-  template <typename TabuListEntry> void update_tabu_list(TabuListEntry entry);
+  void update_tabu_list(TabuListEntry entry);
 
   bool completed(size_t iteration, Delay objective) {
     return termination_criterion.satisfied(iteration, objective);
@@ -112,38 +102,9 @@ protected:
         this->tabu_list.cbegin(),
         std::find_if(
             this->tabu_list.cbegin(), this->tabu_list.cend(), [&](auto &entry) {
-              return std::all_of(
+              return std::any_of(
                   entry.edges.begin(), entry.edges.end(), [&](E e) {
                     return this->dgm.shuffle_graph[e].state() != blocked;
-                  });
-            }));
-  }
-};
-
-template <class TerminationCriterion, class SelectionNeighborhood>
-class TestStrictIntensification
-    : public StrictAdmissionIntensification<TerminationCriterion,
-                                            SelectionNeighborhood> {
-public:
-  TestStrictIntensification(DisjunctiveGraphModel &dgm,
-                            IntensificationConfig &config,
-                            Delay termination_bound = 0)
-      : StrictAdmissionIntensification<TerminationCriterion,
-                                       SelectionNeighborhood>(
-            dgm, config, termination_bound) {}
-
-protected:
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
-
-  inline size_t compute_first_violation(NextSelection n) {
-    return std::distance(
-        this->tabu_list.cbegin(),
-        std::find_if(
-            this->tabu_list.cbegin(), this->tabu_list.cend(), [&](auto &entry) {
-              return std::all_of(
-                  entry.edges.begin(), entry.edges.end(), [&](E e) {
-                    return this->dgm.shuffle_graph[e].state() != blocked &&
-                           entry.objective <= n.objective;
                   });
             }));
   }
@@ -161,9 +122,7 @@ public:
                                        SelectionNeighborhood>(
             dgm, config, termination_bound) {}
 
-  void update_tabu_list(
-      StrictAdmissionIntensification<
-          TerminationCriterion, SelectionNeighborhood>::TabuListEntry entry) {
+  void update_tabu_list(TabuListEntry entry) {
     std::list<E> edges;
     for (E &e : entry.edges) {
       edges.push_back(this->dgm.edge(target(e, this->dgm.shuffle_graph),
@@ -187,36 +146,6 @@ protected:
                            entry.edges.begin(), entry.edges.end(), [&](E e) {
                              return std::find(n.edges.begin(), n.edges.end(),
                                               e) != n.edges.end();
-                           });
-                     }));
-  }
-};
-
-template <class TerminationCriterion, class SelectionNeighborhood>
-class TestRelaxedIntensification
-    : public RelaxedAdmissionIntensification<TerminationCriterion,
-                                             SelectionNeighborhood> {
-public:
-  TestRelaxedIntensification(DisjunctiveGraphModel &dgm,
-                             IntensificationConfig &config,
-                             Delay termination_bound = 0)
-      : RelaxedAdmissionIntensification<TerminationCriterion,
-                                        SelectionNeighborhood>(
-            dgm, config, termination_bound) {}
-
-protected:
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
-
-  inline size_t compute_first_violation(NextSelection n) {
-    return std::distance(
-        this->tabu_list.cbegin(),
-        std::find_if(this->tabu_list.cbegin(), this->tabu_list.cend(),
-                     [&](auto &entry) {
-                       return std::any_of(
-                           entry.edges.begin(), entry.edges.end(), [&](E e) {
-                             return std::find(n.edges.begin(), n.edges.end(),
-                                              e) != n.edges.end() &&
-                                    entry.objective <= n.objective;
                            });
                      }));
   }

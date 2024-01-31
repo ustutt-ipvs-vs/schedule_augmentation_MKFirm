@@ -30,15 +30,26 @@ struct BestSelection {
 struct EncodedSelection {
   Delay objective;
   std::vector<unsigned int> buf;
+  OffsetMap offset_map;
 
   EncodedSelection(DisjunctiveGraphModel &dgm, BestSelection &best_selection)
       : objective(best_selection.objective) {
-    dgm.encode(buf, *best_selection.commit_index);
+    dgm.encode(buf, *best_selection.commit_index, offset_map);
   }
 
   EncodedSelection(DisjunctiveGraphModel &dgm, CriticalPath::Objective type) {
     objective = dgm.critical_path(type).objective;
-    dgm.encode(buf);
+    dgm.encode(buf, offset_map);
+  }
+
+  EncodedSelection(Delay objective, std::vector<unsigned int> &&buf)
+      : objective(objective), buf(std::move(buf)) {
+    for (int i = 0; i < buf.size(); i++) {
+      if (buf[i] == MACHINE_SEPARATOR && i + 2 < buf.size()) {
+        Edge edge(buf[i + 1], buf[i + 2]);
+        offset_map[edge] = i;
+      }
+    }
   }
 };
 
@@ -53,8 +64,16 @@ struct NextSelection {
   NextSelection(std::list<E> edges, DGMOperation operation, Delay objective)
       : edges(edges), operation(operation), objective(objective) {}
 
+  bool operator<(const NextSelection &other) {
+    return objective < other.objective;
+  }
+
   bool operator<(const BestSelection &best_selection) {
     return objective < best_selection.objective;
+  }
+
+  bool operator<=(const BestSelection &best_selection) {
+    return objective <= best_selection.objective;
   }
 };
 

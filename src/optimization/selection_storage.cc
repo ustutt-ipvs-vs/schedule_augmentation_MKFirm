@@ -1,0 +1,62 @@
+#include "selection_storage.h"
+
+namespace tsndgm {
+
+void SelectionStorage::update_candidates(BestSelection &res) {
+  auto it = std::find_if(encoded_best_selections.begin(),
+                         encoded_best_selections.end(),
+                         [&](auto &s) { return s.objective >= res.objective; });
+  if (it == encoded_best_selections.end() &&
+      encoded_best_selections.size() >= max_stored_solutions)
+    return;
+
+  EncodedSelection encoded_res(dgm, res);
+  if (it != encoded_best_selections.end() && it->objective == res.objective)
+    std::swap(encoded_res, *it);
+  else
+    encoded_best_selections.insert(it, encoded_res);
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
+}
+
+void SelectionStorage::update_candidates(EncodedSelection &&selection) {
+  auto it = std::find_if(
+      encoded_best_selections.begin(), encoded_best_selections.end(),
+      [&](auto &s) { return s.objective >= selection.objective; });
+  if (it == encoded_best_selections.end() &&
+      encoded_best_selections.size() >= max_stored_solutions)
+    return;
+
+  if (it != encoded_best_selections.end() &&
+      it->objective == selection.objective)
+    std::swap(selection, *it);
+  else
+    encoded_best_selections.insert(it, std::move(selection));
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
+}
+
+EncodedSelection &SelectionStorage::sample() {
+  std::uniform_int_distribution<int> dg(0, encoded_best_selections.size() - 1);
+  return encoded_best_selections[dg(gen)];
+}
+
+size_t SelectionStorage::get_processing_index(EncodedSelection &selection,
+                                              Edge edge,
+                                              MessageStreamHandle ms) {
+  size_t offset = selection.offset_map[edge];
+  for (size_t i = offset + 3; selection.buf[i] != MACHINE_SEPARATOR; i++) {
+    if (selection.buf[i] == ms)
+      return i;
+  }
+
+  throw std::runtime_error("message stream not found");
+}
+
+} // namespace tsndgm

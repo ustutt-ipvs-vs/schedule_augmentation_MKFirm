@@ -22,10 +22,10 @@ endif()
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(jsp jsp.cc)
-target_link_libraries(jsp initial_heuristics optimization)
+target_link_libraries(jsp PUBLIC tsndgm)
 
 add_executable(converter converter.cc)
-target_link_libraries(converter initial_heuristics optimization)
+target_link_libraries(converter PUBLIC tsndgm)
 
 add_executable(dumbbell dumbbell.cc)
-target_link_libraries(dumbbell initial_heuristics optimization)
+target_link_libraries(dumbbell PUBLIC tsndgm)

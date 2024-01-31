@@ -10,6 +10,7 @@ SelectionFullNeighborhood::compute(CriticalPath::Result res) {
 
   ShuffleGraphProperty &prop =
       boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
+  dgm.update_machine_successors();
 
   neighborhood.clear();
   V v = res.critical_vertex, v_old;
@@ -34,14 +35,14 @@ void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
     const std::vector<V> &critical_block, CriticalBlockType type) {
   // note that critical_block[0] contains last operation of critical block
   if (critical_block.size() > 0) {
-    for (int i = 1; i < critical_block.size(); i++) {
+    for (int i = 1 + restriction; i < critical_block.size() - 1; i++) {
       // move critical_block[i] after critical_block[0]
       std::list<E> edges = {};
       for (int j = i - 1; j >= 0; j--)
         edges.push_back(dgm.edge(critical_block[i], critical_block[j]));
       neighborhood.flip_candidates.push_back(edges);
     }
-    for (int i = 1; i < critical_block.size() - 1; i++) {
+    for (int i = 0; i < critical_block.size() - 1 - restriction; i++) {
       // move critical_block[i] before critical_block[-1]
       neighborhood.flip_candidates.push_back(
           {dgm.edge(critical_block.back(), critical_block[i])});
@@ -53,6 +54,7 @@ const Neighborhood &
 SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
   ShuffleGraphProperty &prop =
       boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
+  dgm.update_machine_successors();
   neighborhood.clear();
 
   V v = res.critical_vertex, v_old;
@@ -90,24 +92,11 @@ SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
   return neighborhood;
 }
 
-void ReducedSelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
-    const std::vector<V> &critical_block, CriticalBlockType type) {
-  // note that critical_block[0] contains last operation of critical block
-  size_t n = critical_block.size();
-  if (n > 1) {
-    neighborhood.flip_candidates.push_back(
-        {dgm.edge(critical_block[1], critical_block[0])});
-    if (n > 2) {
-      neighborhood.flip_candidates.push_back(
-          {dgm.edge(critical_block[n - 1], critical_block[n - 2])});
-    }
-  }
-}
-
 const Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
+  dgm.update_machine_successors();
   neighborhood.clear();
 
   shuffle_graph_t &shuffle_graph = dgm.shuffle_graph;

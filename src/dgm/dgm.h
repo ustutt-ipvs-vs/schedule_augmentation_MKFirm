@@ -14,6 +14,8 @@ namespace tsndgm {
 #define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
 #define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
 
+typedef std::map<Edge, size_t> OffsetMap;
+
 class JitterBoundViolation : public std::exception {
 public:
   JitterBoundViolation(MessageStreamHandle ms, Delay bound)
@@ -28,6 +30,7 @@ class DisjunctiveGraphModel {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
   typedef std::vector<V> MachineProcessingOrder;
   typedef std::map<Edge, MachineProcessingOrder> ProcessingOrder;
 
@@ -58,57 +61,11 @@ public:
 
   void update_rti(MessageStreamHandle ms, RTIMap rti_map);
 
-  inline void complete_flip(std::list<E> &edges) {
-    for (E e : edges)
-      complete_flip(e);
-  }
-  inline void complete_flip(E e) {
-    if (shuffle_graph[e].state() == blocked)
-      e = rev_edge(e);
-    else if (shuffle_graph[e].edge_type == fifo)
-      e = fifo_to_disjunctive_edge(e);
+  void complete_flip(std::list<E> &edges, bool combined = true);
+  void complete_flip(E e);
 
-    std::set<OrientationState *> flipped_edges;
-    std::set<V> shuffled_operations = {};
-    complete_flip(flipped_edges, shuffled_operations, e);
-  }
-
-  inline void complete_shuffle(const std::list<E> &edges,
-                               bool commit_fallback = true) {
-    if (commit_fallback)
-      internal_commit_all(shuffle_fallback);
-    try {
-      for (E e : edges) {
-        std::set<OrientationState *> flipped_edges;
-        std::set<V> shuffled_operations;
-        complete_shuffle(e, flipped_edges, shuffled_operations);
-      }
-    } catch (std::exception &e) {
-      internal_restore_commit(shuffle_fallback, false);
-      throw;
-    }
-    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-    renew_descriptors();
-  }
-
-  /** Notes:
-   *  - recursively shuffles until no more FlipGraphException occurs
-   *  - invalidates flip_log
-   */
-  inline void complete_shuffle(E e, bool commit_fallback = true) {
-    if (commit_fallback)
-      internal_commit_all(shuffle_fallback);
-    std::set<OrientationState *> flipped_edges;
-    std::set<V> shuffled_operations;
-    try {
-      complete_shuffle(e, flipped_edges, shuffled_operations);
-    } catch (std::exception &e) {
-      internal_restore_commit(shuffle_fallback, false);
-      throw;
-    }
-    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-    renew_descriptors();
-  }
+  void complete_shuffle(const std::list<E> &edges, bool commit_fallback = true);
+  void complete_shuffle(E e, bool commit_fallback = true);
   inline void undo_last_shuffle() {
     internal_restore_commit(shuffle_fallback, false);
   }
@@ -131,19 +88,29 @@ public:
   }
 
   inline void encode(std::vector<unsigned int> &buf) {
-    encode(buf, shuffle_graph);
+    OffsetMap offset_map;
+    encode(buf, offset_map);
+  }
+  inline void encode(std::vector<unsigned int> &buf, OffsetMap &offset_map) {
+    encode(buf, shuffle_graph, offset_map);
   }
   inline void encode(std::vector<unsigned int> &buf, int index) {
-    encode(buf, committed_shuffle_graphs[index + EXTERNAL_COMMIT_OFFSET]);
+    OffsetMap offset_map;
+    encode(buf, index, offset_map);
+  }
+  inline void encode(std::vector<unsigned int> &buf, int index,
+                     OffsetMap &offset_map) {
+    encode(buf, committed_shuffle_graphs[index + EXTERNAL_COMMIT_OFFSET],
+           offset_map);
   }
   void decode(std::vector<unsigned int> &buf);
 
-  inline void apply_processing_order(
-      const std::map<Edge, std::vector<V>> &processing_order) {
+  inline void apply_processing_order(const ProcessingOrder &processing_order) {
     for (auto &[edge, operations] : processing_order)
       apply_machine_processing_order(operations);
   };
   void apply_machine_processing_order(const MachineProcessingOrder &operations);
+  void update_machine_successors();
   void update_machine_successors(std::map<V, V> updates);
 
   inline MachineProcessingOrder get_processing_order(Edge edge) {
@@ -245,7 +212,8 @@ private:
   void internal_restore_commit(size_t index, bool swap);
   void internal_copy_commit(size_t src_index, size_t dst_index);
 
-  void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g);
+  void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g,
+              OffsetMap &offset_map);
 
   // If !uv.has_value(), complete_flip eliminates cycles with
   // at least one edge in flipped_edges

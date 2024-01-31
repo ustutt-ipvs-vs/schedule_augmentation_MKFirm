@@ -58,8 +58,9 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  SelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm)
-      : SelectionNeighborhood(dgm) {}
+  SelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm,
+                                     int restriction = 0)
+      : SelectionNeighborhood(dgm), restriction(restriction) {}
 
   const Neighborhood &compute(CriticalPath::Result res);
   const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
@@ -72,17 +73,21 @@ public:
 
 protected:
   Neighborhood neighborhood;
+  int restriction;
 
   enum CriticalBlockType { first, intermediate, last };
   virtual void critical_block_to_neighbors(const std::vector<V> &critical_block,
                                            CriticalBlockType type);
 };
 
+template <int level = 0>
 class ReducedSelectionCriticalBlockNeighborhood
     : public SelectionCriticalBlockNeighborhood {
 public:
   ReducedSelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm)
-      : SelectionCriticalBlockNeighborhood(dgm), extended_neighborhood(dgm) {}
+      : SelectionCriticalBlockNeighborhood(dgm), extended_neighborhood(dgm, 1) {
+    static_assert(0 <= level && level <= 1);
+  }
   const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
@@ -91,13 +96,24 @@ public:
     throw std::runtime_error("extension not available");
   };
 
-  static const int max_extension = 1;
+  static const int max_extension = level;
 
 protected:
   SelectionCriticalBlockNeighborhood extended_neighborhood;
 
   void critical_block_to_neighbors(const std::vector<V> &critical_block,
-                                   CriticalBlockType type);
+                                   CriticalBlockType type) {
+    // note that critical_block[0] contains last operation of critical block
+    size_t n = critical_block.size();
+    if (n > 1) {
+      neighborhood.flip_candidates.push_back(
+          {dgm.edge(critical_block[1], critical_block[0])});
+      if (n > 2) {
+        neighborhood.flip_candidates.push_back(
+            {dgm.edge(critical_block[n - 1], critical_block[n - 2])});
+      }
+    }
+  }
 };
 
 class CompressionNeighborhood : public SelectionNeighborhood {

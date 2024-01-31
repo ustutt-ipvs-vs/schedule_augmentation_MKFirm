@@ -2,46 +2,50 @@
 #define TSN_DGM_TABUSEARCH_H
 
 #include "../dgm/dgm.h"
-#include "../heuristics/transformation.h"
 #include "communicator.h"
 #include "intensification.h"
-#include "relinking_phase.h"
 #include "selection.h"
+#include "selection_storage.h"
+#include "termination.h"
 #include <chrono>
+#include <random>
 
 namespace tsndgm {
+struct DiversificationConfig {
+  size_t maxit;                    //!< number of iterations
+  size_t max_stored_solutions = 4; //!< stores the best known selections
+  double T_0 = 0.99;               // initial temperature
+  double c = 0.3; // additional configuration parameter for temperature schedule
+  size_t commit_index = 2; //!< where to store best selection of maxit rounds
+};
+
+struct TabuSearchConfig {
+  CriticalPath::Objective type;  //!< makespan or tardiness
+  TerminationConfig tconfig;     //!< termination config
+  IntensificationConfig iconfig; //!< intensification config
+  DiversificationConfig dconfig; //!< diversification config
+  size_t initial_solutions = 1;  //!< how often to run initial heuristic
+  bool compress = false;         //!< ZIPS (false) or FIPS (true)
+  size_t commit_index = 0;       //!< where to store the global best selection
+};
 
 class TabuSearch {
 public:
-  struct Config {
-    size_t maxit;
-    CriticalPath::Objective type;
-    IntensificationConfig int_config;
-    ExhaustiveSearchConfig exhaustive_search_config;
-    RelinkingConfig relinking_config;
-    size_t diversification_rounds;
-    size_t initial_solutions = 1;
-    bool compress = false;
-    Delay termination_bound = 0;
-    size_t commit_index = 0;
-  };
-
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
              const std::vector<MessageStream> &streams)
       : dgm(network, streams), gen(rd()) {
-    relinking.initialize(&this->dgm);
     start = std::chrono::high_resolution_clock::now();
+    std::cout.precision(3);
   }
 
   TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm), gen(rd()) {
-    relinking.initialize(&this->dgm);
     start = std::chrono::high_resolution_clock::now();
+    std::cout.precision(3);
   }
 
   template <class InitialHeuristic, class TerminationCriterion,
-            class Intensification, class ExhaustiveSearch,
-            class TransformationHeuristic>
-  void run(Config &config);
+            class Intensification, class TransformationHeuristic>
+  void run(TabuSearchConfig &config);
 
   template <class InitialHeuristic, class Intensification>
   BestSelection
@@ -55,24 +59,12 @@ public:
                                           TabuList tabu_list = {});
 
   template <class Intensification>
-  BestSelection run_exhaustive_search(BestSelection &initial_res,
-                                      ExhaustiveSearchConfig &config,
-                                      CriticalPath::Objective type,
-                                      Delay termination_bound = 0);
-
-  template <class Intensification>
-  BestSelection
-  run_relinking_phase(BestSelection &transform_phase, RelinkingConfig &config,
-                      CriticalPath::Objective type, Delay termination_bound);
-
-  template <class Intensification>
   BestSelection run_compression_phase(BestSelection &best_selection,
                                       IntensificationConfig &config,
                                       CriticalPath::Objective type,
                                       Delay termination_bound);
 
   DisjunctiveGraphModel dgm;
-  Relinking relinking;
   BestSelection best_selection;
   Communicator com;
 
