@@ -32,7 +32,7 @@ void TabuSearch::run(TabuSearchConfig &config) {
        phase++) {
     std::cout << "Phase " << phase + 1 << ":" << std::endl;
     // randomly select one of the best stored selections
-    EncodedSelection &next = storage.sample();
+    EncodedSelection &next = storage.sample(heuristic.temperature);
     dgm.decode(next.buf);
     assert((next.objective == dgm.critical_path(config.type).objective));
 
@@ -44,6 +44,11 @@ void TabuSearch::run(TabuSearchConfig &config) {
     std::cout << " Temperature: " << heuristic.temperature
               << "; Diversify Rounds: " << rounds
               << "; Total Flips: " << dgm.total_flips << std::endl;
+    std::cout << " Storage: ";
+    for (auto &stored_selection : storage.encoded_best_selections) {
+      std::cout << stored_selection.objective << " ";
+    }
+    std::cout << std::endl;
     if (rounds == 0)
       continue;
 
@@ -56,6 +61,7 @@ void TabuSearch::run(TabuSearchConfig &config) {
     print_result(res.objective);
   }
   com.stop_sync_storage();
+  update_best_selection(storage, res);
 
   // compress solution by shuffling operations
   if (config.compress) {

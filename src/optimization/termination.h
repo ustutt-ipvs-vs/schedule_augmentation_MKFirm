@@ -18,14 +18,22 @@ struct TerminationCriterion {
   TerminationCriterion(size_t max_iterations, Delay bound = 0)
       : max_iterations(max_iterations), bound(bound) {}
 
-  virtual bool satisfied(size_t iteration, Delay objective) = 0;
+  virtual bool satisfied(size_t iteration, Delay objective) {
+    auto now = std::chrono::high_resolution_clock::now();
+    return now >= deadline || objective <= bound;
+  }
+
   virtual std::pair<Delay, Delay> progress(size_t iteration,
                                            Delay objective) = 0;
   virtual ~TerminationCriterion() = default;
 
+  static std::chrono::high_resolution_clock::time_point deadline;
   size_t max_iterations;
   Delay bound;
 };
+
+std::chrono::high_resolution_clock::time_point TerminationCriterion::deadline =
+    std::chrono::time_point<std::chrono::system_clock>::max();
 
 struct DefaultTerminationCriterion : public TerminationCriterion {
   DefaultTerminationCriterion(size_t max_iterations, Delay bound = 0)
@@ -34,7 +42,8 @@ struct DefaultTerminationCriterion : public TerminationCriterion {
       : TerminationCriterion(tconfig) {}
 
   bool satisfied(size_t iteration, Delay objective) {
-    return iteration >= max_iterations || objective <= bound;
+    return iteration >= max_iterations ||
+           TerminationCriterion::satisfied(iteration, objective);
   }
 
   std::pair<Delay, Delay> progress(size_t iteration, Delay objective) {
@@ -53,7 +62,7 @@ struct DifferentialTerminationCriterion : public TerminationCriterion {
       best_solution = {objective, iteration};
     }
     return iteration - best_solution.iteration >= max_iterations ||
-           objective <= bound;
+           TerminationCriterion::satisfied(iteration, objective);
   }
 
   std::pair<Delay, Delay> progress(size_t iteration, Delay objective) {
@@ -72,17 +81,15 @@ struct TimeoutTerminationCriterion : public TerminationCriterion {
       : TerminationCriterion(timeout, bound),
         timeout(static_cast<std::chrono::seconds>(timeout)) {
     start = std::chrono::high_resolution_clock::now();
+    TerminationCriterion::deadline =
+        start + static_cast<std::chrono::seconds>(timeout);
   }
   TimeoutTerminationCriterion(TerminationConfig tconfig)
       : TerminationCriterion(tconfig),
         timeout(static_cast<std::chrono::seconds>(tconfig.maxit)) {
     start = std::chrono::high_resolution_clock::now();
-  }
-
-  bool satisfied(size_t iteration, Delay objective) {
-    auto now = std::chrono::high_resolution_clock::now();
-    auto duration = duration_cast<std::chrono::seconds>(now - start);
-    return duration >= timeout || objective <= bound;
+    TerminationCriterion::deadline =
+        start + static_cast<std::chrono::seconds>(timeout);
   }
 
   std::pair<Delay, Delay> progress(size_t iteration, Delay objective) {

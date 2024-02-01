@@ -4,7 +4,7 @@ namespace tsndgm {
 
 Communicator::Communicator(bool multithreading)
     : prev_best(std::numeric_limits<Delay>::max()),
-      multithreading(multithreading), sync_semaphore(0) {
+      multithreading(multithreading), sync_semaphore(0), global_state(running) {
   if (multithreading) {
     int provided;
     MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
@@ -28,11 +28,10 @@ Communicator::~Communicator() {
 
 void Communicator::stop_sync_storage() {
   if (multithreading) {
-    multithreading = false;
+    global_state = terminated;
     sync_semaphore.release();
     if (storage_sync.joinable())
       storage_sync.join();
-    std::cout << "done" << std::endl;
   }
 }
 
@@ -79,7 +78,7 @@ Communicator::State Communicator::exchange_state(State state, double ratio) {
 
   if (sum > size)
     return found_better;
-  else if (sum > size * ratio)
+  else if (sum >= size * ratio)
     return terminated;
   return running;
 }
@@ -141,8 +140,9 @@ void Communicator::signal_sync_storage(SelectionStorage &storage) {
 
 void Communicator::sync_storage(SelectionStorage &storage) {
   unsigned int buf_size;
+  State state;
   do {
-    state = exchange_state(state);
+    state = exchange_state(global_state, 1);
     if (state != running)
       return;
     for (int i = 0; i < size; i++) {
@@ -171,9 +171,10 @@ void Communicator::sync_storage(SelectionStorage &storage) {
                                   false);
       }
     }
-    sync_semaphore.acquire();
-  } while (multithreading);
-  sync(found_better);
+    if (global_state == running) {
+      sync_semaphore.acquire();
+    }
+  } while (state == running);
 }
 
 } // namespace tsndgm

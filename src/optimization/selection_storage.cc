@@ -49,9 +49,11 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection,
   }
 }
 
-EncodedSelection &SelectionStorage::sample() {
-  std::uniform_int_distribution<int> dg(0, encoded_best_selections.size() - 1);
-  return encoded_best_selections[dg(gen)];
+EncodedSelection &SelectionStorage::sample(double temperature) {
+  double p = 0.5 * (1 - temperature);
+  std::geometric_distribution<size_t> dg(p);
+  return encoded_best_selections[std::min(dg(gen),
+                                          encoded_best_selections.size() - 1)];
 }
 
 size_t SelectionStorage::get_processing_index(EncodedSelection &selection,

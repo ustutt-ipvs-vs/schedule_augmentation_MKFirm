@@ -12,9 +12,9 @@
 
 namespace tsndgm {
 struct DiversificationConfig {
-  size_t maxit;                    //!< number of iterations
-  size_t max_stored_solutions = 4; //!< stores the best known selections
-  double T_0 = 0.99;               // initial temperature
+  size_t maxit;                     //!< number of iterations
+  size_t max_stored_solutions = 10; //!< stores the best known selections
+  double T_0 = 0.99;                // initial temperature
   double c = 0.3; // additional configuration parameter for temperature schedule
   size_t commit_index = 2; //!< where to store best selection of maxit rounds
 };

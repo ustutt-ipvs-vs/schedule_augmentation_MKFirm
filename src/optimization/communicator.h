@@ -52,7 +52,7 @@ private:
   Delay prev_best;
   bool multithreading;
   std::binary_semaphore sync_semaphore;
-  State state;
+  State global_state;
 
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);

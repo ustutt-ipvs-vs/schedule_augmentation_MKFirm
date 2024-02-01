@@ -22,7 +22,7 @@ public:
   void update_candidates(EncodedSelection &&selection,
                          bool direct_update = true);
   bool wants(Delay objective);
-  EncodedSelection &sample();
+  EncodedSelection &sample(double temperature);
 
   size_t get_processing_index(EncodedSelection &selection, Edge edge,
                               MessageStreamHandle ms);
