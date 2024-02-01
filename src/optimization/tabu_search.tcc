@@ -14,31 +14,14 @@ void TabuSearch::run(TabuSearchConfig &config) {
   BestSelection res;
   size_t phase;
 
-  auto print_result = [&](Delay res) {
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = duration_cast<std::chrono::seconds>(stop - start);
-    std::cout << " Result: " << res << " (" << duration << ") " << std::endl;
-  };
-
-  auto update_best_selection = [&](BestSelection &res, bool swap = true) {
-    storage.update_candidates(res);
-    if (res < best_selection) {
-      this->update_best_selection(best_selection, res, swap);
-      auto stop = std::chrono::high_resolution_clock::now();
-      auto duration = duration_cast<std::chrono::seconds>(stop - start);
-      std::cout << " New Best Selection: " << best_selection.objective << " ("
-                << duration << ")" << std::endl;
-    }
-  };
+  config.iconfig.maxt += com.rank;
 
   // compute initial solution
   std::cout << "Phase 0:\n Initial: " << std::endl;
   res = run_initial_phase<InitialHeuristic, Intensification>(
       config.initial_solutions, config.iconfig, config.type,
       config.tconfig.bound);
-  // storage.update_candidates(res);
-  // res = com.exchange_best_selection(dgm, res);
-  update_best_selection(res);
+  update_best_selection(storage, res);
   com.signal_sync_storage(storage);
   print_result(best_selection.objective);
 
@@ -52,8 +35,6 @@ void TabuSearch::run(TabuSearchConfig &config) {
     // randomly select one of the best stored selections
     EncodedSelection &next = storage.sample();
     dgm.decode(next.buf);
-    std::cout << next.objective << " "
-              << dgm.critical_path(config.type).objective << std::endl;
     assert((next.objective == dgm.critical_path(config.type).objective));
 
     // transform solution to break out of local minima
@@ -71,19 +52,19 @@ void TabuSearch::run(TabuSearchConfig &config) {
     res = run_intensification_phase<Intensification>(
         config.iconfig, config.type, config.tconfig.bound,
         create_tabu_list(heuristic.flipped_edges));
-    // storage.update_candidates(res);
-    // res = com.exchange_best_selection(dgm, res);
-    update_best_selection(res);
+    update_best_selection(storage, res);
     com.signal_sync_storage(storage);
     print_result(res.objective);
   }
+  com.sync(Communicator::State::terminated, 1);
+  com.stop_sync_storage();
 
   // compress solution by shuffling operations
   if (config.compress) {
     std::cout << " Compress: " << std::endl;
     res = run_compression_phase<Intensification>(
         best_selection, config.iconfig, config.type, config.tconfig.bound);
-    update_best_selection(res);
+    update_best_selection(storage, res);
     print_result(res.objective);
   } else {
     dgm.restore_commit(*best_selection.commit_index);
@@ -245,6 +226,47 @@ BestSelection TabuSearch::run_compression_phase(BestSelection &best_selection,
 
   config.recursive_shuffle = false;
   return best_selection;
+}
+
+void TabuSearch::update_best_selection(BestSelection &best_selection,
+                                       NextSelection &res) {
+  best_selection.objective = res.objective;
+  best_selection.committed = false;
+}
+
+void TabuSearch::update_best_selection(BestSelection &best_selection,
+                                       BestSelection &res, bool swap) {
+  best_selection.objective = res.objective;
+  if (swap)
+    std::swap(*best_selection.commit_index, *res.commit_index);
+  else
+    dgm.copy_commit(*res.commit_index, *best_selection.commit_index);
+
+  best_selection.committed = true;
+}
+
+void TabuSearch::update_best_selection(SelectionStorage &storage,
+                                       BestSelection &res, bool swap) {
+  storage.update_candidates(res);
+  auto print_new_best = [&]() {
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(stop - start);
+    std::cout << " New Best Selection: " << best_selection.objective << " ("
+              << duration << ")" << std::endl;
+  };
+  if (storage.encoded_best_selections[0].objective <
+      std::min(res.objective, best_selection.objective)) {
+    dgm.decode(storage.encoded_best_selections[0].buf);
+    dgm.commit_all(*best_selection.commit_index);
+    best_selection.objective = storage.encoded_best_selections[0].objective;
+    res.objective = best_selection.objective;
+    res.committed = false;
+    print_new_best();
+  }
+  if (res < best_selection) {
+    this->update_best_selection(best_selection, res, swap);
+    print_new_best();
+  }
 }
 
 } // namespace tsndgm

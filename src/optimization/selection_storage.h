@@ -19,7 +19,8 @@ public:
       : dgm(dgm), max_stored_solutions(max_stored_solutions), gen(rd()) {}
 
   void update_candidates(BestSelection &res);
-  void update_candidates(EncodedSelection &&selection);
+  void update_candidates(EncodedSelection &&selection,
+                         bool direct_update = true);
   bool wants(Delay objective);
   EncodedSelection &sample();
 
@@ -32,6 +33,9 @@ public:
 private:
   DisjunctiveGraphModel &dgm;
   size_t max_stored_solutions;
+
+  std::vector<EncodedSelection> candidates;
+  std::mutex candidate_mutex;
 
   std::random_device rd;
   std::mt19937 gen;

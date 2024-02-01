@@ -72,21 +72,16 @@ private:
   std::random_device rd;
   std::mt19937 gen;
 
-  auto update_best_selection(BestSelection &best_selection,
-                             NextSelection &res) {
-    best_selection.objective = res.objective;
-    best_selection.committed = false;
-  }
+  void update_best_selection(BestSelection &best_selection, NextSelection &res);
+  void update_best_selection(BestSelection &best_selection, BestSelection &res,
+                             bool swap = true);
+  void update_best_selection(SelectionStorage &storage, BestSelection &res,
+                             bool swap = true);
 
-  auto update_best_selection(BestSelection &best_selection, BestSelection &res,
-                             bool swap = true) {
-    best_selection.objective = res.objective;
-    if (swap)
-      std::swap(*best_selection.commit_index, *res.commit_index);
-    else
-      dgm.copy_commit(*res.commit_index, *best_selection.commit_index);
-
-    best_selection.committed = true;
+  void print_result(Delay res) {
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(stop - start);
+    std::cout << " Result: " << res << " (" << duration << ") " << std::endl;
   }
 
   std::chrono::high_resolution_clock::time_point start;
