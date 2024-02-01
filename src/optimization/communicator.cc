@@ -32,6 +32,7 @@ void Communicator::stop_sync_storage() {
     sync_semaphore.release();
     if (storage_sync.joinable())
       storage_sync.join();
+    std::cout << "done" << std::endl;
   }
 }
 

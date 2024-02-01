@@ -14,8 +14,6 @@ void TabuSearch::run(TabuSearchConfig &config) {
   BestSelection res;
   size_t phase;
 
-  config.iconfig.maxt += com.rank;
-
   // compute initial solution
   std::cout << "Phase 0:\n Initial: " << std::endl;
   res = run_initial_phase<InitialHeuristic, Intensification>(
@@ -28,6 +26,7 @@ void TabuSearch::run(TabuSearchConfig &config) {
   int N = termination_criterion.progress(0, best_selection.objective).second;
   TransformationHeuristic heuristic(dgm, storage, config.type,
                                     config.dconfig.T_0, config.dconfig.c, N);
+  std::uniform_int_distribution<> d(0, config.dconfig.maxit);
   for (phase = 0;
        !termination_criterion.satisfied(phase, best_selection.objective);
        phase++) {
@@ -41,7 +40,7 @@ void TabuSearch::run(TabuSearchConfig &config) {
     int progress =
         termination_criterion.progress(phase, best_selection.objective).first;
     heuristic.update_temperature(progress);
-    int rounds = heuristic.transform(config.dconfig.maxit);
+    int rounds = heuristic.transform(d(gen));
     std::cout << " Temperature: " << heuristic.temperature
               << "; Diversify Rounds: " << rounds
               << "; Total Flips: " << dgm.total_flips << std::endl;
@@ -56,7 +55,6 @@ void TabuSearch::run(TabuSearchConfig &config) {
     com.signal_sync_storage(storage);
     print_result(res.objective);
   }
-  com.sync(Communicator::State::terminated, 1);
   com.stop_sync_storage();
 
   // compress solution by shuffling operations
