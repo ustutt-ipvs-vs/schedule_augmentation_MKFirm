@@ -72,8 +72,8 @@ void TabuSearch::run(TabuSearchConfig &config,
     com.signal_sync_storage(storage);
     print_result(res.objective);
   }
-  update_best_selection(storage, res);
   com.stop_sync_storage();
+  update_best_selection(storage, res);
 
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {

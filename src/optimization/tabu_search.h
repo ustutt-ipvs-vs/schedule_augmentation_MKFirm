@@ -41,13 +41,13 @@ public:
              const std::vector<MessageStream> &streams)
       : dgm(network, streams), gen(rd()), storage(&dgm),
         compressed_storage(&dgm) {
-    start = std::chrono::high_resolution_clock::now();
+    reset_timer();
     std::cout.precision(3);
   }
 
   TabuSearch(DisjunctiveGraphModel &dgm)
       : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm) {
-    start = std::chrono::high_resolution_clock::now();
+    reset_timer();
     std::cout.precision(3);
   }
 
@@ -71,6 +71,8 @@ public:
   void run_compression_phase(CompressionConfig &config,
                              CriticalPath::Objective type,
                              Delay termination_bound);
+
+  void reset_timer() { start = std::chrono::high_resolution_clock::now(); }
 
   DisjunctiveGraphModel dgm;
   BestSelection best_selection;
