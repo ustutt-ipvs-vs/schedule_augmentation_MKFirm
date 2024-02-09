@@ -3,8 +3,7 @@
 
 namespace tsndgm {
 
-const Neighborhood &
-SelectionFullNeighborhood::compute(CriticalPath::Result res) {
+Neighborhood &SelectionFullNeighborhood::compute(CriticalPath::Result res) {
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
@@ -50,7 +49,7 @@ void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
   }
 }
 
-const Neighborhood &
+Neighborhood &
 SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
   ShuffleGraphProperty &prop =
       boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
@@ -92,7 +91,7 @@ SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
   return neighborhood;
 }
 
-const Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
+Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
@@ -115,7 +114,7 @@ const Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
   return neighborhood;
 }
 
-const Neighborhood &
+Neighborhood &
 WirelessCompressionNeighborhood::compute(CriticalPath::Result res) {
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;

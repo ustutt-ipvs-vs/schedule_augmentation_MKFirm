@@ -28,13 +28,6 @@ template <class T> double Transformation<T>::p_barrier(E uv) {
   }
   assert((uv_objective > 0 || vu_objective > 0));
 
-  // no best_selection contains the edge uv; hence, always flip
-  if (temperature > temperature_schedule.c && uv_objective == 0)
-    return 0;
-  // no best_selection contains the edge vu; hence, never flip
-  else if (temperature > temperature_schedule.c && vu_objective == 0)
-    return 1;
-
   Delay base =
       storage
           .encoded_best_selections[storage.encoded_best_selections.size() - 1]
@@ -42,6 +35,14 @@ template <class T> double Transformation<T>::p_barrier(E uv) {
       storage.encoded_best_selections[0].objective;
   if (base == 0)
     return 0.5;
+
+  // no best_selection contains the edge uv; hence, always flip
+  if (temperature > temperature_schedule.c && uv_objective == 0)
+    return 0;
+  // no best_selection contains the edge vu; hence, never flip
+  else if (temperature > temperature_schedule.c && vu_objective == 0)
+    return 1;
+
   return p /
          (p + (1 - p) *
                   exp(-temperature *

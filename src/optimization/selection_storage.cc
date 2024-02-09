@@ -9,6 +9,8 @@ void SelectionStorage::update_candidates(BestSelection &res) {
       update_candidates(std::move(candidate), true);
     candidates.clear();
   }
+  if (res.objective == std::numeric_limits<Delay>::max())
+    return;
 
   auto it = std::find_if(encoded_best_selections.begin(),
                          encoded_best_selections.end(),
@@ -49,8 +51,13 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection,
   }
 }
 
+void SelectionStorage::delete_candidate(EncodedSelection *res) {
+  std::erase_if(encoded_best_selections,
+                [&](auto &selection) { return &selection == res; });
+}
+
 EncodedSelection &SelectionStorage::sample(double temperature) {
-  double p = 0.5 * (1 - temperature);
+  double p = 0.5 * (1 + temperature);
   std::geometric_distribution<size_t> dg(p);
   return encoded_best_selections[std::min(dg(gen),
                                           encoded_best_selections.size() - 1)];

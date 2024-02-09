@@ -17,6 +17,20 @@ DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
   return crit_path.path(type);
 }
 
+void DisjunctiveGraphModel::update_rti(
+    std::map<MessageStreamHandle, RTIMap> rti_updates) {
+  if (rti_updates.empty())
+    return;
+
+  internal_restore_commit(initial, false);
+
+  for (auto &[ms, rti_map] : rti_updates)
+    update_rti(ms, rti_map);
+
+  committed_shuffle_graphs.clear();
+  internal_commit_all(initial);
+}
+
 void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 

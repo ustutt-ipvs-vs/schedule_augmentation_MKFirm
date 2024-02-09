@@ -8,14 +8,8 @@
 #define WIRELESS_DL_DMAX 5397000 // 5.397 ms
 #define WIRELESS_DL_DMIN 4833000 // 4.833 ms
 
-#define UPDATED_WIRELESS_DL_DMAX 6397000 // 6.397 ms
-#define UPDATED_WIRELESS_DL_DMIN 5833000 // 5.833 ms
-
 #define WIRELESS_UL_DMAX 5966000 // 5.397 ms
 #define WIRELESS_UL_DMIN 5348000 // 4.833 ms
-
-#define UPDATED_WIRELESS_UL_DMAX 6966000 // 6.397 ms
-#define UPDATED_WIRELESS_UL_DMIN 6348000 // 5.833 ms
 
 #define WIRELESS_TRAFFIC_DEADLINE 10000000 // 10 ms
 #define CROSS_TRAFFIC_DEADLINE 500000      // 500 us
@@ -32,17 +26,19 @@
 using namespace tsndgm;
 
 int main(int argc, char **argv) {
-  if (argc != 6) {
+  if (argc != 10) {
     std::cout << "Usage: ./adaptive_scheduling <talkers> <listeners> "
                  "<wireless_streams> <cross_traffic> "
-                 "<timeout>"
+                 "<timeout1> <timeout2> <timeout3> <timeout4> <degradation>"
               << std::endl;
     exit(0);
   }
 
   int talkers = pow(2, std::stoi(argv[1])),
       listeners = pow(2, std::stoi(argv[2])), streams = std::stoi(argv[3]),
-      cross_traffic = std::stoi(argv[4]), timeout = std::stoi(argv[5]);
+      cross_traffic = std::stoi(argv[4]), timeout1 = std::stoi(argv[5]),
+      timeout2 = std::stoi(argv[6]), timeout3 = std::stoi(argv[7]),
+      timeout4 = std::stoi(argv[8]), degradation = std::stoi(argv[9]);
 
   // setup network topology
   std::vector<NetworkDeviceProperty> device_properties;
@@ -237,12 +233,14 @@ int main(int argc, char **argv) {
 
   TabuSearch tabu_search(network, message_streams);
 
-  TabuSearchConfig config{CriticalPath::Objective::fixed_tardiness,
-                          TerminationConfig(timeout),
-                          IntensificationConfig(10, 100),
-                          DiversificationConfig(10),
-                          1,
-                          true};
+  TabuSearchConfig config{
+      CriticalPath::Objective::fixed_tardiness,
+      TerminationConfig(timeout1),
+      IntensificationConfig(10, 200),
+      DiversificationConfig(10),
+      CompressionConfig(true, TerminationConfig(timeout2),
+                        IntensificationConfig(10, 10)),
+  };
 
   using InitialHeuristic = RandomInitial;
   using TerminationCriterion = TimeoutTerminationCriterion;
@@ -255,24 +253,32 @@ int main(int argc, char **argv) {
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config);
   tabu_search.dgm.print_critical_path(config.type);
-  return 0;
 
   std::cout << "\nWAITING FOR 5 SECONDS BEFORE UPDATING RTIs\n" << std::endl;
   sleep(5);
+
   // update rtis of wireless streams
   std::map<MessageStreamHandle, RTIMap> rti_updates;
   for (int stream = 0; stream < streams; stream++) {
-    rti_updates[stream] = {
-        {Edge(0, ho), RTI(UPDATED_WIRELESS_UL_DMAX, UPDATED_WIRELESS_UL_DMIN)}};
+    rti_updates[stream] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
+                                             WIRELESS_UL_DMIN + degradation)}};
   }
   for (int stream = streams; stream < 2 * streams; stream++) {
-    rti_updates[stream] = {
-        {Edge(ho, 0), RTI(UPDATED_WIRELESS_DL_DMAX, UPDATED_WIRELESS_DL_DMIN)}};
+    rti_updates[stream] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
+                                             WIRELESS_DL_DMIN + degradation)}};
   }
-  config.tconfig = TerminationConfig(timeout);
+
+  TabuSearchConfig config1{
+      CriticalPath::Objective::fixed_tardiness,
+      TerminationConfig(timeout3),
+      IntensificationConfig(10, 200),
+      DiversificationConfig(10),
+      CompressionConfig(true, TerminationConfig(timeout4),
+                        IntensificationConfig(10, 10)),
+  };
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
-                  TransformationHeuristic>(config, rti_updates);
-  tabu_search.dgm.print_critical_path(config.type);
+                  TransformationHeuristic>(config1, rti_updates);
+  tabu_search.dgm.print_critical_path(config1.type);
 
   return 0;
 }

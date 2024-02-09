@@ -12,7 +12,7 @@ struct BestSelection {
   Delay objective;
   bool committed;
 
-  BestSelection() {}
+  BestSelection() : objective(std::numeric_limits<Delay>::max()) {}
 
   BestSelection(size_t *commit_index,
                 Delay objective = std::numeric_limits<Delay>::max())

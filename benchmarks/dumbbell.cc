@@ -69,12 +69,14 @@ int main(int argc, char **argv) {
 
   TabuSearch tabu_search(network, message_streams);
 
-  TabuSearchConfig config{CriticalPath::Objective::makespan,
-                          TerminationConfig(timeout),
-                          IntensificationConfig(10, 1),
-                          DiversificationConfig(streams / 4),
-                          1,
-                          true};
+  TabuSearchConfig config{
+      CriticalPath::Objective::makespan,
+      TerminationConfig(1),
+      IntensificationConfig(10, 10),
+      DiversificationConfig(streams / 4),
+      CompressionConfig(true, TerminationConfig(timeout),
+                        IntensificationConfig(10, 10)),
+  };
 
   using InitialHeuristic = NoInitial;
   using TerminationCriterion = TimeoutTerminationCriterion;

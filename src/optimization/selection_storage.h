@@ -23,7 +23,8 @@ public:
   void update_candidates(BestSelection &res);
   void update_candidates(EncodedSelection &&selection,
                          bool direct_update = true);
-  bool wants(Delay objective);
+  void delete_candidate(EncodedSelection *res);
+
   EncodedSelection &sample(double temperature);
 
   size_t get_processing_index(EncodedSelection &selection, Edge edge,

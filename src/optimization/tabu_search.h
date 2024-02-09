@@ -21,7 +21,8 @@ struct DiversificationConfig {
 
 struct CompressionConfig {
   bool enabled = false;
-  TerminationConfig tconfig; //!< timeout config
+  TerminationConfig tconfig;     //!< timeout config
+  IntensificationConfig iconfig; //!< intensification config
 };
 
 struct TabuSearchConfig {
@@ -29,8 +30,8 @@ struct TabuSearchConfig {
   TerminationConfig tconfig;     //!< termination config
   IntensificationConfig iconfig; //!< intensification config
   DiversificationConfig dconfig; //!< diversification config
+  CompressionConfig cconfig;     //!< ZIPS (false) or FIPS (true)
   size_t initial_solutions = 1;  //!< how often to run initial heuristic
-  bool compress = false;         //!< ZIPS (false) or FIPS (true)
   size_t commit_index = 0;       //!< where to store the global best selection
 };
 
@@ -38,12 +39,14 @@ class TabuSearch {
 public:
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
              const std::vector<MessageStream> &streams)
-      : dgm(network, streams), gen(rd()), storage(&dgm) {
+      : dgm(network, streams), gen(rd()), storage(&dgm),
+        compressed_storage(&dgm) {
     start = std::chrono::high_resolution_clock::now();
     std::cout.precision(3);
   }
 
-  TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm), gen(rd()), storage(&dgm) {
+  TabuSearch(DisjunctiveGraphModel &dgm)
+      : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm) {
     start = std::chrono::high_resolution_clock::now();
     std::cout.precision(3);
   }
@@ -64,18 +67,17 @@ public:
                                           Delay termination_bound = 0,
                                           TabuList tabu_list = {});
 
-  template <class Intensification>
-  BestSelection run_compression_phase(BestSelection &best_selection,
-                                      IntensificationConfig &config,
-                                      CriticalPath::Objective type,
-                                      Delay termination_bound);
+  template <class Intensification, class TerminationCriterion>
+  void run_compression_phase(CompressionConfig &config,
+                             CriticalPath::Objective type,
+                             Delay termination_bound);
 
   DisjunctiveGraphModel dgm;
   BestSelection best_selection;
   Communicator com;
 
 private:
-  SelectionStorage storage;
+  SelectionStorage storage, compressed_storage;
   std::random_device rd;
   std::mt19937 gen;
 

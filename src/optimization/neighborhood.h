@@ -23,9 +23,9 @@ class SelectionNeighborhood {
 public:
   SelectionNeighborhood(DisjunctiveGraphModel &dgm) : dgm(dgm) {}
 
-  virtual const Neighborhood &compute(CriticalPath::Result res) = 0;
-  virtual const Neighborhood &extend(CriticalPath::Result res,
-                                     int extension_level) = 0;
+  virtual Neighborhood &compute(CriticalPath::Result res) = 0;
+  virtual Neighborhood &extend(CriticalPath::Result res,
+                               int extension_level) = 0;
 
   virtual ~SelectionNeighborhood() = default;
 
@@ -40,8 +40,8 @@ public:
   SelectionFullNeighborhood(DisjunctiveGraphModel &dgm)
       : SelectionNeighborhood(dgm) {}
 
-  const Neighborhood &compute(CriticalPath::Result res);
-  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+  Neighborhood &compute(CriticalPath::Result res);
+  Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
     throw std::runtime_error("no extension available");
@@ -62,8 +62,8 @@ public:
                                      int restriction = 0)
       : SelectionNeighborhood(dgm), restriction(restriction) {}
 
-  const Neighborhood &compute(CriticalPath::Result res);
-  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+  Neighborhood &compute(CriticalPath::Result res);
+  Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
     throw std::runtime_error("no extension available");
@@ -88,7 +88,7 @@ public:
       : SelectionCriticalBlockNeighborhood(dgm), extended_neighborhood(dgm, 1) {
     static_assert(0 <= level && level <= 1);
   }
-  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+  Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
     else if (extension_level == 1)
@@ -121,8 +121,8 @@ public:
   CompressionNeighborhood(DisjunctiveGraphModel &dgm)
       : SelectionNeighborhood(dgm) {}
 
-  const Neighborhood &compute(CriticalPath::Result res);
-  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+  Neighborhood &compute(CriticalPath::Result res);
+  Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
     throw std::runtime_error("no extension available");
@@ -139,8 +139,8 @@ public:
   WirelessCompressionNeighborhood(DisjunctiveGraphModel &dgm)
       : SelectionNeighborhood(dgm), extended_neighborhood(dgm) {}
 
-  const Neighborhood &compute(CriticalPath::Result res);
-  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+  Neighborhood &compute(CriticalPath::Result res);
+  Neighborhood &extend(CriticalPath::Result res, int extension_level) {
     if (extension_level == 0)
       return compute(res);
     if (extension_level == 1)

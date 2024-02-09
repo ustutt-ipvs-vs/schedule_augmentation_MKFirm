@@ -61,7 +61,7 @@ public:
   CriticalPath::Result critical_path(CriticalPath::Objective type,
                                      bool reverse = true);
 
-  void update_rti(MessageStreamHandle ms, RTIMap rti_map);
+  void update_rti(std::map<MessageStreamHandle, RTIMap> rti_updates);
 
   void complete_flip(std::list<E> &edges, bool combined = true);
   void complete_flip(E e);
@@ -212,6 +212,7 @@ private:
   void build();
   void build_stream(MessageStreamHandle handle);
   void resize_properties();
+  void update_rti(MessageStreamHandle ms, RTIMap rti_map);
 
   void internal_commit_all(size_t index);
   void internal_restore_commit(size_t index, bool swap);

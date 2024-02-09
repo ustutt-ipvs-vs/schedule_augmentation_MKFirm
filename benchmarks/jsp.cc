@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     return TabuSearchConfig{
         CriticalPath::Objective::makespan, TerminationConfig(timeout),
         IntensificationConfig(maxt, maxit * machines * jobs),
-        DiversificationConfig(div), 1};
+        DiversificationConfig(div)};
   };
 
   using InitialHeuristic = RandomInitial;
