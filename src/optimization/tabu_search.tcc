@@ -199,50 +199,55 @@ BestSelection TabuSearch::run_compression_phase(BestSelection &best_selection,
     dgm.restore_commit(*best_selection.commit_index);
     assert((best_selection.objective == dgm.critical_path(type).objective));
 
-    auto &neighborhood =
-        compression_neighborhood.compute(dgm.critical_path(type))
-            .shuffle_candidates;
-    auto partition = com.partition(neighborhood.begin(), neighborhood.end());
-    BestSelection res = best_selection;
-    Communicator::State state = Communicator::running;
+    int extension_level = 0;
+    do {
+      auto &neighborhood =
+          compression_neighborhood.compute(dgm.critical_path(type))
+              .shuffle_candidates;
+      auto partition = com.partition(neighborhood.begin(), neighborhood.end());
+      BestSelection res = best_selection;
+      Communicator::State state = Communicator::running;
 
-    for (auto it = partition.first; it != partition.second; ++it) {
-      auto edges = *it;
+      for (auto it = partition.first; it != partition.second; ++it) {
+        auto edges = *it;
 
-      // edge descriptors in neighborhood might be invalidated after restoring
-      for (auto &e : edges)
-        e = dgm.edge(e);
+        // edge descriptors in neighborhood might be invalidated after restoring
+        for (auto &e : edges)
+          e = dgm.edge(e);
 
-      try {
-        dgm.complete_shuffle(edges);
-        res = run_intensification_phase<Intensification>(config, type,
-                                                         termination_bound);
-      } catch (UnfixableCycleException &e) {
-        res = best_selection;
-      } catch (JitterBoundViolation &e) {
-        res = best_selection;
+        try {
+          dgm.complete_shuffle(edges);
+          res = run_intensification_phase<Intensification>(config, type,
+                                                           termination_bound);
+        } catch (UnfixableCycleException &e) {
+          res = best_selection;
+        } catch (JitterBoundViolation &e) {
+          res = best_selection;
+        }
+        state = res < best_selection ? Communicator::found_better
+                                     : Communicator::running;
+        state = com.exchange_state(state);
+        if (state != Communicator::running)
+          break;
+
+        // dgm.restore_commit(*best_selection.commit_index);
+        dgm.undo_last_shuffle();
       }
-      state = res < best_selection ? Communicator::found_better
-                                   : Communicator::running;
-      state = com.exchange_state(state);
-      if (state != Communicator::running)
-        break;
+      if (state == Communicator::running)
+        com.sync();
 
-      // dgm.restore_commit(*best_selection.commit_index);
-      dgm.undo_last_shuffle();
-    }
-    if (state == Communicator::running)
-      com.sync();
-
-    res = com.exchange_best_selection(dgm, res, type);
-    if (res < best_selection) {
-      update_best_selection(best_selection, res);
-      improvement_found = true;
-      auto stop = std::chrono::high_resolution_clock::now();
-      auto duration = duration_cast<std::chrono::seconds>(stop - start);
-      std::cout << "  New Compressed Selection: " << best_selection.objective
-                << " (" << duration << ")" << std::endl;
-    }
+      res = com.exchange_best_selection(dgm, res, type);
+      if (res < best_selection) {
+        update_best_selection(best_selection, res);
+        improvement_found = true;
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = duration_cast<std::chrono::seconds>(stop - start);
+        std::cout << "  New Compressed Selection: " << best_selection.objective
+                  << " (" << duration << ")" << std::endl;
+      }
+      extension_level++;
+    } while (!improvement_found &&
+             extension_level < WirelessCompressionNeighborhood::max_extension);
   }
 
   config.recursive_shuffle = false;
