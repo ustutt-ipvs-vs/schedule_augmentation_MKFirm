@@ -15,8 +15,10 @@ public:
 
   std::vector<EncodedSelection> encoded_best_selections;
 
-  SelectionStorage(DisjunctiveGraphModel &dgm, size_t max_stored_solutions)
-      : dgm(dgm), max_stored_solutions(max_stored_solutions), gen(rd()) {}
+  SelectionStorage(DisjunctiveGraphModel *dgm)
+      : dgm(dgm), max_stored_solutions(0), gen(rd()) {}
+
+  void set_capacity(size_t max_stored_solutions);
 
   void update_candidates(BestSelection &res);
   void update_candidates(EncodedSelection &&selection,
@@ -30,8 +32,10 @@ public:
   inline size_t size() { return encoded_best_selections.size(); }
   inline size_t capacity() { return max_stored_solutions; }
 
+  void renew_storage_objectives(CriticalPath::Objective type);
+
 private:
-  DisjunctiveGraphModel &dgm;
+  DisjunctiveGraphModel *dgm;
   size_t max_stored_solutions;
 
   std::vector<EncodedSelection> candidates;

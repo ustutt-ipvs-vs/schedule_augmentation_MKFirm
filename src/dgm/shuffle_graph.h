@@ -34,6 +34,7 @@ struct ShuffleGraphProperty {
   std::map<OrientationState *, E> equivalence_class_representative;
 
   std::vector<Delay> crit_cost;
+  std::vector<Delay> slack;
   std::vector<V> crit_pred;
   std::vector<V> cycle_pred;
 
@@ -480,7 +481,8 @@ static void print(const shuffle_graph_t &shuffle_graph,
     std::cout << vd << ": ";
     print(shuffle_graph, network, vd);
     std::cout << ": " << shuffle_graph[boost::graph_bundle].crit_cost[vd]
-              << " (" << shuffle_graph[boost::graph_bundle].crit_pred[vd] << ")"
+              << ", " << shuffle_graph[boost::graph_bundle].slack[vd] << " ("
+              << shuffle_graph[boost::graph_bundle].crit_pred[vd] << ")"
               << std::endl;
   }
 

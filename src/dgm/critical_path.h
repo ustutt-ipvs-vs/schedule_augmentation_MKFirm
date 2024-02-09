@@ -115,12 +115,52 @@ private:
   bool &feasible;
 };
 
+class slack_visitor : public boost::default_dfs_visitor {
+public:
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  slack_visitor(shuffle_graph_t &shuffle_graph)
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+
+  virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    throw std::runtime_error(
+        "Selection is not complete; disjunctive graph is acyclic.");
+  }
+
+  void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    assert((shuffle_graph[e].state() == allowed));
+  }
+
+  void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
+    if (v == prop.sink)
+      prop.slack[v] = 0;
+    else
+      prop.slack[v] = std::numeric_limits<Delay>::max();
+  }
+
+  void finish_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
+    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+
+    if (shuffle_graph[uv].weight == std::numeric_limits<Delay>::min())
+      return;
+
+    Delay uv_slack =
+        prop.crit_cost[v] - prop.crit_cost[u] - shuffle_graph[uv].weight;
+    if (uv_slack + prop.slack[v] < prop.slack[u])
+      prop.slack[u] = uv_slack + prop.slack[v];
+  }
+
+  ShuffleGraphProperty &prop;
+  bool reversed = false;
+};
+
 class CriticalPath {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  enum Objective { makespan, tardiness };
+  enum Objective { makespan, fixed_tardiness, dynamic_tardiness };
 
   struct Result {
     Delay objective;
@@ -140,7 +180,8 @@ public:
 
   Result path(Objective type);
   Result makespan_path();
-  Result tardiness_path();
+  Result fixed_tardiness_path();
+  Result dynamic_tardiness_path();
 
   void print(Result res, const NetworkTopology &network);
 

@@ -76,6 +76,11 @@ NetworkTopology::get_data_link_property(Edge edge) const {
   return boost::get(boost::edge_bundle, g)[e];
 }
 
+bool NetworkTopology::has_multiple_subcarriers(Edge edge) const {
+  E e = get_edge_by_ids(edge);
+  return boost::get(boost::edge_bundle, g)[e].multiple_subcarriers;
+}
+
 void NetworkTopology::remove_device(const DeviceId &device) {
   V v = get_vertex_by_id<true>(device);
   boost::clear_vertex(v, g);

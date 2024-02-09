@@ -34,7 +34,7 @@ SelectionFullNeighborhood::compute(CriticalPath::Result res) {
 void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
     const std::vector<V> &critical_block, CriticalBlockType type) {
   // note that critical_block[0] contains last operation of critical block
-  if (critical_block.size() > 0) {
+  if (critical_block.size() > 1) {
     for (int i = 1 + restriction; i < critical_block.size() - 1; i++) {
       // move critical_block[i] after critical_block[0]
       std::list<E> edges = {};
@@ -58,7 +58,7 @@ SelectionCriticalBlockNeighborhood::compute(CriticalPath::Result res) {
   neighborhood.clear();
 
   V v = res.critical_vertex, v_old;
-  Edge edge = dgm.shuffle_graph[v].edge;
+  Edge edge;
   std::vector<V> critical_block;
   CriticalBlockType type = last;
 
@@ -106,7 +106,35 @@ const Neighborhood &CompressionNeighborhood::compute(CriticalPath::Result res) {
   for (V v = res.critical_vertex; v != prop.src; v = prop.crit_pred[v]) {
     for (V u = prop.crit_pred[v]; u != prop.src; u = prop.crit_pred[u]) {
       auto [uv, found] = boost::edge(u, v, shuffle_graph);
-      if (found && shuffle_graph[uv].edge_type != conjunctive)
+      if (found && shuffle_graph[uv].edge_type != conjunctive &&
+          !dgm.apriori_jitter_violation(uv))
+        neighborhood.shuffle_candidates.push_back({uv});
+    }
+  }
+
+  return neighborhood;
+}
+
+const Neighborhood &
+WirelessCompressionNeighborhood::compute(CriticalPath::Result res) {
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  dgm.update_machine_successors();
+  neighborhood.clear();
+
+  shuffle_graph_t &shuffle_graph = dgm.shuffle_graph;
+  ShuffleGraphProperty &prop =
+      boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
+
+  for (V v = res.critical_vertex; v != prop.src; v = prop.crit_pred[v]) {
+    if (dgm.network->get_data_link_property(shuffle_graph[v].edge).type ==
+        wired)
+      continue;
+    for (V u = prop.crit_pred[v]; u != prop.src; u = prop.crit_pred[u]) {
+      auto [uv, found] = boost::edge(u, v, shuffle_graph);
+      if (found && shuffle_graph[uv].edge_type != conjunctive &&
+          !dgm.apriori_jitter_violation(uv))
         neighborhood.shuffle_candidates.push_back({uv});
     }
   }

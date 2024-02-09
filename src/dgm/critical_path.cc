@@ -20,8 +20,10 @@ CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
   switch (type) {
   case makespan:
     return makespan_path();
-  case tardiness:
-    return tardiness_path();
+  case fixed_tardiness:
+    return fixed_tardiness_path();
+  case dynamic_tardiness:
+    return dynamic_tardiness_path();
   default:
     throw std::logic_error("type does not exist: " + std::to_string(type));
   }
@@ -32,9 +34,34 @@ CriticalPath::Result CriticalPath::makespan_path() {
   return {prop.crit_cost[prop.sink], prop.sink};
 }
 
-CriticalPath::Result CriticalPath::tardiness_path() {
+CriticalPath::Result CriticalPath::fixed_tardiness_path() {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
+
+  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+    auto &stream = prop.streams[ms];
+    const std::list<Edge> &listeners = stream.route->get_listeners();
+
+    // compute tardiness of stream's end-to-end latency
+    for (Edge listener : listeners) {
+      V v_listener = prop.operation_to_vertex[{listener, ms}];
+      Delay tardiness = prop.crit_cost[v_listener] +
+                        stream.rti_map[listener].d_max() - stream.e2e_latency -
+                        stream.phase;
+      if (tardiness > max_tardiness.second)
+        max_tardiness = std::make_pair(v_listener, tardiness);
+    }
+  }
+
+  return {max_tardiness.second, max_tardiness.first};
+}
+
+CriticalPath::Result CriticalPath::dynamic_tardiness_path() {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
+
+  dgm_traversal(shuffle_graph,
+                visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
 
   for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
     auto &stream = prop.streams[ms];
@@ -48,12 +75,16 @@ CriticalPath::Result CriticalPath::tardiness_path() {
     if (release_tardiness > max_tardiness.second)
       max_tardiness = std::make_pair(v_talker, release_tardiness);
 
+    Delay slack = 0;
+    if (release_tardiness < 0)
+      slack = std::min(-release_tardiness, prop.slack[v_talker]);
+
     // compute tardiness of stream's end-to-end latency
     for (Edge listener : listeners) {
       V v_listener = prop.operation_to_vertex[{listener, ms}];
       Delay tardiness = prop.crit_cost[v_listener] +
                         stream.rti_map[listener].d_max() -
-                        prop.crit_cost[v_talker] - stream.e2e_latency;
+                        prop.crit_cost[v_talker] - slack - stream.e2e_latency;
       if (tardiness > max_tardiness.second)
         max_tardiness = std::make_pair(v_listener, tardiness);
     }

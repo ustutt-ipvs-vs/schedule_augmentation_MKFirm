@@ -134,6 +134,24 @@ protected:
   Neighborhood neighborhood;
 };
 
+class WirelessCompressionNeighborhood : public SelectionNeighborhood {
+public:
+  WirelessCompressionNeighborhood(DisjunctiveGraphModel &dgm)
+      : SelectionNeighborhood(dgm) {}
+
+  const Neighborhood &compute(CriticalPath::Result res);
+  const Neighborhood &extend(CriticalPath::Result res, int extension_level) {
+    if (extension_level == 0)
+      return compute(res);
+    throw std::runtime_error("no extension available");
+  };
+
+  static const int max_extension = 0;
+
+protected:
+  Neighborhood neighborhood;
+};
+
 } // namespace tsndgm
 
 #endif // TSN_DGM_NEIGHBORHOOD_H

@@ -18,11 +18,12 @@ typedef std::map<Edge, size_t> OffsetMap;
 
 class JitterBoundViolation : public std::exception {
 public:
-  JitterBoundViolation(MessageStreamHandle ms, Delay bound)
-      : ms(ms), bound(bound) {}
+  JitterBoundViolation(MessageStreamHandle ms, Edge edge, Delay bound)
+      : ms(ms), edge(edge), bound(bound) {}
   const char *what() { return "jitter exceeds the allowed bound"; }
 
   MessageStreamHandle ms;
+  Edge edge;
   Delay bound;
 };
 
@@ -36,6 +37,7 @@ public:
 
   unsigned long total_flips = 0;
   shuffle_graph_t shuffle_graph;
+  std::shared_ptr<NetworkTopology> network;
   std::list<E> flip_log;
 
   DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
@@ -71,10 +73,15 @@ public:
   }
   void split_all();
 
-  Delay compute_jitter_bound(MessageStreamHandle ms);
+  std::pair<Delay, Edge> compute_jitter_bound(MessageStreamHandle ms);
+  Delay compute_jitter(MessageStreamHandle ms, Edge listener);
+  bool apriori_jitter_violation(E uv);
 
   inline void commit_flips() { flip_log.clear(); }
-  inline void restore_flips() { restore_flips(flip_log.size()); }
+  inline void restore_flips() {
+    restore_flips(flip_log.size());
+    update_machine_successors();
+  }
   void restore_flips(size_t n);
   inline void commit_all(size_t index = 0) {
     internal_commit_all(index + EXTERNAL_COMMIT_OFFSET);
@@ -191,8 +198,6 @@ public:
   }
 
 private:
-  std::shared_ptr<NetworkTopology> network;
-
   CriticalPath crit_path;
   bool valid_crit_path = false;
 

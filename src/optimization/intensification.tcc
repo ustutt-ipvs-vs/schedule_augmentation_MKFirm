@@ -10,6 +10,7 @@ NextSelection
 StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
     compute_next_selection(CriticalPath::Objective type) {
   CriticalPath::Result res = this->dgm.critical_path(type);
+  auto initial_res = res;
   ExtendedNextSelection next_selection;
 
   // store current DGM, which is used to undo flips
@@ -54,6 +55,8 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
       }
 
       this->dgm.restore_flips();
+      assert(
+          (initial_res.objective == this->dgm.critical_path(type).objective));
     }
 
     if (next_selection.objective < this->best_selection.objective)

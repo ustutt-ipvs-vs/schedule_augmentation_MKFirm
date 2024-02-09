@@ -35,7 +35,17 @@ template <class T> double Transformation<T>::p_barrier(E uv) {
   else if (temperature > temperature_schedule.c && vu_objective == 0)
     return 1;
 
-  return p / (p + (1 - p) * exp(-temperature * (vu_objective - uv_objective)));
+  Delay base =
+      storage
+          .encoded_best_selections[storage.encoded_best_selections.size() - 1]
+          .objective -
+      storage.encoded_best_selections[0].objective;
+  if (base == 0)
+    return 0.5;
+  return p /
+         (p + (1 - p) *
+                  exp(-temperature *
+                      static_cast<double>(vu_objective - uv_objective) / base));
 }
 
 template <class T>

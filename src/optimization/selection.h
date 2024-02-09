@@ -44,9 +44,9 @@ struct EncodedSelection {
 
   EncodedSelection(Delay objective, std::vector<unsigned int> &&buf)
       : objective(objective), buf(std::move(buf)) {
-    for (int i = 0; i < buf.size(); i++) {
-      if (buf[i] == MACHINE_SEPARATOR && i + 2 < buf.size()) {
-        Edge edge(buf[i + 1], buf[i + 2]);
+    for (int i = 0; i < this->buf.size(); i++) {
+      if (this->buf[i] == MACHINE_SEPARATOR && i + 2 < this->buf.size()) {
+        Edge edge(this->buf[i + 1], this->buf[i + 2]);
         offset_map[edge] = i;
       }
     }

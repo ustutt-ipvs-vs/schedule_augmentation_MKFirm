@@ -17,7 +17,7 @@ void SelectionStorage::update_candidates(BestSelection &res) {
       encoded_best_selections.size() >= max_stored_solutions)
     return;
 
-  EncodedSelection encoded_res(dgm, res);
+  EncodedSelection encoded_res(*dgm, res);
   if (it != encoded_best_selections.end() && it->objective == res.objective)
     std::swap(encoded_res, *it);
   else
@@ -60,12 +60,27 @@ size_t SelectionStorage::get_processing_index(EncodedSelection &selection,
                                               Edge edge,
                                               MessageStreamHandle ms) {
   size_t offset = selection.offset_map[edge];
+  assert((edge.first == selection.buf[offset + 1] &&
+          edge.second == selection.buf[offset + 2]));
+
   for (size_t i = offset + 3; selection.buf[i] != MACHINE_SEPARATOR; i++) {
     if (selection.buf[i] == ms)
       return i;
   }
 
   throw std::runtime_error("message stream not found");
+}
+
+void SelectionStorage::set_capacity(size_t max_stored_solutions) {
+  this->max_stored_solutions = max_stored_solutions;
+}
+
+void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
+  for (EncodedSelection &selection : encoded_best_selections) {
+    dgm->decode(selection.buf);
+    auto res = dgm->critical_path(type);
+    selection.objective = res.objective;
+  }
 }
 
 } // namespace tsndgm

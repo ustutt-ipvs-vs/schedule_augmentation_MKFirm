@@ -9,14 +9,16 @@
 using namespace tsndgm;
 
 int main(int argc, char **argv) {
-  if (argc != 5) {
-    std::cout << "Usage: ./dumbbell <talkers> <bridges> <listeners> <streams>"
+  if (argc != 6) {
+    std::cout << "Usage: ./dumbbell <talkers> <bridges> <listeners> <streams> "
+                 "<timeout>"
               << std::endl;
     exit(0);
   }
 
   int talkers = stoi(argv[1]), bridges = stoi(argv[2]),
       listeners = stoi(argv[3]), streams = stoi(argv[4]);
+  int timeout = stoi(argv[5]);
 
   // setup network topology
   vector<NetworkDeviceProperty> device_properties;
@@ -62,24 +64,25 @@ int main(int argc, char **argv) {
     shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
     message_streams.push_back(
-        MessageStream(network, route, 100, FRAME_SIZE, 100, rti_map, 0, 10000));
+        MessageStream(network, route, 100, FRAME_SIZE, 100, rti_map, 0, 0));
   }
 
   TabuSearch tabu_search(network, message_streams);
 
   TabuSearchConfig config{CriticalPath::Objective::makespan,
-                          TerminationConfig(10),
-                          IntensificationConfig(10, 5 * streams),
-                          DiversificationConfig(5),
+                          TerminationConfig(timeout),
+                          IntensificationConfig(10, 1),
+                          DiversificationConfig(streams / 4),
                           1,
                           true};
 
-  using InitialHeuristic = RandomInitial;
-  using TerminationCriterion = DifferentialTerminationCriterion;
+  using InitialHeuristic = NoInitial;
+  using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification = StrictAdmissionIntensification<
       DifferentialTerminationCriterion,
-      ReducedSelectionCriticalBlockNeighborhood<>>;
-  using TransformationHeuristic = NoTransformation;
+      ReducedSelectionCriticalBlockNeighborhood<0>>;
+  using TransformationHeuristic =
+      RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config);

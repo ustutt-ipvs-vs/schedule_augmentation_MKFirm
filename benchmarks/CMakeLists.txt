@@ -29,3 +29,6 @@ target_link_libraries(converter PUBLIC tsndgm)
 
 add_executable(dumbbell dumbbell.cc)
 target_link_libraries(dumbbell PUBLIC tsndgm)
+
+add_executable(adaptive_scheduling adaptive_scheduling.cc)
+target_link_libraries(adaptive_scheduling PUBLIC tsndgm)

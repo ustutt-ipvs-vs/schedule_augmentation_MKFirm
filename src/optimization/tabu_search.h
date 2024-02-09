@@ -19,6 +19,11 @@ struct DiversificationConfig {
   size_t commit_index = 2; //!< where to store best selection of maxit rounds
 };
 
+struct CompressionConfig {
+  bool enabled = false;
+  TerminationConfig tconfig; //!< timeout config
+};
+
 struct TabuSearchConfig {
   CriticalPath::Objective type;  //!< makespan or tardiness
   TerminationConfig tconfig;     //!< termination config
@@ -33,19 +38,20 @@ class TabuSearch {
 public:
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
              const std::vector<MessageStream> &streams)
-      : dgm(network, streams), gen(rd()) {
+      : dgm(network, streams), gen(rd()), storage(&dgm) {
     start = std::chrono::high_resolution_clock::now();
     std::cout.precision(3);
   }
 
-  TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm), gen(rd()) {
+  TabuSearch(DisjunctiveGraphModel &dgm) : dgm(dgm), gen(rd()), storage(&dgm) {
     start = std::chrono::high_resolution_clock::now();
     std::cout.precision(3);
   }
 
   template <class InitialHeuristic, class TerminationCriterion,
             class Intensification, class TransformationHeuristic>
-  void run(TabuSearchConfig &config);
+  void run(TabuSearchConfig &config,
+           std::map<MessageStreamHandle, RTIMap> rti_updates = {});
 
   template <class InitialHeuristic, class Intensification>
   BestSelection
@@ -69,6 +75,7 @@ public:
   Communicator com;
 
 private:
+  SelectionStorage storage;
   std::random_device rd;
   std::mt19937 gen;
 

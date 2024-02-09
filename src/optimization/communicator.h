@@ -18,7 +18,8 @@ public:
 
   Communicator(bool multithreading = true);
   BestSelection exchange_best_selection(DisjunctiveGraphModel &dgm,
-                                        BestSelection &best_selection);
+                                        BestSelection &best_selection,
+                                        CriticalPath::Objective type);
   void sync_storage(SelectionStorage &storage);
   State exchange_state(State state, double ratio = 0.5);
 
