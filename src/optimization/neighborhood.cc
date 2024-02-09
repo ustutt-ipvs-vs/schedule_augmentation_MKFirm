@@ -128,8 +128,9 @@ WirelessCompressionNeighborhood::compute(CriticalPath::Result res) {
       boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
 
   for (V v = res.critical_vertex; v != prop.src; v = prop.crit_pred[v]) {
-    if (dgm.network->get_data_link_property(shuffle_graph[v].edge).type ==
-        wired)
+    if (v == prop.sink ||
+        dgm.network->get_data_link_property(shuffle_graph[v].edge).type ==
+            wired)
       continue;
     for (V u = prop.crit_pred[v]; u != prop.src; u = prop.crit_pred[u]) {
       auto [uv, found] = boost::edge(u, v, shuffle_graph);
