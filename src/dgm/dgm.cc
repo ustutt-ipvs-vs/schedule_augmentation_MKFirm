@@ -89,9 +89,10 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
           shuffle_graph[vw].weight += delta_new - delta_old;
         }
       } else {
-        shuffle_graph[vw].weight +=
-            rti_map[edge].d_trans_max() -
-            prop.streams[ms].rti_map[edge].d_trans_max();
+        if (shuffle_graph[vw].weight != std::numeric_limits<Delay>::min())
+          shuffle_graph[vw].weight +=
+              rti_map[edge].d_trans_max() -
+              prop.streams[ms].rti_map[edge].d_trans_max();
       }
     }
   }
@@ -100,7 +101,8 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   for (auto &[edge, rti] : rti_map) {
     V v = prop.operation_to_vertex[{edge, ms}];
     for (E uv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
-      if (shuffle_graph[uv].edge_type == fifo) {
+      if (shuffle_graph[uv].edge_type == fifo &&
+          shuffle_graph[uv].weight != std::numeric_limits<Delay>::min()) {
         Delay d_min_old = std::accumulate(
             shuffle_graph[v].ms_handle.begin(),
             shuffle_graph[v].ms_handle.end(), std::numeric_limits<Delay>::max(),
@@ -546,7 +548,8 @@ void DisjunctiveGraphModel::complete_shuffle(
         for (auto &handle : shuffle_graph[u].ms_handle) {
           if (std::find(shuffle_graph[w].ms_handle.begin(),
                         shuffle_graph[w].ms_handle.end(),
-                        handle) != shuffle_graph[w].ms_handle.end()) {
+                        handle) != shuffle_graph[w].ms_handle.end() &&
+              !network->has_multiple_subcarriers(n_edge)) {
             std::pair<Delay, Delay> delay = {
                 prop.streams[handle].rti_map[edge].d_max(),
                 std::max(prop.streams[handle].rti_map[edge].d_trans_max() -

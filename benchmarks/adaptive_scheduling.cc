@@ -12,7 +12,7 @@
 #define WIRELESS_UL_DMIN 5348000 // 4.833ms
 
 #define WIRELESS_TRAFFIC_DEADLINE 10000000 // 10ms
-#define CROSS_TRAFFIC_DEADLINE 2500000     // 2.5ms
+#define CROSS_TRAFFIC_DEADLINE 2000000     // 2ms
 
 #define WIRELESS_TRAFFIC_JITTER 5000000 // 5ms
 #define CROSS_TRAFFIC_JITTER 0
@@ -234,7 +234,8 @@ int main(int argc, char **argv) {
                         IntensificationConfig(10, 100)),
   };
 
-  using InitialHeuristic = RandomInitial;
+  using InitialHeuristic =
+      CombinedInitial<RandomInitial, EffectiveReleaseInitial>;
   using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification = StrictAdmissionIntensification<
       DifferentialTerminationCriterion,
@@ -271,7 +272,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 200),
       DiversificationConfig(10),
       CompressionConfig(true, TerminationConfig(timeout4),
-                        IntensificationConfig(0, 1)),
+                        IntensificationConfig(10, 10)),
   };
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config1, rti_updates);

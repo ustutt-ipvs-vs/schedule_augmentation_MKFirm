@@ -218,18 +218,22 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     std::cout << std::endl;
 
     EncodedSelection &next = compressed_storage.sample(temperature);
-    std::cout << " -2" << std::endl;
     dgm.decode(next.buf);
-    assert(dgm.critical_path(type).objective == next.objective);
+    if (dgm.critical_path(type).objective != next.objective) {
+      compressed_storage.delete_candidate(&next);
+      update_best_selection(compressed_storage);
+      temperature = 0;
+      continue;
+    }
+    std::cout << " 1" << std::endl;
 
-    std::cout << " -1" << std::endl;
     BestSelection res;
     if (!next.neighborhood.has_value()) {
       next.neighborhood = compression_neighborhood.extend(
           dgm.critical_path(type), next.extension_level);
       next.extension_level++;
     }
-    std::cout << " 0" << std::endl;
+    std::cout << " 2" << std::endl;
 
     size_t k;
     auto &neighborhood = next.neighborhood->shuffle_candidates;
@@ -239,45 +243,46 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       neighborhood[k].swap(neighborhood[i]);
       auto edges = neighborhood[k];
 
+      std::cout << " 3" << std::endl;
       // edge descriptors in neighborhood might be invalidated after restoring
       for (auto &e : edges)
         e = dgm.edge(e);
 
-      std::cout << " 1" << std::endl;
-
+      std::cout << " 4" << std::endl;
       try {
         dgm.complete_shuffle(edges);
         res = run_intensification_phase<Intensification>(config.iconfig, type,
                                                          termination_bound);
         if (res.objective < next.objective)
           break;
-        std::cout << " 2" << std::endl;
-      } catch (UnfixableCycleException &e) {
-        res.objective = std::numeric_limits<Delay>::max();
-      } catch (JitterBoundViolation &e) {
+      } catch (std::exception &e) {
         res.objective = std::numeric_limits<Delay>::max();
       }
+      std::cout << " 5" << std::endl;
 
       dgm.undo_last_shuffle();
-      std::cout << " 3" << std::endl;
+      std::cout << " 6" << std::endl;
     }
 
     print_result(res.objective);
     if (k < neighborhood.size()) {
+      std::cout << " 7" << std::endl;
       neighborhood.erase(neighborhood.begin(), neighborhood.begin() + k + 1);
       temperature = res < best_selection ? 1 : 0;
       update_best_selection(compressed_storage, res);
     } else if (next.extension_level <=
                WirelessCompressionNeighborhood::max_extension) {
+      std::cout << " 8" << std::endl;
       next.neighborhood = {};
       update_best_selection(compressed_storage);
       temperature = 0;
     } else {
+      std::cout << " 9" << std::endl;
       compressed_storage.delete_candidate(&next);
       update_best_selection(compressed_storage);
       temperature = 0;
     }
-    std::cout << " 4" << std::endl;
+    std::cout << " 10" << std::endl;
   }
 }
 

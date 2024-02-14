@@ -42,6 +42,31 @@ protected:
   std::mt19937 gen;
 };
 
+class EffectiveReleaseInitial : public InitialSelectionHeuristic {
+public:
+  EffectiveReleaseInitial(DisjunctiveGraphModel &dgm,
+                          CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type) {}
+
+  void generate();
+};
+
+template <class A, class B>
+class CombinedInitial : public InitialSelectionHeuristic {
+public:
+  CombinedInitial(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type), a(dgm, type), b(dgm, type) {}
+
+  void generate() {
+    a.generate();
+    b.generate();
+  }
+
+private:
+  A a;
+  B b;
+};
+
 } // namespace tsndgm
 
 #endif // TSN_DGM_HEURISTIC_INITIAL_H

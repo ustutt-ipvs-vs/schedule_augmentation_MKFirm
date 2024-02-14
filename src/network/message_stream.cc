@@ -15,4 +15,23 @@ void MessageStream::compute_wired_rtis() {
   }
 }
 
+Delay MessageStream::compute_effective_deadline(TreeRouteHop &hop) {
+  effective_deadline[hop.edge] = e2e_latency;
+  for (TreeRouteHop &child : hop.childs) {
+    Delay d = compute_effective_deadline(child);
+    effective_deadline[hop.edge] = std::min(effective_deadline[hop.edge], d);
+  }
+  effective_deadline[hop.edge] -= rti_map[hop.edge].d_max();
+  return effective_deadline[hop.edge];
+}
+
+void MessageStream::compute_effective_release(TreeRouteHop &hop,
+                                              Delay release) {
+  effective_release[hop.edge] = release;
+  for (TreeRouteHop &child : hop.childs) {
+    Delay child_release = release + rti_map[hop.edge].d_max();
+    compute_effective_release(child, child_release);
+  }
+}
+
 } // namespace tsndgm

@@ -32,6 +32,7 @@ static RTI WIRED_RTI(FrameSize frame_size, DataRate data_rate, Delay prop = 0) {
 }
 
 typedef std::map<Edge, RTI> RTIMap;
+typedef std::map<Edge, Delay> DelayMap;
 typedef std::list<Edge> WirelessLinks;
 
 typedef unsigned int MessageStreamHandle;
@@ -50,6 +51,7 @@ public:
   PCPValue pcp;
 
   WirelessLinks wireless_links;
+  DelayMap effective_release, effective_deadline;
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network,
                 const std::shared_ptr<Route> &route, Tick period,
@@ -60,6 +62,8 @@ public:
         e2e_latency(e2e_latency), rti_map(rti_map), phase(phase),
         jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
+    compute_effective_deadline(route->root.childs.front());
+    compute_effective_release(route->root.childs.front(), phase);
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network, Route &&route,
@@ -70,6 +74,8 @@ public:
         period(period), frame_size(frame_size), e2e_latency(e2e_latency),
         rti_map(rti_map), phase(phase), jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
+    compute_effective_deadline(this->route->root.childs.front());
+    compute_effective_release(this->route->root.childs.front(), phase);
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network,
@@ -80,12 +86,16 @@ public:
         frame_size(frame_size), e2e_latency(e2e_latency), rti_map(rti_map),
         phase(phase), jitter(jitter), pcp(pcp) {
     compute_wired_rtis();
+    compute_effective_deadline(this->route->root.childs.front());
+    compute_effective_release(this->route->root.childs.front(), phase);
   }
 
 private:
   std::shared_ptr<NetworkTopology> network;
 
   void compute_wired_rtis();
+  void compute_effective_release(TreeRouteHop &hop, Delay release);
+  Delay compute_effective_deadline(TreeRouteHop &hop);
 };
 
 } // namespace tsndgm
