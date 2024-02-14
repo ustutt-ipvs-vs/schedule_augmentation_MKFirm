@@ -218,15 +218,18 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     std::cout << std::endl;
 
     EncodedSelection &next = compressed_storage.sample(temperature);
+    std::cout << " -2" << std::endl;
     dgm.decode(next.buf);
     assert(dgm.critical_path(type).objective == next.objective);
 
+    std::cout << " -1" << std::endl;
     BestSelection res;
     if (!next.neighborhood.has_value()) {
       next.neighborhood = compression_neighborhood.extend(
           dgm.critical_path(type), next.extension_level);
       next.extension_level++;
     }
+    std::cout << " 0" << std::endl;
 
     size_t k;
     auto &neighborhood = next.neighborhood->shuffle_candidates;
@@ -240,12 +243,15 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       for (auto &e : edges)
         e = dgm.edge(e);
 
+      std::cout << " 1" << std::endl;
+
       try {
         dgm.complete_shuffle(edges);
         res = run_intensification_phase<Intensification>(config.iconfig, type,
                                                          termination_bound);
         if (res.objective < next.objective)
           break;
+        std::cout << " 2" << std::endl;
       } catch (UnfixableCycleException &e) {
         res.objective = std::numeric_limits<Delay>::max();
       } catch (JitterBoundViolation &e) {
@@ -253,6 +259,7 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       }
 
       dgm.undo_last_shuffle();
+      std::cout << " 3" << std::endl;
     }
 
     print_result(res.objective);
@@ -270,6 +277,7 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       update_best_selection(compressed_storage);
       temperature = 0;
     }
+    std::cout << " 4" << std::endl;
   }
 }
 

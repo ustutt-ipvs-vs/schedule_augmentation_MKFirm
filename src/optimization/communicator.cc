@@ -91,10 +91,12 @@ void Communicator::signal_sync_storage(SelectionStorage &storage) {
       communication_storage.update_candidates(
           storage.encoded_best_selections[0]);
     }
-    if (!sync_thread.joinable())
+    if (!sync_thread.joinable()) {
+      global_state = running;
       sync_thread = std::thread(&Communicator::continuous_sync_storage, this);
-    else
+    } else {
       sync_semaphore.release();
+    }
   } else if (!multithreading) {
     sync_storage();
   }

@@ -114,8 +114,6 @@ int main(int argc, char **argv) {
 
     int talker = dt(gen);
     int listener = dl(gen);
-    std::cout << "F" << message_streams.size() << ": T" << talker << " -> L"
-              << listener << std::endl;
 
     for (int d = to + talker; d > 0; d = (d - 1 - ((d + 1) % 2)) / 2) {
       path.push_back(Edge(d, (d - 1 - ((d + 1) % 2)) / 2));
@@ -142,8 +140,6 @@ int main(int argc, char **argv) {
 
     int talker = dl(gen);
     int listener = dt(gen);
-    std::cout << "F" << message_streams.size() << ": T" << talker << " -> L"
-              << listener << std::endl;
 
     for (int d = lo + talker; d > ho;
          d = ho + (d - ho - 1 - ((d - ho + 1) % 2)) / 2) {
@@ -172,8 +168,6 @@ int main(int argc, char **argv) {
     int listener = dt1(gen);
     if (listener >= talker)
       listener++;
-    std::cout << "F" << message_streams.size() << ": T" << talker << " -> T"
-              << listener << std::endl;
 
     int dt = to + talker;
     int dl = to + listener;
@@ -189,7 +183,6 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    route->print_route();
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
       message_streams.push_back(
           MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
@@ -207,8 +200,6 @@ int main(int argc, char **argv) {
     int listener = dl1(gen);
     if (listener >= talker)
       listener++;
-    std::cout << "F" << message_streams.size() << ": L" << talker << " -> L"
-              << listener << std::endl;
 
     int dt = lo + talker;
     int dl = lo + listener;
@@ -224,7 +215,6 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    route->print_route();
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
       message_streams.push_back(
           MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
