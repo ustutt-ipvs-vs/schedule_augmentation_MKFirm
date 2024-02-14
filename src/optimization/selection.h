@@ -2,6 +2,7 @@
 #define TSN_DGM_SELECTIONS_H
 
 #include "../dgm/dgm.h"
+#include "neighborhood.h"
 
 namespace tsndgm {
 
@@ -31,6 +32,10 @@ struct EncodedSelection {
   Delay objective;
   std::vector<unsigned int> buf;
   OffsetMap offset_map;
+  std::optional<Neighborhood> neighborhood;
+  int extension_level = 0;
+
+  EncodedSelection() : objective(std::numeric_limits<Delay>::max()) {}
 
   EncodedSelection(DisjunctiveGraphModel &dgm, BestSelection &best_selection)
       : objective(best_selection.objective) {

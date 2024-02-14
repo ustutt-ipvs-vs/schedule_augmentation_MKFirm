@@ -3,12 +3,6 @@
 namespace tsndgm {
 
 void SelectionStorage::update_candidates(BestSelection &res) {
-  {
-    const std::lock_guard<std::mutex> lock(candidate_mutex);
-    for (EncodedSelection &candidate : candidates)
-      update_candidates(std::move(candidate), true);
-    candidates.clear();
-  }
   if (res.objective == std::numeric_limits<Delay>::max())
     return;
 
@@ -31,8 +25,7 @@ void SelectionStorage::update_candidates(BestSelection &res) {
                                   encoded_best_selections.end());
 }
 
-void SelectionStorage::update_candidates(EncodedSelection &&selection,
-                                         bool direct_update) {
+void SelectionStorage::update_candidates(EncodedSelection &&selection) {
   auto it = std::find_if(
       encoded_best_selections.begin(), encoded_best_selections.end(),
       [&](auto &s) { return s.objective >= selection.objective; });
@@ -43,11 +36,24 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection,
   if (it != encoded_best_selections.end() &&
       it->objective == selection.objective) {
     return;
-  } else if (direct_update) {
-    encoded_best_selections.insert(it, std::move(selection));
   } else {
-    const std::lock_guard<std::mutex> lock(candidate_mutex);
-    candidates.push_back(std::move(selection));
+    encoded_best_selections.insert(it, std::move(selection));
+  }
+}
+
+void SelectionStorage::update_candidates(EncodedSelection &selection) {
+  auto it = std::find_if(
+      encoded_best_selections.begin(), encoded_best_selections.end(),
+      [&](auto &s) { return s.objective >= selection.objective; });
+  if (it == encoded_best_selections.end() &&
+      encoded_best_selections.size() >= max_stored_solutions)
+    return;
+
+  if (it != encoded_best_selections.end() &&
+      it->objective == selection.objective) {
+    return;
+  } else {
+    encoded_best_selections.insert(it, selection);
   }
 }
 

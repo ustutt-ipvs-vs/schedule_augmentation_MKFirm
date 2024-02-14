@@ -20,7 +20,6 @@ struct TerminationCriterion {
 
   virtual bool satisfied(size_t iteration, Delay objective) {
     auto now = std::chrono::high_resolution_clock::now();
-    auto duration = duration_cast<std::chrono::milliseconds>(deadline - now);
     return now >= deadline || objective <= bound;
   }
 

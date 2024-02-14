@@ -16,11 +16,7 @@ class Communicator {
 public:
   enum State { running, found_better, terminated };
 
-  Communicator(bool multithreading = true);
-  BestSelection exchange_best_selection(DisjunctiveGraphModel &dgm,
-                                        BestSelection &best_selection,
-                                        CriticalPath::Objective type);
-  void sync_storage(SelectionStorage &storage);
+  Communicator(bool multithreading);
   State exchange_state(State state, double ratio = 0.5);
 
   Communicator::State sync(State final = terminated, double ratio = 0.5);
@@ -44,19 +40,23 @@ public:
 
   int rank;
   int size;
-  std::thread storage_sync;
 
 private:
   MPI_Op op;
   std::array<Delay, 2> local, global;
+  SelectionStorage communication_storage;
 
-  Delay prev_best;
   bool multithreading;
   std::binary_semaphore sync_semaphore;
   State global_state;
+  std::thread sync_thread;
+  std::mutex storage_mutex;
 
+  Delay prev_best;
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);
+  void continuous_sync_storage();
+  void sync_storage();
 };
 
 } // namespace tsndgm

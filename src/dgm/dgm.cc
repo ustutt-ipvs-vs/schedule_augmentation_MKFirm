@@ -182,6 +182,9 @@ void DisjunctiveGraphModel::restore_flips(size_t n) {
 void DisjunctiveGraphModel::internal_restore_commit(size_t index, bool swap) {
   flip_log.clear();
 
+  if (index > committed_shuffle_graphs.size())
+    throw std::runtime_error("commit does not exist");
+
   if (boost::num_vertices(committed_shuffle_graphs[index]) > 0) {
     shuffle_graph.clear();
     if (swap) {

@@ -21,8 +21,8 @@ public:
   void set_capacity(size_t max_stored_solutions);
 
   void update_candidates(BestSelection &res);
-  void update_candidates(EncodedSelection &&selection,
-                         bool direct_update = true);
+  void update_candidates(EncodedSelection &&selection);
+  void update_candidates(EncodedSelection &selection);
   void delete_candidate(EncodedSelection *res);
 
   EncodedSelection &sample(double temperature);
@@ -38,9 +38,6 @@ public:
 private:
   DisjunctiveGraphModel *dgm;
   size_t max_stored_solutions;
-
-  std::vector<EncodedSelection> candidates;
-  std::mutex candidate_mutex;
 
   std::random_device rd;
   std::mt19937 gen;

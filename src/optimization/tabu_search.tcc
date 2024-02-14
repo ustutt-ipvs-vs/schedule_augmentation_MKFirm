@@ -31,7 +31,6 @@ void TabuSearch::run(TabuSearchConfig &config,
         config.initial_solutions, config.iconfig, config.type,
         config.tconfig.bound);
     update_best_selection(storage, res);
-    com.signal_sync_storage(storage);
     print_result(best_selection.objective);
   }
 
@@ -46,7 +45,7 @@ void TabuSearch::run(TabuSearchConfig &config,
     // randomly select one of the best stored selections
     EncodedSelection &next = storage.sample(heuristic.temperature);
     dgm.decode(next.buf);
-    assert((next.objective == dgm.critical_path(config.type).objective));
+    assert(next.objective == dgm.critical_path(config.type).objective);
 
     // transform solution to break out of local minima
     int progress =
@@ -69,11 +68,10 @@ void TabuSearch::run(TabuSearchConfig &config,
         config.iconfig, config.type, config.tconfig.bound,
         create_tabu_list(heuristic.flipped_edges));
     update_best_selection(storage, res);
-    com.signal_sync_storage(storage);
     print_result(res.objective);
   }
   com.stop_sync_storage();
-  update_best_selection(storage, res);
+  update_best_selection(storage);
 
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {
@@ -84,11 +82,12 @@ void TabuSearch::run(TabuSearchConfig &config,
     config.cconfig.iconfig.commit_index = config.iconfig.commit_index;
     run_compression_phase<Intensification, TerminationCriterion>(
         config.cconfig, config.type, config.tconfig.bound);
+    com.stop_sync_storage();
+    update_best_selection(compressed_storage);
   }
 
   dgm.restore_commit(*best_selection.commit_index);
-  assert(
-      (best_selection.objective == dgm.critical_path(config.type).objective));
+  assert(best_selection.objective == dgm.critical_path(config.type).objective);
   std::cout << "Global Solution: " << best_selection.objective << std::endl;
 }
 
@@ -97,7 +96,7 @@ BestSelection TabuSearch::run_initial_phase(int initial_solutions,
                                             IntensificationConfig &config,
                                             CriticalPath::Objective type,
                                             Delay termination_bound) {
-  assert((*this->best_selection.commit_index != config.commit_index));
+  assert(*this->best_selection.commit_index != config.commit_index);
 
   InitialHeuristic initial_heuristic(dgm, type);
   for (int i = 0; i < initial_solutions; i++) {
@@ -152,14 +151,14 @@ BestSelection TabuSearch::run_intensification_phase(
         update_best_selection(best_selection, next_selection);
       } else if (!best_selection.committed) {
         // commit best known solution if we start with uphill moves
-        assert((best_selection.objective == dgm.critical_path(type).objective));
+        assert(best_selection.objective == dgm.critical_path(type).objective);
         dgm.commit_all(*best_selection.commit_index);
         best_selection.committed = true;
       }
 
       try {
         dgm.complete_flip(next_selection.edges);
-        assert((next_selection.objective == dgm.critical_path(type).objective));
+        assert(next_selection.objective == dgm.critical_path(type).objective);
       } catch (FlipGraphException &e) {
         if (config.recursive_shuffle) {
           shuffle_and_restart(e.required_shuffle);
@@ -181,9 +180,6 @@ BestSelection TabuSearch::run_intensification_phase(
     best_selection.committed = true;
   }
 
-  dgm.restore_commit(*best_selection.commit_index);
-  assert((best_selection.objective == dgm.critical_path(type).objective));
-
   return best_selection;
 }
 
@@ -191,12 +187,16 @@ template <class Intensification, class TerminationCriterion>
 void TabuSearch::run_compression_phase(CompressionConfig &config,
                                        CriticalPath::Objective type,
                                        Delay termination_bound) {
-  assert((config.iconfig.commit_index != *best_selection.commit_index));
+  assert(config.iconfig.commit_index != *best_selection.commit_index);
 
   TerminationCriterion termination_criterion(config.tconfig);
   WirelessCompressionNeighborhood compression_neighborhood(dgm);
-  Communicator::State state = Communicator::running;
+  double temperature = 0;
   config.iconfig.recursive_shuffle = true;
+
+  for (auto &stored_selection : storage.encoded_best_selections) {
+    compressed_storage.update_candidates(stored_selection);
+  }
 
   for (size_t phase = 0;
        !termination_criterion.satisfied(phase, best_selection.objective);
@@ -208,24 +208,29 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     }
     std::cout << std::endl << " Storage (FIPS): ";
     for (auto &stored_selection : compressed_storage.encoded_best_selections) {
-      std::cout << stored_selection.objective << " ";
+      std::cout << stored_selection.objective << " ["
+                << stored_selection.extension_level;
+      if (stored_selection.neighborhood.has_value())
+        std::cout << ", "
+                  << stored_selection.neighborhood->shuffle_candidates.size();
+      std::cout << "] ";
     }
     std::cout << std::endl;
 
-    EncodedSelection *next;
-    if (compressed_storage.size() > 0)
-      next = &compressed_storage.sample(0);
-    else
-      next = &storage.sample(0);
-    dgm.decode(next->buf);
-    assert((next->objective == dgm.critical_path(type).objective));
+    EncodedSelection &next = compressed_storage.sample(temperature);
+    dgm.decode(next.buf);
+    assert(dgm.critical_path(type).objective == next.objective);
 
     BestSelection res;
-    auto &neighborhood =
-        compression_neighborhood.compute(dgm.critical_path(type))
-            .shuffle_candidates;
+    if (!next.neighborhood.has_value()) {
+      next.neighborhood = compression_neighborhood.extend(
+          dgm.critical_path(type), next.extension_level);
+      next.extension_level++;
+    }
 
-    for (size_t k = 0; k < neighborhood.size(); k++) {
+    size_t k;
+    auto &neighborhood = next.neighborhood->shuffle_candidates;
+    for (k = 0; k < neighborhood.size(); ++k) {
       std::uniform_int_distribution<size_t> d(k, neighborhood.size() - 1);
       size_t i = d(gen);
       neighborhood[k].swap(neighborhood[i]);
@@ -239,7 +244,7 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
         dgm.complete_shuffle(edges);
         res = run_intensification_phase<Intensification>(config.iconfig, type,
                                                          termination_bound);
-        if (res.objective < next->objective)
+        if (res.objective < next.objective)
           break;
       } catch (UnfixableCycleException &e) {
         res.objective = std::numeric_limits<Delay>::max();
@@ -251,17 +256,21 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     }
 
     print_result(res.objective);
-    if (res.objective >= next->objective) {
-      std::cout << " Delete: " << next->objective << " from storage"
-                << std::endl;
-      compressed_storage.delete_candidate(next);
-    } else {
+    if (k < neighborhood.size()) {
+      neighborhood.erase(neighborhood.begin(), neighborhood.begin() + k + 1);
+      temperature = res < best_selection ? 1 : 0;
       update_best_selection(compressed_storage, res);
-      com.signal_sync_storage(compressed_storage);
+    } else if (next.extension_level <=
+               WirelessCompressionNeighborhood::max_extension) {
+      next.neighborhood = {};
+      update_best_selection(compressed_storage);
+      temperature = 0;
+    } else {
+      compressed_storage.delete_candidate(&next);
+      update_best_selection(compressed_storage);
+      temperature = 0;
     }
   }
-  update_best_selection(compressed_storage, best_selection);
-  com.stop_sync_storage();
 }
 
 void TabuSearch::update_best_selection(BestSelection &best_selection,
@@ -283,13 +292,15 @@ void TabuSearch::update_best_selection(BestSelection &best_selection,
 
 void TabuSearch::update_best_selection(SelectionStorage &storage,
                                        BestSelection &res, bool swap) {
-  storage.update_candidates(res);
   auto print_new_best = [&]() {
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = duration_cast<std::chrono::seconds>(stop - start);
     std::cout << " New Best Selection: " << best_selection.objective << " ("
               << duration << ")" << std::endl;
   };
+
+  storage.update_candidates(res);
+  com.signal_sync_storage(storage);
   if (storage.encoded_best_selections[0].objective <
       std::min(res.objective, best_selection.objective)) {
     dgm.decode(storage.encoded_best_selections[0].buf);
@@ -298,11 +309,14 @@ void TabuSearch::update_best_selection(SelectionStorage &storage,
     res.objective = best_selection.objective;
     res.committed = false;
     print_new_best();
-  }
-  if (res < best_selection) {
+  } else if (res < best_selection) {
     this->update_best_selection(best_selection, res, swap);
     print_new_best();
   }
+}
+
+void TabuSearch::update_best_selection(SelectionStorage &storage) {
+  update_best_selection(storage, best_selection);
 }
 
 } // namespace tsndgm

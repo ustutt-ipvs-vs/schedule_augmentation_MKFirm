@@ -4,7 +4,8 @@ namespace tsndgm {
 
 Communicator::Communicator(bool multithreading)
     : prev_best(std::numeric_limits<Delay>::max()),
-      multithreading(multithreading), sync_semaphore(0), global_state(running) {
+      communication_storage(nullptr), sync_semaphore(0), global_state(running),
+      multithreading(multithreading) {
   if (multithreading) {
     int provided;
     MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
@@ -22,17 +23,8 @@ Communicator::Communicator(bool multithreading)
 
 Communicator::~Communicator() {
   stop_sync_storage();
-  MPI::Finalize();
+  MPI_Finalize();
   std::fclose(stdout);
-}
-
-void Communicator::stop_sync_storage() {
-  if (multithreading) {
-    global_state = terminated;
-    sync_semaphore.release();
-    if (storage_sync.joinable())
-      storage_sync.join();
-  }
 }
 
 Communicator::State Communicator::sync(State final, double ratio) {
@@ -44,9 +36,7 @@ Communicator::State Communicator::sync(State final, double ratio) {
 
 void Communicator::reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                      MPI_Datatype *datatype) {
-  if (*len != 2) {
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
+  assert((*len == 2));
 
   Delay *in = (Delay *)invec;
   Delay *out = (Delay *)inoutvec;
@@ -83,96 +73,91 @@ Communicator::State Communicator::exchange_state(State state, double ratio) {
   return running;
 }
 
-BestSelection
-Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
-                                      BestSelection &best_selection,
-                                      CriticalPath::Objective type) {
-  if (size == 1) {
-    dgm.restore_commit(*best_selection.commit_index, false);
-    assert((best_selection.objective == dgm.critical_path(type).objective));
-    return best_selection;
-  }
-
-  // get best selection objective of every MPI process
-  local = {best_selection.objective, rank};
-  MPI_Allreduce(local.data(), global.data(), 2, MPI_LONG, op, MPI_COMM_WORLD);
-
-  unsigned int buf_size;
-  std::vector<unsigned int> buf;
-  if (global[1] == rank) {
-    // broadcast selection to every other MPI process
-    dgm.restore_commit(*best_selection.commit_index, false);
-    assert((best_selection.objective == dgm.critical_path(type).objective));
-    dgm.encode(buf);
-    buf_size = buf.size();
-    MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
-    MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
+void Communicator::stop_sync_storage() {
+  global_state = terminated;
+  sync_semaphore.release();
+  if (multithreading) {
+    if (sync_thread.joinable())
+      sync_thread.join();
   } else {
-    // receive selection and commit it as best known solution
-    MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, global[1], MPI_COMM_WORLD);
-    buf.resize(buf_size);
-    MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, global[1], MPI_COMM_WORLD);
-    dgm.decode(buf);
-
-    assert((global[0] == dgm.critical_path(type).objective));
-
-    best_selection = {best_selection.commit_index, global[0]};
-    dgm.commit_all(*best_selection.commit_index);
-    best_selection.committed = true;
+    continuous_sync_storage();
   }
-
-  return best_selection;
 }
 
 void Communicator::signal_sync_storage(SelectionStorage &storage) {
   if (multithreading) {
-    if (!storage_sync.joinable())
-      storage_sync =
-          std::thread(&Communicator::sync_storage, this, std::ref(storage));
+    if (storage.size() > 0) {
+      const std::lock_guard<std::mutex> lock(storage_mutex);
+      communication_storage.update_candidates(
+          storage.encoded_best_selections[0]);
+    }
+    if (!sync_thread.joinable())
+      sync_thread = std::thread(&Communicator::continuous_sync_storage, this);
     else
       sync_semaphore.release();
   } else if (!multithreading) {
-    sync_storage(storage);
+    sync_storage();
   }
+
+  const std::lock_guard<std::mutex> lock(storage_mutex);
+  for (EncodedSelection &selection :
+       communication_storage.encoded_best_selections) {
+    storage.update_candidates(std::move(selection));
+  }
+  communication_storage.encoded_best_selections.clear();
 }
 
-void Communicator::sync_storage(SelectionStorage &storage) {
-  unsigned int buf_size;
+void Communicator::continuous_sync_storage() {
   State state;
   do {
     state = exchange_state(global_state, 1);
     if (state != running)
       return;
-    for (int i = 0; i < size; i++) {
-      if (i == rank) {
-        EncodedSelection &selection = storage.encoded_best_selections[0];
-        if (prev_best <= selection.objective) {
-          Delay skip = std::numeric_limits<Delay>::max();
-          MPI_Bcast(&skip, 1, MPI_LONG, rank, MPI_COMM_WORLD);
-          continue;
-        }
-        MPI_Bcast(&selection.objective, 1, MPI_LONG, rank, MPI_COMM_WORLD);
-        buf_size = selection.buf.size();
-        MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
-        MPI_Bcast(selection.buf.data(), buf_size, MPI_UNSIGNED, rank,
-                  MPI_COMM_WORLD);
-        prev_best = std::min(prev_best, selection.objective);
-      } else {
-        Delay objective;
-        MPI_Bcast(&objective, 1, MPI_LONG, i, MPI_COMM_WORLD);
-        if (objective == std::numeric_limits<Delay>::max())
-          continue;
-        MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-        std::vector<unsigned int> buf(buf_size);
-        MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-        storage.update_candidates(EncodedSelection(objective, std::move(buf)),
-                                  false);
-      }
-    }
+
+    sync_storage();
+
     if (global_state == running) {
       sync_semaphore.acquire();
     }
   } while (state == running);
+}
+
+void Communicator::sync_storage() {
+  if (size == 1)
+    return;
+
+  unsigned int buf_size;
+  for (int i = 0; i < size; i++) {
+    if (i == rank) {
+      const std::lock_guard<std::mutex> lock(storage_mutex);
+      if (communication_storage.size() == 0 ||
+          prev_best <=
+              communication_storage.encoded_best_selections[0].objective) {
+        Delay skip = std::numeric_limits<Delay>::max();
+        MPI_Bcast(&skip, 1, MPI_LONG, rank, MPI_COMM_WORLD);
+        continue;
+      }
+      EncodedSelection &selection =
+          communication_storage.encoded_best_selections[0];
+      MPI_Bcast(&selection.objective, 1, MPI_LONG, rank, MPI_COMM_WORLD);
+      buf_size = selection.buf.size();
+      MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
+      MPI_Bcast(selection.buf.data(), buf_size, MPI_UNSIGNED, rank,
+                MPI_COMM_WORLD);
+      prev_best = std::min(prev_best, selection.objective);
+    } else {
+      Delay objective;
+      MPI_Bcast(&objective, 1, MPI_LONG, i, MPI_COMM_WORLD);
+      if (objective == std::numeric_limits<Delay>::max())
+        continue;
+      MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+      std::vector<unsigned int> buf(buf_size);
+      MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+      const std::lock_guard<std::mutex> lock(storage_mutex);
+      communication_storage.update_candidates(
+          EncodedSelection(objective, std::move(buf)));
+    }
+  }
 }
 
 } // namespace tsndgm

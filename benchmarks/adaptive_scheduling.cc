@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 200),
       DiversificationConfig(10),
       CompressionConfig(true, TerminationConfig(timeout2),
-                        IntensificationConfig(10, 10)),
+                        IntensificationConfig(10, 100)),
   };
 
   using InitialHeuristic = RandomInitial;
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 200),
       DiversificationConfig(10),
       CompressionConfig(true, TerminationConfig(timeout4),
-                        IntensificationConfig(10, 10)),
+                        IntensificationConfig(0, 1)),
   };
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config1, rti_updates);

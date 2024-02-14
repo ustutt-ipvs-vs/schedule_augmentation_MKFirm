@@ -38,15 +38,17 @@ struct TabuSearchConfig {
 class TabuSearch {
 public:
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
-             const std::vector<MessageStream> &streams)
+             const std::vector<MessageStream> &streams,
+             bool multithreading = true)
       : dgm(network, streams), gen(rd()), storage(&dgm),
-        compressed_storage(&dgm) {
+        compressed_storage(&dgm), com(multithreading) {
     reset_timer();
     std::cout.precision(3);
   }
 
-  TabuSearch(DisjunctiveGraphModel &dgm)
-      : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm) {
+  TabuSearch(DisjunctiveGraphModel &dgm, bool multithreading = true)
+      : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm),
+        com(multithreading) {
     reset_timer();
     std::cout.precision(3);
   }
@@ -88,6 +90,7 @@ private:
                              bool swap = true);
   void update_best_selection(SelectionStorage &storage, BestSelection &res,
                              bool swap = true);
+  void update_best_selection(SelectionStorage &storage);
 
   void print_result(Delay res) {
     auto stop = std::chrono::high_resolution_clock::now();
