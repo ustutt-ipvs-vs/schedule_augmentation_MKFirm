@@ -194,6 +194,12 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
   double temperature = 0;
   config.iconfig.recursive_shuffle = true;
 
+  auto cleanup = [&](EncodedSelection &next) {
+    compressed_storage.delete_candidate(&next);
+    update_best_selection(compressed_storage);
+    temperature = 0;
+  };
+
   for (auto &stored_selection : storage.encoded_best_selections) {
     compressed_storage.update_candidates(stored_selection);
   }
@@ -218,14 +224,22 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     std::cout << std::endl;
 
     EncodedSelection &next = compressed_storage.sample(temperature);
-    dgm.decode(next.buf);
-    if (dgm.critical_path(type).objective != next.objective) {
-      compressed_storage.delete_candidate(&next);
-      update_best_selection(compressed_storage);
-      temperature = 0;
+
+    /* TODO: For some reason, decoding fails in ~0.1% of the cases (requires
+     * further analysis). For now, we simply discard such solutions. */
+    try {
+      dgm.decode(next.buf);
+      if (dgm.critical_path(type).objective != next.objective) {
+        cleanup(next);
+        continue;
+      }
+    } catch (std::exception &e) {
+      for (auto v : next.buf)
+        std::cout << v << " ";
+      std::cout << std::endl;
+      cleanup(next);
       continue;
     }
-    std::cout << " 1" << std::endl;
 
     BestSelection res;
     if (!next.neighborhood.has_value()) {
@@ -233,7 +247,6 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
           dgm.critical_path(type), next.extension_level);
       next.extension_level++;
     }
-    std::cout << " 2" << std::endl;
 
     size_t k;
     auto &neighborhood = next.neighborhood->shuffle_candidates;
@@ -243,12 +256,10 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       neighborhood[k].swap(neighborhood[i]);
       auto edges = neighborhood[k];
 
-      std::cout << " 3" << std::endl;
       // edge descriptors in neighborhood might be invalidated after restoring
       for (auto &e : edges)
         e = dgm.edge(e);
 
-      std::cout << " 4" << std::endl;
       try {
         dgm.complete_shuffle(edges);
         res = run_intensification_phase<Intensification>(config.iconfig, type,
@@ -258,31 +269,23 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       } catch (std::exception &e) {
         res.objective = std::numeric_limits<Delay>::max();
       }
-      std::cout << " 5" << std::endl;
 
       dgm.undo_last_shuffle();
-      std::cout << " 6" << std::endl;
     }
 
     print_result(res.objective);
     if (k < neighborhood.size()) {
-      std::cout << " 7" << std::endl;
       neighborhood.erase(neighborhood.begin(), neighborhood.begin() + k + 1);
       temperature = res < best_selection ? 1 : 0;
       update_best_selection(compressed_storage, res);
     } else if (next.extension_level <=
                WirelessCompressionNeighborhood::max_extension) {
-      std::cout << " 8" << std::endl;
       next.neighborhood = {};
       update_best_selection(compressed_storage);
       temperature = 0;
     } else {
-      std::cout << " 9" << std::endl;
-      compressed_storage.delete_candidate(&next);
-      update_best_selection(compressed_storage);
-      temperature = 0;
+      cleanup(next);
     }
-    std::cout << " 10" << std::endl;
   }
 }
 
