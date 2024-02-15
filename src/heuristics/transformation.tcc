@@ -15,18 +15,21 @@ template <class T> double Transformation<T>::p_barrier(E uv) {
   MessageStreamHandle ms_u = dgm.shuffle_graph[u].ms_handle.front(),
                       ms_v = dgm.shuffle_graph[v].ms_handle.front();
 
-  Delay uv_objective = 0, vu_objective = 0;
+  Delay uv_objective = std::numeric_limits<Delay>::min(),
+        vu_objective = std::numeric_limits<Delay>::min();
   for (auto &selection : storage.encoded_best_selections) {
-    if (uv_objective > 0 && vu_objective > 0)
+    if (uv_objective > std::numeric_limits<Delay>::min() &&
+        vu_objective > std::numeric_limits<Delay>::min())
       break;
     size_t u_pos = storage.get_processing_index(selection, edge, ms_u);
     size_t v_pos = storage.get_processing_index(selection, edge, ms_v);
-    if (u_pos < v_pos && uv_objective == 0)
+    if (u_pos < v_pos && uv_objective == std::numeric_limits<Delay>::min())
       uv_objective = selection.objective;
-    else if (v_pos < u_pos && vu_objective == 0)
+    else if (v_pos < u_pos && vu_objective == std::numeric_limits<Delay>::min())
       vu_objective = selection.objective;
   }
-  assert((uv_objective > 0 || vu_objective > 0));
+  assert((uv_objective > std::numeric_limits<Delay>::min() ||
+          vu_objective > std::numeric_limits<Delay>::min()));
 
   Delay base =
       storage
@@ -37,10 +40,12 @@ template <class T> double Transformation<T>::p_barrier(E uv) {
     return 0.5;
 
   // no best_selection contains the edge uv; hence, always flip
-  if (temperature > temperature_schedule.c && uv_objective == 0)
+  if (temperature > temperature_schedule.c &&
+      uv_objective == std::numeric_limits<Delay>::min())
     return 0;
   // no best_selection contains the edge vu; hence, never flip
-  else if (temperature > temperature_schedule.c && vu_objective == 0)
+  else if (temperature > temperature_schedule.c &&
+           vu_objective == std::numeric_limits<Delay>::min())
     return 1;
 
   return p /

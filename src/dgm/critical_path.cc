@@ -21,9 +21,13 @@ CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
   case makespan:
     return makespan_path();
   case fixed_tardiness:
-    return fixed_tardiness_path();
+    return fixed_tardiness_path(0);
   case dynamic_tardiness:
-    return dynamic_tardiness_path();
+    return dynamic_tardiness_path(0);
+  case fixed_lateness:
+    return fixed_tardiness_path(std::numeric_limits<Delay>::min());
+  case dynamic_lateness:
+    return dynamic_tardiness_path(std::numeric_limits<Delay>::min());
   default:
     throw std::logic_error("type does not exist: " + std::to_string(type));
   }
@@ -34,9 +38,9 @@ CriticalPath::Result CriticalPath::makespan_path() {
   return {prop.crit_cost[prop.sink], prop.sink};
 }
 
-CriticalPath::Result CriticalPath::fixed_tardiness_path() {
+CriticalPath::Result CriticalPath::fixed_tardiness_path(Delay min) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
+  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, min);
 
   for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
     auto &stream = prop.streams[ms];
@@ -56,9 +60,9 @@ CriticalPath::Result CriticalPath::fixed_tardiness_path() {
   return {max_tardiness.second, max_tardiness.first};
 }
 
-CriticalPath::Result CriticalPath::dynamic_tardiness_path() {
+CriticalPath::Result CriticalPath::dynamic_tardiness_path(Delay min) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, 0);
+  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, min);
 
   dgm_traversal(shuffle_graph,
                 visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));

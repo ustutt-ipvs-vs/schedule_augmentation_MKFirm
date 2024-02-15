@@ -98,6 +98,12 @@ private:
     std::cout << " Result: " << res << " (" << duration << ") " << std::endl;
   }
 
+  void print_time() {
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(stop - start);
+    std::cout << duration << std::endl;
+  }
+
   std::chrono::high_resolution_clock::time_point start;
 };
 

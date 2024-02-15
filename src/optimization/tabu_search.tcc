@@ -20,6 +20,8 @@ void TabuSearch::run(TabuSearchConfig &config,
   storage.renew_storage_objectives(config.type);
   compressed_storage.renew_storage_objectives(config.type);
 
+  print_time();
+
   TerminationCriterion termination_criterion(config.tconfig);
   BestSelection res;
   size_t phase;
@@ -101,6 +103,7 @@ BestSelection TabuSearch::run_initial_phase(int initial_solutions,
   InitialHeuristic initial_heuristic(dgm, type);
   for (int i = 0; i < initial_solutions; i++) {
     initial_heuristic.generate();
+    print_time();
     BestSelection res = run_intensification_phase<Intensification>(
         config, type, termination_bound);
     if (res < best_selection) {

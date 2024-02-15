@@ -225,12 +225,15 @@ int main(int argc, char **argv) {
 
   TabuSearch tabu_search(network, message_streams);
 
+  auto objective = CriticalPath::Objective::fixed_lateness;
+  auto bound = CriticalPath::get_termination_bound(objective);
+
   TabuSearchConfig config{
-      CriticalPath::Objective::fixed_tardiness,
-      TerminationConfig(timeout1),
+      objective,
+      TerminationConfig(timeout1, bound),
       IntensificationConfig(10, 200),
       DiversificationConfig(10),
-      CompressionConfig(true, TerminationConfig(timeout2),
+      CompressionConfig(true, TerminationConfig(timeout2, bound),
                         IntensificationConfig(10, 100)),
   };
 
@@ -266,12 +269,14 @@ int main(int argc, char **argv) {
                           WIRELESS_DL_DMIN + degradation_min)}};
   }
 
+  objective = CriticalPath::Objective::fixed_tardiness;
+  bound = CriticalPath::get_termination_bound(objective);
   TabuSearchConfig config1{
-      CriticalPath::Objective::fixed_tardiness,
-      TerminationConfig(timeout3),
+      objective,
+      TerminationConfig(timeout3, bound),
       IntensificationConfig(10, 200),
       DiversificationConfig(10),
-      CompressionConfig(true, TerminationConfig(timeout4),
+      CompressionConfig(true, TerminationConfig(timeout4, bound),
                         IntensificationConfig(10, 10)),
   };
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,

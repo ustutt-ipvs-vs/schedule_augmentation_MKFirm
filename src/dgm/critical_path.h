@@ -160,7 +160,13 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  enum Objective { makespan, fixed_tardiness, dynamic_tardiness };
+  enum Objective {
+    makespan,
+    fixed_tardiness,
+    dynamic_tardiness,
+    fixed_lateness,
+    dynamic_lateness
+  };
 
   struct Result {
     Delay objective;
@@ -176,12 +182,26 @@ public:
     return *this;
   }
 
+  static Delay get_termination_bound(Objective type) {
+    switch (type) {
+    case makespan:
+    case fixed_tardiness:
+    case dynamic_tardiness:
+      return 0;
+    case fixed_lateness:
+    case dynamic_lateness:
+      return std::numeric_limits<Delay>::min();
+    default:
+      throw std::logic_error("type does not exist: " + std::to_string(type));
+    }
+  }
+
   void compute_longest_paths(bool reverse = true);
 
   Result path(Objective type);
   Result makespan_path();
-  Result fixed_tardiness_path();
-  Result dynamic_tardiness_path();
+  Result fixed_tardiness_path(Delay min = 0);
+  Result dynamic_tardiness_path(Delay min = 0);
 
   void print(Result res, const NetworkTopology &network);
 
