@@ -66,8 +66,10 @@ public:
   void complete_flip(std::list<E> &edges, bool combined = true);
   void complete_flip(E e);
 
-  void complete_shuffle(const std::list<E> &edges, bool commit_fallback = true);
-  void complete_shuffle(E e, bool commit_fallback = true);
+  void complete_shuffle(const std::list<E> &edges, bool commit_fallback = true,
+                        bool fix_cycles = true);
+  void complete_shuffle(E e, bool commit_fallback = true,
+                        bool fix_cycles = true);
   inline void undo_last_shuffle() {
     internal_restore_commit(shuffle_fallback, false);
   }
@@ -227,7 +229,8 @@ private:
                      const std::set<V> &shuffled_operations,
                      std::optional<E> uv);
   void complete_shuffle(E e, std::set<OrientationState *> &flipped_edges,
-                        std::set<V> &shuffled_operations);
+                        std::set<V> &shuffled_operations,
+                        bool fix_cycles = true);
 
   void remove_fifo_edges(V u, V v);
   void renew_descriptors();

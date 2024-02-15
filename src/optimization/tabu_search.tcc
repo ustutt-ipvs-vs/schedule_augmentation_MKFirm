@@ -227,22 +227,8 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
     std::cout << std::endl;
 
     EncodedSelection &next = compressed_storage.sample(temperature);
-
-    /* TODO: For some reason, decoding fails in ~0.1% of the cases (requires
-     * further analysis). For now, we simply discard such solutions. */
-    try {
-      dgm.decode(next.buf);
-      if (dgm.critical_path(type).objective != next.objective) {
-        cleanup(next);
-        continue;
-      }
-    } catch (std::exception &e) {
-      for (auto v : next.buf)
-        std::cout << v << " ";
-      std::cout << std::endl;
-      cleanup(next);
-      continue;
-    }
+    dgm.decode(next.buf);
+    assert(dgm.critical_path(type).objective == next.objective);
 
     BestSelection res;
     if (!next.neighborhood.has_value()) {

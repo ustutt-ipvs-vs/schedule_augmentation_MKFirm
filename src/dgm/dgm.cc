@@ -387,41 +387,45 @@ void DisjunctiveGraphModel::complete_flip(
 }
 
 void DisjunctiveGraphModel::complete_shuffle(const std::list<E> &edges,
-                                             bool commit_fallback) {
+                                             bool commit_fallback,
+                                             bool fix_cycles) {
   if (commit_fallback)
     internal_commit_all(shuffle_fallback);
   try {
     for (E e : edges) {
       std::set<OrientationState *> flipped_edges;
       std::set<V> shuffled_operations;
-      complete_shuffle(e, flipped_edges, shuffled_operations);
+      complete_shuffle(e, flipped_edges, shuffled_operations, fix_cycles);
     }
   } catch (std::exception &e) {
     internal_restore_commit(shuffle_fallback, false);
     throw;
   }
   shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-  renew_descriptors();
+  if (fix_cycles)
+    renew_descriptors();
 }
 
-void DisjunctiveGraphModel::complete_shuffle(E e, bool commit_fallback) {
+void DisjunctiveGraphModel::complete_shuffle(E e, bool commit_fallback,
+                                             bool fix_cycles) {
   if (commit_fallback)
     internal_commit_all(shuffle_fallback);
   std::set<OrientationState *> flipped_edges;
   std::set<V> shuffled_operations;
   try {
-    complete_shuffle(e, flipped_edges, shuffled_operations);
+    complete_shuffle(e, flipped_edges, shuffled_operations, fix_cycles);
   } catch (std::exception &e) {
     internal_restore_commit(shuffle_fallback, false);
     throw;
   }
   shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-  renew_descriptors();
+  if (fix_cycles)
+    renew_descriptors();
 }
 
 void DisjunctiveGraphModel::complete_shuffle(
     E uv, std::set<OrientationState *> &flipped_edges,
-    std::set<V> &shuffled_operations) {
+    std::set<V> &shuffled_operations, bool fix_cycles) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
   if (shuffle_graph[uv].state() == blocked)
@@ -753,19 +757,22 @@ void DisjunctiveGraphModel::complete_shuffle(
     });
   }
 
-  bool complete = false;
-  while (!complete) {
-    try {
-      // complete_flip should not modify flipped_edges here
-      auto flipped_edges_copy = flipped_edges;
-      complete_flip(flipped_edges_copy, shuffled_operations, {});
-      complete = true;
-    } catch (FlipGraphException &e) {
-      // update_machine_successors();
-      complete_shuffle(edge(e.required_shuffle), flipped_edges,
-                       shuffled_operations);
+  if (fix_cycles) {
+    bool complete = false;
+    while (!complete) {
+      try {
+        // complete_flip should not modify flipped_edges here
+        auto flipped_edges_copy = flipped_edges;
+        complete_flip(flipped_edges_copy, shuffled_operations, {});
+        complete = true;
+      } catch (FlipGraphException &e) {
+        // update_machine_successors();
+        complete_shuffle(edge(e.required_shuffle), flipped_edges,
+                         shuffled_operations);
+      }
     }
   }
+
   flip_log.clear();
 }
 
@@ -1090,7 +1097,7 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
           MessageStreamHandle u_ms = buf[offset + len];
           V u = prop.operation_to_vertex[{edge, u_ms}];
           if (u != v) {
-            complete_shuffle(this->edge(v, u));
+            complete_shuffle(this->edge(v, u), false, false);
             if (shuffle_graph[v].ms_handle.empty())
               v = u;
           }
