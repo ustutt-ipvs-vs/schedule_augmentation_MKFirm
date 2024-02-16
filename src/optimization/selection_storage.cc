@@ -93,6 +93,8 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
     dgm->decode(selection.buf);
     auto res = dgm->critical_path(type);
     selection.objective = res.objective;
+    if (res.objective <= CriticalPath::get_termination_bound(type))
+      return;
   }
 }
 

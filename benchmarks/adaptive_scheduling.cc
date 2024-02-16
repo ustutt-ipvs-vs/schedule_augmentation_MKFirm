@@ -251,8 +251,7 @@ int main(int argc, char **argv) {
                     TransformationHeuristic>(config);
     tabu_search.dgm.print_critical_path(config.type);
 
-    std::cout << "\nWAITING FOR 5 SECONDS BEFORE UPDATING RTIs\n" << std::endl;
-    sleep(5);
+    std::cout << "\nUPDATING RTIs\n" << std::endl;
   }
   tabu_search.reset_timer();
 
@@ -272,6 +271,7 @@ int main(int argc, char **argv) {
   objective = CriticalPath::Objective::fixed_tardiness;
   bound = CriticalPath::get_termination_bound(objective);
   TabuSearchConfig config1{
+
       objective,
       TerminationConfig(timeout3, bound),
       IntensificationConfig(10, 200),

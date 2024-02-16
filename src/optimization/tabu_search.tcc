@@ -37,10 +37,14 @@ void TabuSearch::run(TabuSearchConfig &config,
       storage.renew_storage_objectives(config.type);
     }
   } else {
-    dgm.commit_all(*best_selection.commit_index);
-    best_selection.objective = dgm.critical_path(config.type).objective;
-    best_selection.committed = true;
-    storage.update_candidates(best_selection);
+    if (storage.size() == 0) {
+      dgm.commit_all(*best_selection.commit_index);
+      best_selection.objective = dgm.critical_path(config.type).objective;
+      best_selection.committed = true;
+    } else {
+      storage.encoded_best_selections.resize(1);
+      storage.renew_storage_objectives(config.type);
+    }
   }
 
   int N = termination_criterion.progress(0, best_selection.objective).second;
@@ -84,11 +88,14 @@ void TabuSearch::run(TabuSearchConfig &config,
 
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {
-    reset_timeout();
-    compressed_storage.renew_storage_objectives(config.type);
     std::cout << "----------------------------------------------" << std::endl;
     std::cout << "          Compression (ZIPS -> FIPS)          " << std::endl;
     std::cout << "----------------------------------------------" << std::endl;
+    reset_timeout();
+    if (compressed_storage.size() > 0) {
+      compressed_storage.renew_storage_objectives(config.type);
+      update_best_selection(compressed_storage);
+    }
     config.cconfig.iconfig.commit_index = config.iconfig.commit_index;
     run_compression_phase<Intensification, TerminationCriterion>(
         config.cconfig, config.type, config.tconfig.bound);
