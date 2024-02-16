@@ -17,8 +17,6 @@ void TabuSearch::run(TabuSearchConfig &config,
   storage.set_capacity(config.dconfig.max_stored_solutions);
   compressed_storage.set_capacity(config.dconfig.max_stored_solutions);
   dgm.update_rti(rti_updates);
-  storage.renew_storage_objectives(config.type);
-  compressed_storage.renew_storage_objectives(config.type);
 
   print_time();
 
@@ -27,13 +25,22 @@ void TabuSearch::run(TabuSearchConfig &config,
   size_t phase;
 
   // compute initial solution
-  if (storage.size() == 0) {
-    std::cout << "Phase 0:\n Initial: " << std::endl;
-    res = run_initial_phase<InitialHeuristic, Intensification>(
-        config.initial_solutions, config.iconfig, config.type,
-        config.tconfig.bound);
-    update_best_selection(storage, res);
-    print_result(best_selection.objective);
+  if (!termination_criterion.satisfied(0, best_selection.objective)) {
+    if (storage.size() == 0) {
+      std::cout << "Phase 0:\n Initial: " << std::endl;
+      res = run_initial_phase<InitialHeuristic, Intensification>(
+          config.initial_solutions, config.iconfig, config.type,
+          config.tconfig.bound);
+      update_best_selection(storage, res);
+      print_result(best_selection.objective);
+    } else {
+      storage.renew_storage_objectives(config.type);
+    }
+  } else {
+    dgm.commit_all(*best_selection.commit_index);
+    best_selection.objective = dgm.critical_path(config.type).objective;
+    best_selection.committed = true;
+    storage.update_candidates(best_selection);
   }
 
   int N = termination_criterion.progress(0, best_selection.objective).second;
@@ -78,6 +85,7 @@ void TabuSearch::run(TabuSearchConfig &config,
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {
     reset_timeout();
+    compressed_storage.renew_storage_objectives(config.type);
     std::cout << "----------------------------------------------" << std::endl;
     std::cout << "          Compression (ZIPS -> FIPS)          " << std::endl;
     std::cout << "----------------------------------------------" << std::endl;
@@ -228,7 +236,15 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
 
     EncodedSelection &next = compressed_storage.sample(temperature);
     dgm.decode(next.buf);
-    assert(dgm.critical_path(type).objective == next.objective);
+    if (dgm.critical_path(type).objective != next.objective) {
+      std::cout << dgm.critical_path(type).objective << " " << next.objective
+                << std::endl;
+      for (auto v : next.buf)
+        std::cout << v << " ";
+      std::cout << std::endl;
+      cleanup(next);
+      continue;
+    }
 
     BestSelection res;
     if (!next.neighborhood.has_value()) {
