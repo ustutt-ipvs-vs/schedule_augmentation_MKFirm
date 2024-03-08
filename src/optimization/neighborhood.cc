@@ -36,10 +36,8 @@ void SelectionCriticalBlockNeighborhood::critical_block_to_neighbors(
   if (critical_block.size() > 1) {
     for (int i = 1 + restriction; i < critical_block.size() - 1; i++) {
       // move critical_block[i] after critical_block[0]
-      std::list<E> edges = {};
-      for (int j = i - 1; j >= 0; j--)
-        edges.push_back(dgm.edge(critical_block[i], critical_block[j]));
-      neighborhood.flip_candidates.push_back(edges);
+      neighborhood.flip_candidates.push_back(
+          {dgm.edge(critical_block[i], critical_block.front())});
     }
     for (int i = 0; i < critical_block.size() - 1 - restriction; i++) {
       // move critical_block[i] before critical_block[-1]

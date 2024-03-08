@@ -2,29 +2,6 @@
 
 namespace tsndgm {
 
-void SelectionStorage::update_candidates(BestSelection &res) {
-  if (res.objective == std::numeric_limits<Delay>::max())
-    return;
-
-  auto it = std::find_if(encoded_best_selections.begin(),
-                         encoded_best_selections.end(),
-                         [&](auto &s) { return s.objective >= res.objective; });
-  if (it == encoded_best_selections.end() &&
-      encoded_best_selections.size() >= max_stored_solutions)
-    return;
-
-  EncodedSelection encoded_res(*dgm, res);
-  if (it != encoded_best_selections.end() && it->objective == res.objective)
-    std::swap(encoded_res, *it);
-  else
-    encoded_best_selections.insert(it, encoded_res);
-
-  if (encoded_best_selections.size() > max_stored_solutions)
-    encoded_best_selections.erase(encoded_best_selections.begin() +
-                                      max_stored_solutions,
-                                  encoded_best_selections.end());
-}
-
 void SelectionStorage::update_candidates(EncodedSelection &&selection) {
   auto it = std::find_if(
       encoded_best_selections.begin(), encoded_best_selections.end(),
@@ -35,10 +12,15 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection) {
 
   if (it != encoded_best_selections.end() &&
       it->objective == selection.objective) {
-    return;
+    std::swap(selection, *it);
   } else {
     encoded_best_selections.insert(it, std::move(selection));
   }
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
 }
 
 void SelectionStorage::update_candidates(EncodedSelection &selection) {
@@ -51,10 +33,15 @@ void SelectionStorage::update_candidates(EncodedSelection &selection) {
 
   if (it != encoded_best_selections.end() &&
       it->objective == selection.objective) {
-    return;
+    std::swap(selection, *it);
   } else {
     encoded_best_selections.insert(it, selection);
   }
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
 }
 
 void SelectionStorage::delete_candidate(EncodedSelection *res) {
@@ -93,9 +80,13 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
     dgm->decode(selection.buf);
     auto res = dgm->critical_path(type);
     selection.objective = res.objective;
-    if (res.objective <= CriticalPath::get_termination_bound(type))
+    if (res.objective <= CriticalPath::get_termination_bound(type)) {
+      std::swap(selection, encoded_best_selections[0]);
       return;
+    }
   }
+  std::sort(encoded_best_selections.begin(), encoded_best_selections.end(),
+            [&](auto &s1, auto &s2) { return s1.objective < s2.objective; });
 }
 
 } // namespace tsndgm

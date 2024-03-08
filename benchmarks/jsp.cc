@@ -31,6 +31,9 @@ void benchmark_instance(
   TabuSearch tabu_search(jsp.network, jsp.streams);
   DisjunctiveGraphModel &dgm = tabu_search.dgm;
 
+  if (tabu_search.com.rank != 0)
+    std::cout.setstate(std::ios::failbit);
+
   cout << benchmark_data["name"].template get<std::string>() << std::endl;
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
@@ -87,7 +90,7 @@ int main(int argc, char **argv) {
   using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification = StrictAdmissionIntensification<
       DifferentialTerminationCriterion,
-      ReducedSelectionCriticalBlockNeighborhood<0>>;
+      ReducedSelectionCriticalBlockNeighborhood<1>>;
   using TransformationHeuristic =
       RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 

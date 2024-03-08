@@ -12,16 +12,19 @@
 
 namespace tsndgm {
 
+static int coms = 0;
 class Communicator {
 public:
   enum State { running, found_better, terminated };
 
-  Communicator(bool multithreading);
+  Communicator(const Communicator &other);
+  Communicator();
   State exchange_state(State state, double ratio = 0.5);
 
   Communicator::State sync(State final = terminated, double ratio = 0.5);
-  void signal_sync_storage(SelectionStorage &storage);
-  void stop_sync_storage();
+  void sync_storage(SelectionStorage &storage);
+  void exchange_best_selection(DisjunctiveGraphModel &dgm,
+                               EncodedSelection &best);
 
   ~Communicator();
 
@@ -44,19 +47,10 @@ public:
 private:
   MPI_Op op;
   std::array<Delay, 2> local, global;
-  SelectionStorage communication_storage;
-
-  bool multithreading;
-  std::binary_semaphore sync_semaphore;
-  State global_state;
-  std::thread sync_thread;
-  std::mutex storage_mutex;
-
   Delay prev_best;
+
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);
-  void continuous_sync_storage();
-  void sync_storage();
 };
 
 } // namespace tsndgm

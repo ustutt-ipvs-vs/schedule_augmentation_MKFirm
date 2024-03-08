@@ -82,7 +82,7 @@ public:
   inline void commit_flips() { flip_log.clear(); }
   inline void restore_flips() {
     restore_flips(flip_log.size());
-    update_machine_successors();
+    // update_machine_successors();
   }
   void restore_flips(size_t n);
   inline void commit_all(size_t index = 0) {

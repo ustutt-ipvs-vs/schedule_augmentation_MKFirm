@@ -39,7 +39,7 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
       size_t violation = compute_first_violation({edges, flip, res.objective});
 
       if (res.objective <
-          std::min(this->best_selection.objective, next_selection.objective)) {
+          std::min(this->best_selection, next_selection.objective)) {
         // res.objective is better than the objective of the best selection
         // found in this intensification phase (aspiration criterion)
         next_selection = {edges, flip, res.objective, this->config.maxt};
@@ -55,19 +55,17 @@ StrictAdmissionIntensification<TerminationCriterion, SelectionNeighborhood>::
       }
 
       this->dgm.restore_flips();
-      assert(
-          (initial_res.objective == this->dgm.critical_path(type).objective));
     }
 
-    if (next_selection.objective < this->best_selection.objective)
-      this->best_selection.objective = next_selection.objective;
+    if (next_selection.objective < this->best_selection)
+      this->best_selection = next_selection.objective;
     extension_level++;
   } while (extension_level <= SelectionNeighborhood::max_extension &&
            next_selection.violation < this->tabu_list.size());
 
   if (this->tabu_list.size() != 0)
     this->tabu_list.resize(next_selection.violation, this->tabu_list.back());
-  update_tabu_list({next_selection.edges, this->best_selection.objective});
+  update_tabu_list({next_selection.edges, this->best_selection});
 
   return next_selection;
 }
@@ -76,7 +74,7 @@ template <class TerminationCriterion, class SelectionNeighborhood>
 void StrictAdmissionIntensification<TerminationCriterion,
                                     SelectionNeighborhood>::reset_phase() {
   this->termination_criterion = TerminationCriterion(this->config.maxit);
-  this->best_selection = BestSelection(0);
+  this->best_selection = std::numeric_limits<Delay>::max();
   this->clear_tabu_list();
 }
 

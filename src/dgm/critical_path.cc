@@ -3,6 +3,8 @@
 
 namespace tsndgm {
 
+int longest_path_visitor::total_traversals = 0;
+
 void CriticalPath::compute_longest_paths(bool reverse) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   if (reverse) {

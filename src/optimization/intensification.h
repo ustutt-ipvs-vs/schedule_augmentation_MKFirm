@@ -9,7 +9,6 @@ namespace tsndgm {
 struct IntensificationConfig {
   size_t maxt = 10;               //!< max size of tabu list
   size_t maxit = 10;              //!< max iterations
-  size_t commit_index = 1;        //!< commit of local minimum
   bool recursive_shuffle = false; //!< shuffle on FlipGraphException
 };
 
@@ -37,7 +36,8 @@ public:
 
   Intensification(DisjunctiveGraphModel &dgm, IntensificationConfig &config,
                   Delay termination_bound = 0)
-      : dgm(dgm), config(config), best_selection(&config.commit_index),
+      : dgm(dgm), config(config),
+        best_selection(std::numeric_limits<Delay>::max()),
         termination_criterion(config.maxit, termination_bound){};
 
   virtual NextSelection
@@ -54,7 +54,7 @@ public:
 
   virtual ~Intensification() = default;
 
-  BestSelection best_selection;
+  Delay best_selection;
   TabuList tabu_list;
 
 protected:

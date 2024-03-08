@@ -8,11 +8,14 @@ namespace tsndgm {
 
 class longest_path_visitor : public boost::default_dfs_visitor {
 public:
+  static int total_traversals;
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
   longest_path_visitor(shuffle_graph_t &shuffle_graph)
-      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {
+    total_traversals++;
+  }
 
   virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     throw std::runtime_error(
@@ -121,7 +124,9 @@ public:
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
   slack_visitor(shuffle_graph_t &shuffle_graph)
-      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {
+    longest_path_visitor::total_traversals++;
+  }
 
   virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     throw std::runtime_error(

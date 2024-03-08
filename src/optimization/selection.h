@@ -8,26 +8,6 @@ namespace tsndgm {
 
 enum DGMOperation { flip, shuffle };
 
-struct BestSelection {
-  size_t *commit_index;
-  Delay objective;
-  bool committed;
-
-  BestSelection() : objective(std::numeric_limits<Delay>::max()) {}
-
-  BestSelection(size_t *commit_index,
-                Delay objective = std::numeric_limits<Delay>::max())
-      : commit_index(commit_index), objective(objective), committed(false) {}
-
-  bool operator<(const BestSelection &best_selection) {
-    return objective < best_selection.objective;
-  }
-
-  bool operator<=(const BestSelection &best_selection) {
-    return objective <= best_selection.objective;
-  }
-};
-
 struct EncodedSelection {
   Delay objective;
   std::vector<unsigned int> buf;
@@ -36,11 +16,6 @@ struct EncodedSelection {
   int extension_level = 0;
 
   EncodedSelection() : objective(std::numeric_limits<Delay>::max()) {}
-
-  EncodedSelection(DisjunctiveGraphModel &dgm, BestSelection &best_selection)
-      : objective(best_selection.objective) {
-    dgm.encode(buf, *best_selection.commit_index, offset_map);
-  }
 
   EncodedSelection(DisjunctiveGraphModel &dgm, CriticalPath::Objective type) {
     objective = dgm.critical_path(type).objective;
@@ -71,14 +46,6 @@ struct NextSelection {
 
   bool operator<(const NextSelection &other) {
     return objective < other.objective;
-  }
-
-  bool operator<(const BestSelection &best_selection) {
-    return objective < best_selection.objective;
-  }
-
-  bool operator<=(const BestSelection &best_selection) {
-    return objective <= best_selection.objective;
   }
 };
 

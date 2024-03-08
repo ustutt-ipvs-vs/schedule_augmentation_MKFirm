@@ -18,9 +18,12 @@ public:
   SelectionStorage(DisjunctiveGraphModel *dgm)
       : dgm(dgm), max_stored_solutions(0), gen(rd()) {}
 
+  SelectionStorage(DisjunctiveGraphModel *dgm, const SelectionStorage &other)
+      : dgm(dgm), max_stored_solutions(other.max_stored_solutions), gen(rd()),
+        encoded_best_selections(other.encoded_best_selections) {}
+
   void set_capacity(size_t max_stored_solutions);
 
-  void update_candidates(BestSelection &res);
   void update_candidates(EncodedSelection &&selection);
   void update_candidates(EncodedSelection &selection);
   void delete_candidate(EncodedSelection *res);
@@ -32,6 +35,8 @@ public:
 
   inline size_t size() { return encoded_best_selections.size(); }
   inline size_t capacity() { return max_stored_solutions; }
+
+  inline EncodedSelection &best() { return encoded_best_selections[0]; };
 
   void renew_storage_objectives(CriticalPath::Objective type);
 
