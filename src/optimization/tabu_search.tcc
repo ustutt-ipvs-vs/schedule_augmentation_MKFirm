@@ -234,7 +234,8 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       temperature = res.objective < best_selection ? 1 : 0;
       update_storage(compressed_storage, res, time_to_sync(config));
     } else if (next.extension_level <=
-               WirelessCompressionNeighborhood::max_extension) {
+                   WirelessCompressionNeighborhood::max_extension ||
+               next.objective == best_selection) {
       next.neighborhood = {};
       update_storage(compressed_storage, time_to_sync(config));
       temperature = 0;
