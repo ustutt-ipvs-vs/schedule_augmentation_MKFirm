@@ -91,6 +91,7 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
     auto res = dgm->critical_path(type);
     selection.objective = res.objective;
     selection.neighborhood = {};
+    selection.extension_level = 0;
     if (res.objective <= CriticalPath::get_termination_bound(type)) {
       std::swap(selection, encoded_best_selections[0]);
       return;
