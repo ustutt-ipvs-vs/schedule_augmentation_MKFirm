@@ -21,6 +21,9 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection) {
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       max_stored_solutions,
                                   encoded_best_selections.end());
+
+  if (selection.objective < best_selection.objective)
+    best_selection = selection;
 }
 
 void SelectionStorage::update_candidates(EncodedSelection &selection) {
@@ -42,6 +45,9 @@ void SelectionStorage::update_candidates(EncodedSelection &selection) {
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       max_stored_solutions,
                                   encoded_best_selections.end());
+
+  if (selection.objective < best_selection.objective)
+    best_selection = selection;
 }
 
 void SelectionStorage::delete_candidate(EncodedSelection *res) {
@@ -87,6 +93,13 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
   }
   std::sort(encoded_best_selections.begin(), encoded_best_selections.end(),
             [&](auto &s1, auto &s2) { return s1.objective < s2.objective; });
+}
+
+EncodedSelection &SelectionStorage::best() {
+  if (best_selection.objective < encoded_best_selections[0].objective ||
+      size() == 0)
+    return best_selection;
+  return encoded_best_selections[0];
 }
 
 } // namespace tsndgm
