@@ -278,11 +278,11 @@ void TabuSearch::update_rti(std::map<MessageStreamHandle, RTIMap> rti_updates,
   EncodedSelection *best;
   if (compressed_storage.size() > 0) {
     compressed_storage.renew_storage_objectives(type);
-    best = &compressed_storage.encoded_best_selections[0];
+    best = &compressed_storage.best();
     dgm.decode(best->buf);
   } else if (storage.size() > 0) {
     storage.renew_storage_objectives(type);
-    best = &storage.encoded_best_selections[0];
+    best = &storage.best();
     dgm.decode(best->buf);
   }
 }

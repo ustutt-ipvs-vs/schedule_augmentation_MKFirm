@@ -82,10 +82,15 @@ void SelectionStorage::set_capacity(size_t max_stored_solutions) {
 }
 
 void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
+  if (best_selection.objective < encoded_best_selections[0].objective)
+    encoded_best_selections.insert(encoded_best_selections.begin(),
+                                   best_selection);
+
   for (EncodedSelection &selection : encoded_best_selections) {
     dgm->decode(selection.buf);
     auto res = dgm->critical_path(type);
     selection.objective = res.objective;
+    selection.neighborhood = {};
     if (res.objective <= CriticalPath::get_termination_bound(type)) {
       std::swap(selection, encoded_best_selections[0]);
       return;
