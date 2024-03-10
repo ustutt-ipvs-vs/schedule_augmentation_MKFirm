@@ -102,7 +102,7 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
 }
 
 EncodedSelection &SelectionStorage::best() {
-  if (best_selection.objective < encoded_best_selections[0].objective ||
+  if (best_selection.objective <= encoded_best_selections[0].objective ||
       size() == 0)
     return best_selection;
   return encoded_best_selections[0];
