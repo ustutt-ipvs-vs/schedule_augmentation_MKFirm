@@ -94,11 +94,13 @@ void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
     selection.extension_level = 0;
     if (res.objective <= CriticalPath::get_termination_bound(type)) {
       std::swap(selection, encoded_best_selections[0]);
+      best_selection = encoded_best_selections[0];
       return;
     }
   }
   std::sort(encoded_best_selections.begin(), encoded_best_selections.end(),
             [&](auto &s1, auto &s2) { return s1.objective < s2.objective; });
+  best_selection = encoded_best_selections[0];
 }
 
 EncodedSelection &SelectionStorage::best() {
