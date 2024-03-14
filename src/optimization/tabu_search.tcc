@@ -75,6 +75,9 @@ void TabuSearch::run(TabuSearchConfig &config,
     print_result(res.objective);
   }
 
+  if (phase == 0)
+    update_storage(storage, time_to_sync(config));
+
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {
     log << "----------------------------------------------" << std::endl;

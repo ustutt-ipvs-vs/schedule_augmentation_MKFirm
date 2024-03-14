@@ -30,5 +30,8 @@ target_link_libraries(dumbbell PUBLIC tsndgm)
 add_executable(adaptive_scheduling adaptive_scheduling.cc)
 target_link_libraries(adaptive_scheduling PUBLIC tsndgm)
 
+add_executable(baseline_scheduling baseline_scheduling.cc)
+target_link_libraries(baseline_scheduling PUBLIC tsndgm)
+
 add_executable(graceful_degradation graceful_degradation.cc)
 target_link_libraries(graceful_degradation PUBLIC tsndgm)

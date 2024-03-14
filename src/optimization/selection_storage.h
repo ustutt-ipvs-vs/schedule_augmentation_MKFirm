@@ -3,6 +3,7 @@
 
 #include "../dgm/dgm.h"
 #include "selection.h"
+#include <chrono>
 #include <random>
 
 namespace tsndgm {
@@ -35,10 +36,10 @@ public:
 
   inline size_t size() { return encoded_best_selections.size(); }
   inline size_t capacity() { return max_stored_solutions; }
+  void renew_storage_objectives(CriticalPath::Objective type);
 
   EncodedSelection &best();
-
-  void renew_storage_objectives(CriticalPath::Objective type);
+  std::chrono::high_resolution_clock::time_point best_found;
 
 private:
   EncodedSelection best_selection;

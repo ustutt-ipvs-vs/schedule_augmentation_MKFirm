@@ -220,6 +220,18 @@ int main(int argc, char **argv) {
     }
   }
 
+  auto objective = CriticalPath::Objective::fixed_tardiness;
+  auto bound = CriticalPath::get_termination_bound(objective);
+
+  TabuSearchConfig config{
+      objective,
+      TerminationConfig(5, bound),
+      IntensificationConfig(10, 200),
+      DiversificationConfig(10),
+      CompressionConfig(true, TerminationConfig(25, bound),
+                        IntensificationConfig(10, 100)),
+  };
+
   using InitialHeuristic =
       CombinedInitial<RandomInitial, EffectiveReleaseInitial>;
   using TerminationCriterion = TimeoutTerminationCriterion;
@@ -229,26 +241,8 @@ int main(int argc, char **argv) {
   using TransformationHeuristic =
       RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 
-  std::cout << "\nADAPTIVE\n" << std::endl;
-
-  auto objective = CriticalPath::Objective::fixed_lateness;
-  auto bound = CriticalPath::get_termination_bound(objective);
-  TabuSearchConfig config{
-      objective,
-      TerminationConfig(60, bound),
-      IntensificationConfig(10, 200),
-      DiversificationConfig(10, 4),
-      CompressionConfig(true, TerminationConfig(60, bound),
-                        IntensificationConfig(10, 100)),
-  };
-
+  std::cout << "\nBASELINE\n" << std::endl;
   TabuSearch tabu_search(network, message_streams);
-  tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
-                  TransformationHeuristic>(config);
-
-  objective = CriticalPath::Objective::fixed_tardiness;
-  bound = CriticalPath::get_termination_bound(objective);
-  // update rtis of wireless streams
   for (int degradation = 0; degradation <= degradation_max;
        degradation += degradation_step) {
     int degradation_lower[] = {-degradation, 0, degradation};
@@ -264,33 +258,23 @@ int main(int argc, char **argv) {
                                                  WIRELESS_DL_DMIN + dl)}};
       }
 
-      auto tabu_search_adaptive = tabu_search;
-      TabuSearchConfig config1{
-          objective,
-          TerminationConfig(5, bound),
-          IntensificationConfig(10, 200),
-          DiversificationConfig(10, 4),
-          CompressionConfig(true, TerminationConfig(25, bound),
-                            IntensificationConfig(10, 20)),
-      };
+      TabuSearch tabu_search1 = tabu_search;
+      tabu_search1.com.sync();
+      tabu_search1.reset_timer();
 
-      tabu_search_adaptive.com.sync();
-      tabu_search_adaptive.reset_timer();
-      tabu_search_adaptive.run<InitialHeuristic, TerminationCriterion,
-                               Intensification, TransformationHeuristic>(
-          config1, rti_updates);
+      bound = CriticalPath::get_termination_bound(objective);
+      tabu_search1.run<InitialHeuristic, TerminationCriterion, Intensification,
+                       TransformationHeuristic>(config, rti_updates);
 
       std::cout << dl << ", " << degradation << ", "
-                << tabu_search_adaptive.storage.best().objective << ", "
+                << tabu_search1.storage.best().objective << ", "
                 << duration_cast<std::chrono::milliseconds>(
-                       tabu_search_adaptive.storage.best_found -
-                       tabu_search_adaptive.start)
-                << ", "
-                << tabu_search_adaptive.compressed_storage.best().objective
+                       tabu_search1.storage.best_found - tabu_search1.start)
+                << ", " << tabu_search1.compressed_storage.best().objective
                 << ", "
                 << duration_cast<std::chrono::milliseconds>(
-                       tabu_search_adaptive.compressed_storage.best_found -
-                       tabu_search_adaptive.start)
+                       tabu_search1.compressed_storage.best_found -
+                       tabu_search1.start)
                 << std::endl;
     }
   }

@@ -94,11 +94,13 @@ public:
                   CriticalPath::Objective type);
 
   DisjunctiveGraphModel dgm;
+  SelectionStorage storage, compressed_storage;
   Delay best_selection;
   Communicator com;
 
+  std::chrono::high_resolution_clock::time_point start;
+
 private:
-  SelectionStorage storage, compressed_storage;
   std::random_device rd;
   std::mt19937 gen;
   std::ofstream log;
@@ -121,7 +123,6 @@ private:
 
   bool time_to_sync(auto &config);
 
-  std::chrono::high_resolution_clock::time_point start;
   std::chrono::high_resolution_clock::time_point last_sync;
 };
 
