@@ -387,7 +387,9 @@ private:
 static auto
 restricted_out_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
                      const shuffle_graph_t &g) {
-  return NeighborVertexIteratorRange(&g[v].MS, &g[v].JS, &g[v].FS);
+  return NeighborVertexIteratorRange(
+      &g[v].MS, &g[v].JS, &g[v].FS,
+      g[v].MS.has_value() && !g[v].FS.empty() ? 1 : 0);
 }
 
 static auto
@@ -409,7 +411,9 @@ fifo_out_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
 static auto
 restricted_in_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
                     const shuffle_graph_t &g) {
-  return NeighborVertexIteratorRange(&g[v].MP, &g[v].JP, &g[v].FP);
+  return NeighborVertexIteratorRange(
+      &g[v].MP, &g[v].JP, &g[v].FP,
+      g[v].MP.has_value() && !g[v].FP.empty() ? 1 : 0);
 }
 
 static auto

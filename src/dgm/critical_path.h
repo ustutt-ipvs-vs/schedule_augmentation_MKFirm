@@ -79,8 +79,9 @@ public:
   void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     assert((shuffle_graph[e].state() == allowed));
 
-    if (shuffle_graph[e].edge_type != disjunctive)
+    if (shuffle_graph[e].edge_type == conjunctive)
       return;
+    e = fifo_to_disjunctive_edge(e, shuffle_graph);
 
     V u = source(e, shuffle_graph), v = target(e, shuffle_graph);
     if (shuffle_graph[u].neighbors_are_valid)
@@ -95,6 +96,25 @@ public:
                 .state() == blocked) {
       updated_machine_successors[u] = v;
     }
+  }
+
+  inline E
+  fifo_to_disjunctive_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
+    if (shuffle_graph[uv].edge_type == disjunctive) {
+      return uv;
+    } else if (shuffle_graph[uv].edge_type == fifo) {
+      V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+      for (const NeighborVertex &JS : shuffle_graph[v].JS) {
+        auto e = boost::edge(u, JS.v, shuffle_graph);
+        if (e.second) {
+          return e.first;
+        }
+      }
+      // this should never happen
+      throw std::runtime_error("shuffle graph is invalid");
+    }
+    throw std::runtime_error("operation not supported for edges of type: " +
+                             std::to_string(shuffle_graph[uv].edge_type));
   }
 
   std::map<V, V> &updated_machine_successors;
