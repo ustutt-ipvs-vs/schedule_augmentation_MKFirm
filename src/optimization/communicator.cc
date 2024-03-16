@@ -2,8 +2,13 @@
 
 namespace tsndgm {
 
-Communicator::Communicator() : prev_best(std::numeric_limits<Delay>::max()) {
-  MPI_Init(NULL, NULL);
+Communicator::Communicator() : global_state(running) {
+  int provided;
+  MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+  if (provided < MPI_THREAD_SERIALIZED)
+    throw std::runtime_error("MPI Error: required 2, provided " +
+                             std::to_string(provided));
+
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Op_create(reduce_delay_pair, true, &op);
@@ -11,8 +16,7 @@ Communicator::Communicator() : prev_best(std::numeric_limits<Delay>::max()) {
   coms++;
 }
 
-Communicator::Communicator(const Communicator &other)
-    : prev_best(std::numeric_limits<Delay>::max()) {
+Communicator::Communicator(const Communicator &other) : global_state(running) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Op_create(reduce_delay_pair, true, &op);
@@ -72,17 +76,26 @@ Communicator::State Communicator::exchange_state(State state, double ratio) {
   return running;
 }
 
-void Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
-                                           EncodedSelection &best) {
+void Communicator::exchange_best_selection(
+    SynchronizationSelection &sync_selection, Delay prev_best) {
   if (size == 1) {
     return;
   }
 
+  EncodedSelection selection;
+  {
+    std::lock_guard<std::mutex> lock(sync_selection.m);
+    selection = sync_selection.selection;
+  }
+
   // get best selection objective of every MPI process
-  local = {best.objective, rank};
+  local = {selection.objective, rank};
   MPI_Allreduce(local.data(), global.data(), 2, MPI_LONG, op, MPI_COMM_WORLD);
 
-  auto &buf = best.buf;
+  if (prev_best <= global[0])
+    return;
+
+  auto &buf = selection.buf;
   unsigned int buf_size;
   if (global[1] == rank) {
     // broadcast selection to every other MPI process
@@ -94,39 +107,49 @@ void Communicator::exchange_best_selection(DisjunctiveGraphModel &dgm,
     MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, global[1], MPI_COMM_WORLD);
     buf.resize(buf_size);
     MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, global[1], MPI_COMM_WORLD);
+    selection.objective = global[0];
+    {
+      std::lock_guard<std::mutex> lock(sync_selection.m);
+      sync_selection.selection = selection;
+    }
   }
 }
 
-void Communicator::sync_storage(SelectionStorage &storage) {
-  if (size == 1)
+void Communicator::continuous_exchange(
+    SynchronizationSelection &sync_selection) {
+  Delay prev_best = std::numeric_limits<Delay>::max();
+  State state = running;
+  while ((state = exchange_state(global_state, 1)) == running) {
+    exchange_best_selection(sync_selection, prev_best);
+    prev_best = std::min(sync_selection.selection.objective, prev_best);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
+
+void Synchronization::start() {
+  if (com.size > 1)
+    sync_thread = std::thread(&Communicator::continuous_exchange, &com,
+                              std::ref(sync_selection));
+}
+
+void Synchronization::stop(SelectionStorage &storage) {
+  if (com.size > 1) {
+    update(storage);
+    com.global_state = Communicator::terminated;
+    sync_thread.join();
+  }
+}
+
+void Synchronization::update(SelectionStorage &storage) {
+  if (com.size == 1)
     return;
 
-  unsigned int buf_size;
-  for (int i = 0; i < size; i++) {
-    if (i == rank) {
-      if (storage.size() == 0 ||
-          prev_best <= storage.encoded_best_selections[0].objective) {
-        Delay skip = std::numeric_limits<Delay>::max();
-        MPI_Bcast(&skip, 1, MPI_LONG, rank, MPI_COMM_WORLD);
-        continue;
-      }
-      EncodedSelection &selection = storage.encoded_best_selections[0];
-      MPI_Bcast(&selection.objective, 1, MPI_LONG, rank, MPI_COMM_WORLD);
-      buf_size = selection.buf.size();
-      MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, rank, MPI_COMM_WORLD);
-      MPI_Bcast(selection.buf.data(), buf_size, MPI_UNSIGNED, rank,
-                MPI_COMM_WORLD);
-      prev_best = std::min(prev_best, selection.objective);
-    } else {
-      Delay objective;
-      MPI_Bcast(&objective, 1, MPI_LONG, i, MPI_COMM_WORLD);
-      if (objective == std::numeric_limits<Delay>::max())
-        continue;
-      MPI_Bcast(&buf_size, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-      std::vector<unsigned int> buf(buf_size);
-      MPI_Bcast(buf.data(), buf_size, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-      storage.update_candidates(EncodedSelection(objective, std::move(buf)));
-    }
+  if (storage.best().objective < sync_selection.selection.objective) {
+    std::lock_guard<std::mutex> lock(sync_selection.m);
+    sync_selection.selection = storage.best();
+  } else if (storage.best().objective > sync_selection.selection.objective) {
+    std::lock_guard<std::mutex> lock(sync_selection.m);
+    storage.update_candidates(sync_selection.selection);
   }
 }
 

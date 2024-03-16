@@ -229,6 +229,9 @@ int main(int argc, char **argv) {
   using TransformationHeuristic =
       RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 
+  TabuSearch tabu_search(network, message_streams);
+  if (tabu_search.com.rank != 0)
+    std::cout.setstate(std::ios::failbit);
   std::cout << "\nADAPTIVE\n" << std::endl;
 
   auto objective = CriticalPath::Objective::fixed_lateness;
@@ -242,7 +245,6 @@ int main(int argc, char **argv) {
                         IntensificationConfig(10, 100)),
   };
 
-  TabuSearch tabu_search(network, message_streams);
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config);
 
@@ -251,7 +253,7 @@ int main(int argc, char **argv) {
   // update rtis of wireless streams
   for (int degradation = 0; degradation <= degradation_max;
        degradation += degradation_step) {
-    int degradation_lower[] = {-degradation, 0, degradation};
+    int degradation_lower[] = {-degradation, degradation};
 
     for (int dl : degradation_lower) {
       std::map<MessageStreamHandle, RTIMap> rti_updates;
@@ -271,7 +273,7 @@ int main(int argc, char **argv) {
           IntensificationConfig(10, 200),
           DiversificationConfig(10, 4),
           CompressionConfig(true, TerminationConfig(25, bound),
-                            IntensificationConfig(10, 20)),
+                            IntensificationConfig(10, 100)),
       };
 
       tabu_search_adaptive.com.sync();

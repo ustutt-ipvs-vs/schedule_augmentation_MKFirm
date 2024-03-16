@@ -248,8 +248,8 @@ int main(int argc, char **argv) {
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config);
-  tabu_search.dgm.print_critical_path(config.type);
 
+  tabu_search.dgm.print_critical_path(objective);
   auto tabu_search1 = tabu_search;
 
   objective = CriticalPath::Objective::fixed_tardiness;

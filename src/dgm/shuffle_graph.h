@@ -387,9 +387,13 @@ private:
 static auto
 restricted_out_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
                      const shuffle_graph_t &g) {
+  // only traverse MS if g[v].MS does not have a job predecessor
   return NeighborVertexIteratorRange(
       &g[v].MS, &g[v].JS, &g[v].FS,
-      g[v].MS.has_value() && !g[v].FS.empty() ? 1 : 0);
+      g[v].MS.has_value() &&
+              !boost::edge(g[boost::graph_bundle].src, g[v].MS->v, g).second
+          ? 1
+          : 0);
 }
 
 static auto
@@ -411,9 +415,11 @@ fifo_out_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
 static auto
 restricted_in_edges(boost::graph_traits<shuffle_graph_t>::vertex_descriptor v,
                     const shuffle_graph_t &g) {
+  // only traverse MP if v does not have a job predecessor
   return NeighborVertexIteratorRange(
       &g[v].MP, &g[v].JP, &g[v].FP,
-      g[v].MP.has_value() && !g[v].FP.empty() ? 1 : 0);
+      g[v].MP.has_value() &&
+          !boost::edge(g[boost::graph_bundle].src, v, g).second);
 }
 
 static auto

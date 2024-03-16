@@ -10,6 +10,11 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection) {
       encoded_best_selections.size() >= max_stored_solutions)
     return;
 
+  if (selection.objective < best_selection.objective) {
+    best_selection = selection;
+    best_found = std::chrono::high_resolution_clock::now();
+  }
+
   if (it != encoded_best_selections.end() &&
       it->objective == selection.objective) {
     std::swap(selection, *it);
@@ -21,11 +26,6 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection) {
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       max_stored_solutions,
                                   encoded_best_selections.end());
-
-  if (selection.objective < best_selection.objective) {
-    best_selection = selection;
-    best_found = std::chrono::high_resolution_clock::now();
-  }
 }
 
 void SelectionStorage::update_candidates(EncodedSelection &selection) {
@@ -35,6 +35,11 @@ void SelectionStorage::update_candidates(EncodedSelection &selection) {
   if (it == encoded_best_selections.end() &&
       encoded_best_selections.size() >= max_stored_solutions)
     return;
+
+  if (selection.objective < best_selection.objective) {
+    best_selection = selection;
+    best_found = std::chrono::high_resolution_clock::now();
+  }
 
   if (it != encoded_best_selections.end() &&
       it->objective == selection.objective) {
@@ -47,11 +52,6 @@ void SelectionStorage::update_candidates(EncodedSelection &selection) {
     encoded_best_selections.erase(encoded_best_selections.begin() +
                                       max_stored_solutions,
                                   encoded_best_selections.end());
-
-  if (selection.objective < best_selection.objective) {
-    best_selection = selection;
-    best_found = std::chrono::high_resolution_clock::now();
-  }
 }
 
 void SelectionStorage::delete_candidate(EncodedSelection *res) {

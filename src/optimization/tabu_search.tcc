@@ -28,9 +28,11 @@ void TabuSearch::run(TabuSearchConfig &config,
     res = run_initial_phase<InitialHeuristic, Intensification>(
         config.initial_solutions, config.iconfig, config.type,
         config.tconfig.bound);
+    sync.start();
     update_storage(storage, res);
     print_result(best_selection);
   } else {
+    sync.start();
     if (compressed_storage.size() > 0) {
       compressed_storage.renew_storage_objectives(config.type);
       best_selection = compressed_storage.best().objective;
@@ -75,9 +77,6 @@ void TabuSearch::run(TabuSearchConfig &config,
     print_result(res.objective);
   }
 
-  if (phase == 0)
-    update_storage(storage, time_to_sync(config));
-
   // compress solution by shuffling operations
   if (config.cconfig.enabled) {
     log << "----------------------------------------------" << std::endl;
@@ -86,10 +85,12 @@ void TabuSearch::run(TabuSearchConfig &config,
     reset_timeout();
     run_compression_phase<Intensification, TerminationCriterion>(
         config.cconfig, config.type, config.tconfig.bound);
-    com.exchange_best_selection(dgm, compressed_storage.best());
+    sync.stop(compressed_storage);
+    update_storage(compressed_storage);
     dgm.decode(compressed_storage.best().buf);
   } else {
-    com.exchange_best_selection(dgm, storage.best());
+    sync.stop(storage);
+    update_storage(storage);
     dgm.decode(storage.best().buf);
   }
 
@@ -222,7 +223,7 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
         dgm.complete_shuffle(edges);
         res = run_intensification_phase<Intensification>(config.iconfig, type,
                                                          termination_bound);
-        if (res.objective < next.objective)
+        if (res.objective <= next.objective)
           break;
       } catch (std::exception &e) {
         res.objective = std::numeric_limits<Delay>::max();
@@ -260,7 +261,7 @@ void TabuSearch::update_storage(SelectionStorage &storage,
 
   storage.update_candidates(res);
   if (sync) {
-    com.sync_storage(storage);
+    this->sync.update(storage);
     last_sync = std::chrono::high_resolution_clock::now();
   }
 

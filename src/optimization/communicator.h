@@ -12,6 +12,11 @@
 
 namespace tsndgm {
 
+struct SynchronizationSelection {
+  EncodedSelection selection;
+  std::mutex m;
+};
+
 static int coms = 0;
 class Communicator {
 public:
@@ -19,38 +24,43 @@ public:
 
   Communicator(const Communicator &other);
   Communicator();
-  State exchange_state(State state, double ratio = 0.5);
 
+  State exchange_state(State state, double ratio = 0.5);
   Communicator::State sync(State final = terminated, double ratio = 0.5);
-  void sync_storage(SelectionStorage &storage);
-  void exchange_best_selection(DisjunctiveGraphModel &dgm,
-                               EncodedSelection &best);
+
+  void
+  exchange_best_selection(SynchronizationSelection &sync_selection,
+                          Delay prev_best = std::numeric_limits<Delay>::max());
+  void continuous_exchange(SynchronizationSelection &sync_selection);
 
   ~Communicator();
 
-  template <typename T> std::pair<T, T> partition(T first, T last) {
-    size_t n = last - first;
-    size_t q = n / size, r = n % size;
-    size_t offset = rank * q + (rank < r ? rank : r);
-    size_t len = q + (rank < r ? 1 : 0);
-    return {first + offset, first + offset + len};
-  }
-
-  template <typename T> bool smaller_partition(T first, T last) {
-    size_t r = (last - first) % size;
-    return rank >= r;
-  }
-
   int rank;
   int size;
+  State global_state;
 
 private:
   MPI_Op op;
   std::array<Delay, 2> local, global;
-  Delay prev_best;
 
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);
+};
+
+class Synchronization {
+public:
+  Synchronization(Communicator &com) : com(com){};
+  Synchronization(const Synchronization &other) : com(other.com) {}
+
+  void start();
+  void stop(SelectionStorage &storage);
+  void update(SelectionStorage &storage);
+
+private:
+  Communicator &com;
+  SynchronizationSelection sync_selection;
+
+  std::thread sync_thread;
 };
 
 } // namespace tsndgm

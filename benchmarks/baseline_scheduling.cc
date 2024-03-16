@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
       objective,
       TerminationConfig(5, bound),
       IntensificationConfig(10, 200),
-      DiversificationConfig(10),
+      DiversificationConfig(10, 4),
       CompressionConfig(true, TerminationConfig(25, bound),
                         IntensificationConfig(10, 100)),
   };
@@ -241,11 +241,14 @@ int main(int argc, char **argv) {
   using TransformationHeuristic =
       RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 
-  std::cout << "\nBASELINE\n" << std::endl;
   TabuSearch tabu_search(network, message_streams);
+  if (tabu_search.com.rank != 0)
+    std::cout.setstate(std::ios::failbit);
+
+  std::cout << "\nBASELINE\n" << std::endl;
   for (int degradation = 0; degradation <= degradation_max;
        degradation += degradation_step) {
-    int degradation_lower[] = {-degradation, 0, degradation};
+    int degradation_lower[] = {-degradation, degradation};
 
     for (int dl : degradation_lower) {
       std::map<MessageStreamHandle, RTIMap> rti_updates;

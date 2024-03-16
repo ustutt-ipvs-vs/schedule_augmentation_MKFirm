@@ -42,7 +42,7 @@ public:
   TabuSearch(const std::shared_ptr<NetworkTopology> &network,
              const std::vector<MessageStream> &streams)
       : dgm(network, streams), gen(rd()), storage(&dgm),
-        compressed_storage(&dgm), com(),
+        compressed_storage(&dgm), sync(com),
         best_selection(std::numeric_limits<Delay>::max()) {
     reset_timer();
     log = std::ofstream("output_rank" + std::to_string(com.rank) + ".log");
@@ -50,7 +50,7 @@ public:
   }
 
   TabuSearch(DisjunctiveGraphModel &dgm)
-      : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm),
+      : dgm(dgm), gen(rd()), storage(&dgm), compressed_storage(&dgm), sync(com),
         best_selection(std::numeric_limits<Delay>::max()) {
     reset_timer();
     log = std::ofstream("output_rank" + std::to_string(com.rank) + ".log");
@@ -60,7 +60,7 @@ public:
   TabuSearch(const TabuSearch &other)
       : dgm(other.dgm), gen(rd()), storage(&this->dgm, other.storage),
         compressed_storage(&this->dgm, other.compressed_storage),
-        com(other.com), best_selection(other.best_selection),
+        com(other.com), sync(other.sync), best_selection(other.best_selection),
         start(other.start) {
     log = std::ofstream("output_rank" + std::to_string(com.rank) + ".log",
                         std::ios_base::app);
@@ -97,6 +97,7 @@ public:
   SelectionStorage storage, compressed_storage;
   Delay best_selection;
   Communicator com;
+  Synchronization sync;
 
   std::chrono::high_resolution_clock::time_point start;
 
