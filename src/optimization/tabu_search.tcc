@@ -248,6 +248,7 @@ void TabuSearch::run_compression_phase(CompressionConfig &config,
       temperature = 0;
     }
   }
+  compressed_storage.update_candidates(compressed_storage.best());
 }
 
 void TabuSearch::update_storage(SelectionStorage &storage,
