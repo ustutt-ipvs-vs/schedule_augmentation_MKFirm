@@ -190,7 +190,9 @@ public:
     fixed_tardiness,
     dynamic_tardiness,
     fixed_lateness,
-    dynamic_lateness
+    dynamic_lateness,
+    relative_fixed_lateness,
+    relative_fixed_tardiness
   };
 
   struct Result {
@@ -212,10 +214,13 @@ public:
     case makespan:
     case fixed_tardiness:
     case dynamic_tardiness:
+    case relative_fixed_tardiness:
       return 0;
     case fixed_lateness:
     case dynamic_lateness:
       return std::numeric_limits<Delay>::min();
+    case relative_fixed_lateness:
+      return -100;
     default:
       throw std::logic_error("type does not exist: " + std::to_string(type));
     }
@@ -226,6 +231,7 @@ public:
   Result path(Objective type);
   Result makespan_path();
   Result fixed_tardiness_path(Delay min = 0);
+  Result relative_fixed_tardiness_path(Delay min = 0);
   Result dynamic_tardiness_path(Delay min = 0);
 
   void print(Result res, const NetworkTopology &network);

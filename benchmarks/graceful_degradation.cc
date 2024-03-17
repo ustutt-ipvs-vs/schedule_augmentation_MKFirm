@@ -12,9 +12,9 @@
 #define WIRELESS_UL_DMIN 5348000 // 4.833ms
 
 #define WIRELESS_TRAFFIC_DEADLINE 10000000 // 10ms
-#define CROSS_TRAFFIC_DEADLINE 2000000     // 2ms
+#define CROSS_TRAFFIC_DEADLINE 200000      // 200us
 
-#define WIRELESS_TRAFFIC_JITTER 5000000 // 5ms
+#define WIRELESS_TRAFFIC_JITTER 500000 // 500us
 #define CROSS_TRAFFIC_JITTER 0
 
 #define WIRELESS_TRAFFIC_PERIOD 10000000 // 10ms
@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
   if (tabu_search.com.rank != 0)
     std::cout.setstate(std::ios::failbit);
 
-  auto objective = CriticalPath::Objective::fixed_lateness;
+  auto objective = CriticalPath::Objective::relative_fixed_lateness;
   auto bound = CriticalPath::get_termination_bound(objective);
 
   TabuSearchConfig config{

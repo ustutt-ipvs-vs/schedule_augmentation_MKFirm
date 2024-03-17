@@ -26,10 +26,14 @@ CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
     return fixed_tardiness_path(0);
   case dynamic_tardiness:
     return dynamic_tardiness_path(0);
+  case relative_fixed_tardiness:
+    return relative_fixed_tardiness_path(0);
   case fixed_lateness:
     return fixed_tardiness_path(std::numeric_limits<Delay>::min());
   case dynamic_lateness:
     return dynamic_tardiness_path(std::numeric_limits<Delay>::min());
+  case relative_fixed_lateness:
+    return relative_fixed_tardiness_path(std::numeric_limits<Delay>::min());
   default:
     throw std::logic_error("type does not exist: " + std::to_string(type));
   }
@@ -60,6 +64,32 @@ CriticalPath::Result CriticalPath::fixed_tardiness_path(Delay min) {
   }
 
   return {max_tardiness.second, max_tardiness.first};
+}
+
+CriticalPath::Result CriticalPath::relative_fixed_tardiness_path(Delay min) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  std::pair<V, double> max_tardiness = std::make_pair(prop.src, min);
+
+  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+    auto &stream = prop.streams[ms];
+    const std::list<Edge> &listeners = stream.route->get_listeners();
+
+    // compute tardiness of stream's end-to-end latency
+    for (Edge listener : listeners) {
+      V v_listener = prop.operation_to_vertex[{listener, ms}];
+      Delay tardiness = prop.crit_cost[v_listener] +
+                        stream.rti_map[listener].d_max() - stream.e2e_latency -
+                        stream.phase;
+      Delay max_slack = stream.e2e_latency -
+                        (stream.effective_release[listener] - stream.phase);
+      double relative_tardiness = static_cast<double>(tardiness) / max_slack;
+      if (relative_tardiness > max_tardiness.second)
+        max_tardiness = std::make_pair(v_listener, relative_tardiness);
+    }
+  }
+
+  return {static_cast<Delay>(lround(max_tardiness.second * 100)),
+          max_tardiness.first};
 }
 
 CriticalPath::Result CriticalPath::dynamic_tardiness_path(Delay min) {
