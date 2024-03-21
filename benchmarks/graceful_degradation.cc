@@ -14,7 +14,7 @@
 #define WIRELESS_TRAFFIC_DEADLINE 10000000 // 10ms
 #define CROSS_TRAFFIC_DEADLINE 200000      // 200us
 
-#define WIRELESS_TRAFFIC_JITTER 500000 // 500us
+#define WIRELESS_TRAFFIC_JITTER 5000000 // 5ms
 #define CROSS_TRAFFIC_JITTER 0
 
 #define WIRELESS_TRAFFIC_PERIOD 10000000 // 10ms
@@ -46,38 +46,38 @@ int main(int argc, char **argv) {
   int o = 0;
   for (int bridge = 0; bridge < talkers - 1; bridge++) {
     device_properties.push_back(
-        NetworkDeviceProperty(bridge, 0, "Bt" + std::to_string(bridge)));
+        NetworkDeviceProperty(bridge, 1000, "Bt" + std::to_string(bridge)));
     if (bridge > 0) {
       data_links.push_back(
           DataLink(Edge(bridge, (bridge - 1 - ((bridge + 1) % 2)) / 2),
-                   DataLinkProperty(wired)));
+                   DataLinkProperty(wired, 12500000, 50)));
       data_links.push_back(
           DataLink(Edge((bridge - 1 - ((bridge + 1) % 2)) / 2, bridge),
-                   DataLinkProperty(wired)));
+                   DataLinkProperty(wired, 12500000, 50)));
     }
   }
   int to = talkers - 1; // talker offset
   for (int talker = 0; talker < talkers; talker++) {
     device_properties.push_back(
-        NetworkDeviceProperty(to + talker, 0, "T" + std::to_string(talker)));
+        NetworkDeviceProperty(to + talker, 1000, "T" + std::to_string(talker)));
     data_links.push_back(DataLink(
         Edge(to + talker, (to + talker - 1 - ((to + talker + 1) % 2)) / 2),
-        DataLinkProperty(wired)));
+        DataLinkProperty(wired, 12500000, 50)));
     data_links.push_back(DataLink(
         Edge((to + talker - 1 - ((to + talker + 1) % 2)) / 2, to + talker),
-        DataLinkProperty(wired)));
+        DataLinkProperty(wired, 12500000, 50)));
   }
   int ho = to + talkers; // half offset
   for (int bridge = 0; bridge < listeners - 1; bridge++) {
-    device_properties.push_back(
-        NetworkDeviceProperty(ho + bridge, 0, "Bl" + std::to_string(bridge)));
+    device_properties.push_back(NetworkDeviceProperty(
+        ho + bridge, 1000, "Bl" + std::to_string(bridge)));
     if (bridge > 0) {
       data_links.push_back(DataLink(
           Edge(ho + (bridge - 1 - ((bridge + 1) % 2)) / 2, ho + bridge),
-          DataLinkProperty(wired)));
+          DataLinkProperty(wired, 12500000, 50)));
       data_links.push_back(DataLink(
           Edge(ho + bridge, ho + (bridge - 1 - ((bridge + 1) % 2)) / 2),
-          DataLinkProperty(wired)));
+          DataLinkProperty(wired, 12500000, 50)));
     }
   }
   data_links.push_back(DataLink(Edge(0, ho), DataLinkProperty(wireless, true)));
@@ -85,16 +85,16 @@ int main(int argc, char **argv) {
   int lo = ho + listeners - 1; // listener offset
   for (int listener = 0; listener < listeners; listener++) {
     device_properties.push_back(NetworkDeviceProperty(
-        lo + listener, 0, "L" + std::to_string(listener)));
+        lo + listener, 1000, "L" + std::to_string(listener)));
     data_links.push_back(DataLink(
         Edge(ho + (lo - ho + listener - 1 - ((lo - ho + listener + 1) % 2)) / 2,
              lo + listener),
-        DataLinkProperty(wired)));
+        DataLinkProperty(wired, 12500000, 50)));
     data_links.push_back(DataLink(
         Edge(lo + listener,
              ho +
                  (lo - ho + listener - 1 - ((lo - ho + listener + 1) % 2)) / 2),
-        DataLinkProperty(wired)));
+        DataLinkProperty(wired, 12500000, 50)));
   }
 
   auto network = make_shared<NetworkTopology>(device_properties, data_links);
@@ -104,6 +104,69 @@ int main(int argc, char **argv) {
   std::uniform_int_distribution dt(0, talkers - 1);
   std::uniform_int_distribution dl(0, listeners - 1);
   std::vector<MessageStream> message_streams;
+
+  // cross traffic for left half
+  std::uniform_int_distribution dt1(0, talkers - 2);
+  for (int stream = 0; stream < cross_traffic; stream++) {
+    PathRoute path, path1;
+
+    int talker = dt(gen);
+    int listener = dt1(gen);
+    if (listener >= talker)
+      listener++;
+
+    int dt = to + talker;
+    int dl = to + listener;
+    do {
+      path.push_back(Edge(dt, (dt - 1 - ((dt + 1) % 2)) / 2));
+      path1.push_front(Edge((dl - 1 - ((dl + 1) % 2)) / 2, dl));
+
+      dt = (dt - 1 - ((dt + 1) % 2)) / 2;
+      dl = (dl - 1 - ((dl + 1) % 2)) / 2;
+    } while (dt != dl);
+
+    path.splice(path.end(), path1);
+
+    std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
+    route->check();
+    for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
+      message_streams.push_back(MessageStream(
+          network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
+          CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD, 0));
+    }
+  }
+
+  // cross traffic for right half
+  std::uniform_int_distribution dl1(0, listeners - 2);
+  for (int stream = 0; stream < cross_traffic; stream++) {
+    PathRoute path, path1;
+
+    int talker = dl(gen);
+    int listener = dl1(gen);
+    if (listener >= talker)
+      listener++;
+
+    int dt = lo + talker;
+    int dl = lo + listener;
+    do {
+      path.push_back(Edge(dt, ho + (dt - ho - 1 - ((dt - ho + 1) % 2)) / 2));
+      path1.push_front(Edge(ho + (dl - ho - 1 - ((dl - ho + 1) % 2)) / 2, dl));
+
+      dt = ho + (dt - ho - 1 - ((dt - ho + 1) % 2)) / 2;
+      dl = ho + (dl - ho - 1 - ((dl - ho + 1) % 2)) / 2;
+    } while (dt != dl);
+
+    path.splice(path.end(), path1);
+
+    std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
+    route->check();
+    for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
+      message_streams.push_back(
+          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
+                        CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
+                        CROSS_TRAFFIC_JITTER));
+    }
+  }
 
   // wireless traffic from left to right
   for (int stream = 0; stream < streams; stream++) {
@@ -157,70 +220,6 @@ int main(int argc, char **argv) {
         WIRELESS_TRAFFIC_PERIOD, rti_map, 0, WIRELESS_TRAFFIC_JITTER));
   }
 
-  // cross traffic for left half
-  std::uniform_int_distribution dt1(0, talkers - 2);
-  for (int stream = 0; stream < cross_traffic; stream++) {
-    PathRoute path, path1;
-
-    int talker = dt(gen);
-    int listener = dt1(gen);
-    if (listener >= talker)
-      listener++;
-
-    int dt = to + talker;
-    int dl = to + listener;
-    do {
-      path.push_back(Edge(dt, (dt - 1 - ((dt + 1) % 2)) / 2));
-      path1.push_front(Edge((dl - 1 - ((dl + 1) % 2)) / 2, dl));
-
-      dt = (dt - 1 - ((dt + 1) % 2)) / 2;
-      dl = (dl - 1 - ((dl + 1) % 2)) / 2;
-    } while (dt != dl);
-
-    path.splice(path.end(), path1);
-
-    std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
-    route->check();
-    for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
-      message_streams.push_back(
-          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-                        i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
-                        i * CROSS_TRAFFIC_PERIOD, 0));
-    }
-  }
-
-  // cross traffic for right half
-  std::uniform_int_distribution dl1(0, listeners - 2);
-  for (int stream = 0; stream < cross_traffic; stream++) {
-    PathRoute path, path1;
-
-    int talker = dl(gen);
-    int listener = dl1(gen);
-    if (listener >= talker)
-      listener++;
-
-    int dt = lo + talker;
-    int dl = lo + listener;
-    do {
-      path.push_back(Edge(dt, ho + (dt - ho - 1 - ((dt - ho + 1) % 2)) / 2));
-      path1.push_front(Edge(ho + (dl - ho - 1 - ((dl - ho + 1) % 2)) / 2, dl));
-
-      dt = ho + (dt - ho - 1 - ((dt - ho + 1) % 2)) / 2;
-      dl = ho + (dl - ho - 1 - ((dl - ho + 1) % 2)) / 2;
-    } while (dt != dl);
-
-    path.splice(path.end(), path1);
-
-    std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
-    route->check();
-    for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
-      message_streams.push_back(
-          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-                        i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
-                        i * CROSS_TRAFFIC_PERIOD, CROSS_TRAFFIC_JITTER));
-    }
-  }
-
   TabuSearch tabu_search(network, message_streams);
   if (tabu_search.com.rank != 0)
     std::cout.setstate(std::ios::failbit);
@@ -230,15 +229,14 @@ int main(int argc, char **argv) {
 
   TabuSearchConfig config{
       objective,
-      TerminationConfig(timeout, bound),
+      TerminationConfig(60, bound),
       IntensificationConfig(10, 200),
-      DiversificationConfig(10, 4),
+      DiversificationConfig(10, 10),
       CompressionConfig(true, TerminationConfig(timeout, bound),
-                        IntensificationConfig(10, 100)),
+                        IntensificationConfig(10, 200)),
   };
 
-  using InitialHeuristic =
-      CombinedInitial<RandomInitial, EffectiveReleaseInitial>;
+  using InitialHeuristic = NoInitial;
   using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification = StrictAdmissionIntensification<
       DifferentialTerminationCriterion,
@@ -250,6 +248,9 @@ int main(int argc, char **argv) {
                   TransformationHeuristic>(config);
 
   tabu_search.dgm.print_critical_path(objective);
+  tabu_search.dgm.print();
+  tabu_search.dgm.print_fixed_lateness();
+  tabu_search.dgm.print_relative_fixed_lateness();
   auto tabu_search1 = tabu_search;
 
   objective = CriticalPath::Objective::fixed_tardiness;
@@ -267,11 +268,13 @@ int main(int argc, char **argv) {
 
     for (int dl : degradation_lower) {
       std::map<MessageStreamHandle, RTIMap> rti_updates;
-      for (int stream = 0; stream < streams; stream++) {
+      for (int stream = 2 * cross_traffic; stream < 2 * cross_traffic + streams;
+           stream++) {
         rti_updates[stream] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
                                                  WIRELESS_UL_DMIN + dl)}};
       }
-      for (int stream = streams; stream < 2 * streams; stream++) {
+      for (int stream = 2 * cross_traffic * streams;
+           stream < 2 * (cross_traffic + streams); stream++) {
         rti_updates[stream] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
                                                  WIRELESS_DL_DMIN + dl)}};
       }
@@ -292,11 +295,13 @@ int main(int argc, char **argv) {
 
     for (int dl : degradation_lower) {
       std::map<MessageStreamHandle, RTIMap> rti_updates;
-      for (int stream = 0; stream < streams; stream++) {
+      for (int stream = 2 * cross_traffic; stream < 2 * cross_traffic + streams;
+           stream++) {
         rti_updates[stream] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
                                                  WIRELESS_UL_DMIN + dl)}};
       }
-      for (int stream = streams; stream < 2 * streams; stream++) {
+      for (int stream = 2 * cross_traffic + streams;
+           stream < 2 * (cross_traffic + streams); stream++) {
         rti_updates[stream] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
                                                  WIRELESS_DL_DMIN + dl)}};
       }
@@ -308,9 +313,9 @@ int main(int argc, char **argv) {
           objective,
           TerminationConfig(2, bound),
           IntensificationConfig(10, 200),
-          DiversificationConfig(10, 4),
+          DiversificationConfig(10, 10),
           CompressionConfig(true, TerminationConfig(8, bound),
-                            IntensificationConfig(10, 20)),
+                            IntensificationConfig(10, 100)),
       };
 
       tabu_search_adaptive.com.sync();

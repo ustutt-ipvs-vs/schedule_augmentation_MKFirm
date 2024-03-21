@@ -12,11 +12,11 @@ typedef unsigned short PCPValue;
 class RTI {
 public:
   RTI(){};
-  RTI(Delay max, Delay min = 0, Delay prop = 0)
-      : min(min), max(max), prop(prop) {}
+  RTI(Delay max, Delay min = 0, Delay prop = 0, Delay proc = 0)
+      : min(min), max(max), prop(prop), proc(proc) {}
 
-  Delay d_max() const { return max + prop; }
-  Delay d_min() const { return min + prop; }
+  Delay d_max() const { return max + prop + proc; }
+  Delay d_min() const { return min + prop + proc; }
   Delay d_trans_max() const { return max; }
   Delay d_trans_min() const { return min; }
 
@@ -24,11 +24,13 @@ private:
   Delay max;
   Delay min;
   Delay prop;
+  Delay proc;
 };
 
-static RTI WIRED_RTI(FrameSize frame_size, DataRate data_rate, Delay prop = 0) {
+static RTI WIRED_RTI(FrameSize frame_size, DataRate data_rate, Delay prop = 0,
+                     Delay proc = 0) {
   return RTI(frame_size * SECONDS_TO_TICKS(1) / data_rate,
-             frame_size * SECONDS_TO_TICKS(1) / data_rate, prop);
+             frame_size * SECONDS_TO_TICKS(1) / data_rate, prop, proc);
 }
 
 typedef std::map<Edge, RTI> RTIMap;

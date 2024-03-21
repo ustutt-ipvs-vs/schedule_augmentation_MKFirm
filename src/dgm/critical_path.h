@@ -234,6 +234,9 @@ public:
   Result relative_fixed_tardiness_path(Delay min = 0);
   Result dynamic_tardiness_path(Delay min = 0);
 
+  Delay get_fixed_lateness(MessageStreamHandle ms, Edge listener);
+  double get_relative_fixed_lateness(MessageStreamHandle ms, Edge listener);
+
   void print(Result res, const NetworkTopology &network);
 
 private:

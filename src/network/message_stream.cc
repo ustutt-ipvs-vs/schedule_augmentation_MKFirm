@@ -9,8 +9,10 @@ void MessageStream::compute_wired_rtis() {
     if (data_link_property.type == wireless) {
       wireless_links.push_back(hop.edge);
     } else {
+      auto &device_property = network->get_device_property(hop.edge.second);
       rti_map[hop.edge] = WIRED_RTI(frame_size, data_link_property.data_rate,
-                                    data_link_property.propagation_delay);
+                                    data_link_property.propagation_delay,
+                                    device_property.processing_delay);
     }
   }
 }

@@ -147,6 +147,39 @@ public:
   inline void print_critical_path(CriticalPath::Objective type) {
     crit_path.print(critical_path(type), *network);
   }
+  inline void print_fixed_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_fixed_lateness(ms, listener) << std::endl;
+      }
+    }
+  }
+  inline void print_relative_fixed_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_relative_fixed_lateness(ms, listener)
+                  << std::endl;
+      }
+    }
+  }
 
   inline E edge(V u, V v) {
     auto e = boost::edge(u, v, shuffle_graph);

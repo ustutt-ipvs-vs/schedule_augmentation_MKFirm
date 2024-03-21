@@ -54,16 +54,25 @@ CriticalPath::Result CriticalPath::fixed_tardiness_path(Delay min) {
 
     // compute tardiness of stream's end-to-end latency
     for (Edge listener : listeners) {
-      V v_listener = prop.operation_to_vertex[{listener, ms}];
-      Delay tardiness = prop.crit_cost[v_listener] +
-                        stream.rti_map[listener].d_max() - stream.e2e_latency -
-                        stream.phase;
-      if (tardiness > max_tardiness.second)
+      Delay tardiness = get_fixed_lateness(ms, listener);
+      if (tardiness > max_tardiness.second) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
         max_tardiness = std::make_pair(v_listener, tardiness);
+      }
     }
   }
 
   return {max_tardiness.second, max_tardiness.first};
+}
+
+Delay CriticalPath::get_fixed_lateness(MessageStreamHandle ms, Edge listener) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  auto &stream = prop.streams[ms];
+  V v_listener = prop.operation_to_vertex[{listener, ms}];
+  Delay lateness = prop.crit_cost[v_listener] +
+                   stream.rti_map[listener].d_max() - stream.e2e_latency -
+                   stream.phase;
+  return lateness;
 }
 
 CriticalPath::Result CriticalPath::relative_fixed_tardiness_path(Delay min) {
@@ -76,20 +85,31 @@ CriticalPath::Result CriticalPath::relative_fixed_tardiness_path(Delay min) {
 
     // compute tardiness of stream's end-to-end latency
     for (Edge listener : listeners) {
-      V v_listener = prop.operation_to_vertex[{listener, ms}];
-      Delay tardiness = prop.crit_cost[v_listener] +
-                        stream.rti_map[listener].d_max() - stream.e2e_latency -
-                        stream.phase;
-      Delay max_slack = stream.e2e_latency -
-                        (stream.effective_release[listener] - stream.phase);
-      double relative_tardiness = static_cast<double>(tardiness) / max_slack;
-      if (relative_tardiness > max_tardiness.second)
+      double relative_tardiness = get_relative_fixed_lateness(ms, listener);
+      if (relative_tardiness > max_tardiness.second) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
         max_tardiness = std::make_pair(v_listener, relative_tardiness);
+      }
     }
   }
 
   return {static_cast<Delay>(lround(max_tardiness.second * 100)),
           max_tardiness.first};
+}
+
+double CriticalPath::get_relative_fixed_lateness(MessageStreamHandle ms,
+                                                 Edge listener) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  auto &stream = prop.streams[ms];
+  V v_listener = prop.operation_to_vertex[{listener, ms}];
+  Delay lateness = prop.crit_cost[v_listener] +
+                   stream.rti_map[listener].d_max() - stream.e2e_latency -
+                   stream.phase;
+  Delay max_slack =
+      stream.e2e_latency - (stream.effective_release[listener] - stream.phase);
+  double relative_lateness = static_cast<double>(lateness) / max_slack;
+
+  return relative_lateness;
 }
 
 CriticalPath::Result CriticalPath::dynamic_tardiness_path(Delay min) {
