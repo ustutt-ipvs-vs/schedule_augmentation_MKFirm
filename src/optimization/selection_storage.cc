@@ -11,7 +11,9 @@ void SelectionStorage::update_candidates(EncodedSelection &&selection) {
     return;
 
   if (selection.objective < best_selection.objective) {
-    best_selection = selection;
+    std::copy(selection.buf.begin(), selection.buf.end(),
+              best_selection.buf.begin());
+    best_selection.objective = selection.objective;
     best_found = std::chrono::high_resolution_clock::now();
   }
 

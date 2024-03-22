@@ -23,17 +23,21 @@ CriticalPath::Result CriticalPath::path(CriticalPath::Objective type) {
   case makespan:
     return makespan_path();
   case fixed_tardiness:
-    return fixed_tardiness_path(0);
+    return fixed_lateness_path(0);
   case dynamic_tardiness:
-    return dynamic_tardiness_path(0);
-  case relative_fixed_tardiness:
-    return relative_fixed_tardiness_path(0);
+    return dynamic_lateness_path(0);
+  case weighted_fixed_tardiness:
+    return weighted_fixed_lateness_path(0);
+  case weighted_dynamic_tardiness:
+    return weighted_dynamic_lateness_path(0);
   case fixed_lateness:
-    return fixed_tardiness_path(std::numeric_limits<Delay>::min());
+    return fixed_lateness_path(std::numeric_limits<Delay>::min());
   case dynamic_lateness:
-    return dynamic_tardiness_path(std::numeric_limits<Delay>::min());
-  case relative_fixed_lateness:
-    return relative_fixed_tardiness_path(std::numeric_limits<Delay>::min());
+    return dynamic_lateness_path(std::numeric_limits<Delay>::min());
+  case weighted_fixed_lateness:
+    return weighted_fixed_lateness_path(std::numeric_limits<Delay>::min());
+  case weighted_dynamic_lateness:
+    return weighted_dynamic_lateness_path(std::numeric_limits<Delay>::min());
   default:
     throw std::logic_error("type does not exist: " + std::to_string(type));
   }
@@ -44,25 +48,25 @@ CriticalPath::Result CriticalPath::makespan_path() {
   return {prop.crit_cost[prop.sink], prop.sink};
 }
 
-CriticalPath::Result CriticalPath::fixed_tardiness_path(Delay min) {
+CriticalPath::Result CriticalPath::fixed_lateness_path(Delay min) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, min);
+  Result max_lateness = {min, prop.src};
 
   for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
     auto &stream = prop.streams[ms];
     const std::list<Edge> &listeners = stream.route->get_listeners();
 
-    // compute tardiness of stream's end-to-end latency
+    // compute lateness of stream's end-to-end latency
     for (Edge listener : listeners) {
-      Delay tardiness = get_fixed_lateness(ms, listener);
-      if (tardiness > max_tardiness.second) {
+      Delay lateness = get_fixed_lateness(ms, listener);
+      if (lateness > max_lateness.objective) {
         V v_listener = prop.operation_to_vertex[{listener, ms}];
-        max_tardiness = std::make_pair(v_listener, tardiness);
+        max_lateness = {lateness, v_listener};
       }
     }
   }
 
-  return {max_tardiness.second, max_tardiness.first};
+  return max_lateness;
 }
 
 Delay CriticalPath::get_fixed_lateness(MessageStreamHandle ms, Edge listener) {
@@ -70,51 +74,49 @@ Delay CriticalPath::get_fixed_lateness(MessageStreamHandle ms, Edge listener) {
   auto &stream = prop.streams[ms];
   V v_listener = prop.operation_to_vertex[{listener, ms}];
   Delay lateness = prop.crit_cost[v_listener] +
-                   stream.rti_map[listener].d_max() - stream.e2e_latency -
-                   stream.phase;
+                   stream.rti_map[listener].d_max() - stream.e2e_latency;
   return lateness;
 }
 
-CriticalPath::Result CriticalPath::relative_fixed_tardiness_path(Delay min) {
+CriticalPath::Result CriticalPath::weighted_fixed_lateness_path(Delay min) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  std::pair<V, double> max_tardiness = std::make_pair(prop.src, min);
+  std::pair<double, V> max_lateness = std::make_pair(min, prop.src);
 
   for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
     auto &stream = prop.streams[ms];
-    const std::list<Edge> &listeners = stream.route->get_listeners();
 
-    // compute tardiness of stream's end-to-end latency
+    // compute lateness of stream's end-to-end latency
+    const std::list<Edge> &listeners = stream.route->get_listeners();
     for (Edge listener : listeners) {
-      double relative_tardiness = get_relative_fixed_lateness(ms, listener);
-      if (relative_tardiness > max_tardiness.second) {
+      double weighted_lateness = get_weighted_fixed_lateness(ms, listener);
+      if (weighted_lateness > max_lateness.first) {
         V v_listener = prop.operation_to_vertex[{listener, ms}];
-        max_tardiness = std::make_pair(v_listener, relative_tardiness);
+        max_lateness = std::make_pair(weighted_lateness, v_listener);
       }
     }
   }
 
-  return {static_cast<Delay>(lround(max_tardiness.second * 100)),
-          max_tardiness.first};
+  return {static_cast<Delay>(lround(max_lateness.first * 100)),
+          max_lateness.second};
 }
 
-double CriticalPath::get_relative_fixed_lateness(MessageStreamHandle ms,
+double CriticalPath::get_weighted_fixed_lateness(MessageStreamHandle ms,
                                                  Edge listener) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   auto &stream = prop.streams[ms];
   V v_listener = prop.operation_to_vertex[{listener, ms}];
   Delay lateness = prop.crit_cost[v_listener] +
-                   stream.rti_map[listener].d_max() - stream.e2e_latency -
-                   stream.phase;
-  Delay max_slack =
-      stream.e2e_latency - (stream.effective_release[listener] - stream.phase);
-  double relative_lateness = static_cast<double>(lateness) / max_slack;
+                   stream.rti_map[listener].d_max() - stream.e2e_latency;
+  double weighted_lateness =
+      static_cast<double>(lateness) /
+      (stream.e2e_latency - stream.effective_release[listener]);
 
-  return relative_lateness;
+  return weighted_lateness;
 }
 
-CriticalPath::Result CriticalPath::dynamic_tardiness_path(Delay min) {
+CriticalPath::Result CriticalPath::dynamic_lateness_path(Delay min) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
-  std::pair<V, Delay> max_tardiness = std::make_pair(prop.src, min);
+  Result max_lateness = {min, prop.src};
 
   dgm_traversal(shuffle_graph,
                 visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
@@ -122,31 +124,89 @@ CriticalPath::Result CriticalPath::dynamic_tardiness_path(Delay min) {
   for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
     auto &stream = prop.streams[ms];
     Edge talker = stream.route->get_talker();
-    const std::list<Edge> &listeners = stream.route->get_listeners();
-
-    // compute tardiness of stream's release
     V v_talker = prop.operation_to_vertex[{talker, ms}];
-    Delay release_tardiness =
-        prop.crit_cost[v_talker] - stream.phase - stream.period;
-    if (release_tardiness > max_tardiness.second)
-      max_tardiness = std::make_pair(v_talker, release_tardiness);
 
-    Delay slack = 0;
-    if (release_tardiness < 0)
-      slack = std::min(-release_tardiness, prop.slack[v_talker]);
-
-    // compute tardiness of stream's end-to-end latency
+    // compute lateness of stream's end-to-end latency
+    const std::list<Edge> &listeners = stream.route->get_listeners();
     for (Edge listener : listeners) {
       V v_listener = prop.operation_to_vertex[{listener, ms}];
-      Delay tardiness = prop.crit_cost[v_listener] +
-                        stream.rti_map[listener].d_max() -
-                        prop.crit_cost[v_talker] - slack - stream.e2e_latency;
-      if (tardiness > max_tardiness.second)
-        max_tardiness = std::make_pair(v_listener, tardiness);
+      Delay recv =
+          prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+      Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
+                       stream.e2e_latency;
+      if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
+        lateness = recv - stream.phase - stream.period;
+      if (lateness > max_lateness.objective)
+        max_lateness = {lateness, v_listener};
     }
   }
 
-  return {max_tardiness.second, max_tardiness.first};
+  return max_lateness;
+}
+
+Delay CriticalPath::get_dynamic_lateness(MessageStreamHandle ms,
+                                         Edge listener) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  auto &stream = prop.streams[ms];
+  Edge talker = stream.route->get_talker();
+  V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+  V v_listener = prop.operation_to_vertex[{listener, ms}];
+  Delay recv = prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+  Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
+                   stream.e2e_latency;
+  if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
+    lateness = recv - stream.phase - stream.period;
+
+  return lateness;
+}
+
+CriticalPath::Result CriticalPath::weighted_dynamic_lateness_path(Delay min) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  std::pair<double, V> max_lateness = std::make_pair(min, prop.src);
+
+  dgm_traversal(shuffle_graph,
+                visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
+
+  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+    auto &stream = prop.streams[ms];
+    Edge talker = stream.route->get_talker();
+    V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+    // compute lateness of stream's end-to-end latency
+    const std::list<Edge> &listeners = stream.route->get_listeners();
+    for (Edge listener : listeners) {
+      V v_listener = prop.operation_to_vertex[{listener, ms}];
+      Delay recv =
+          prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+      Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
+                       stream.e2e_latency;
+      if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
+        lateness = recv - stream.phase - stream.period;
+
+      double weighted_lateness =
+          static_cast<double>(lateness) /
+          (stream.e2e_latency - stream.effective_release[listener] +
+           stream.phase);
+      if (weighted_lateness > max_lateness.first)
+        max_lateness = {weighted_lateness, v_listener};
+    }
+  }
+
+  return {static_cast<Delay>(lround(max_lateness.first * 100)),
+          max_lateness.second};
+}
+
+double CriticalPath::get_weighted_dynamic_lateness(MessageStreamHandle ms,
+                                                   Edge listener) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  auto &stream = prop.streams[ms];
+  Delay lateness = get_dynamic_lateness(ms, listener);
+  double weighted_lateness =
+      static_cast<double>(lateness) /
+      (stream.e2e_latency - stream.effective_release[listener] + stream.phase);
+
+  return weighted_lateness;
 }
 
 void CriticalPath::print(Result res, const NetworkTopology &network) {

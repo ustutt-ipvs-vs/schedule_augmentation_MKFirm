@@ -24,14 +24,11 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 add_executable(jsp jsp.cc)
 target_link_libraries(jsp PUBLIC tsndgm)
 
-add_executable(dumbbell dumbbell.cc)
-target_link_libraries(dumbbell PUBLIC tsndgm)
-
-add_executable(adaptive_scheduling adaptive_scheduling.cc)
-target_link_libraries(adaptive_scheduling PUBLIC tsndgm)
-
 add_executable(baseline_scheduling baseline_scheduling.cc)
 target_link_libraries(baseline_scheduling PUBLIC tsndgm)
 
-add_executable(graceful_degradation graceful_degradation.cc)
-target_link_libraries(graceful_degradation PUBLIC tsndgm)
+add_executable(graceful_degradation_cyclic graceful_degradation_cyclic.cc)
+target_link_libraries(graceful_degradation_cyclic PUBLIC tsndgm)
+
+add_executable(graceful_degradation_isochronous graceful_degradation_isochronous.cc)
+target_link_libraries(graceful_degradation_isochronous PUBLIC tsndgm)

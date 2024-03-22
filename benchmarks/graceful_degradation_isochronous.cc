@@ -130,9 +130,11 @@ int main(int argc, char **argv) {
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
-      message_streams.push_back(MessageStream(
-          network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-          CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD, 0));
+      message_streams.push_back(
+          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
+                        i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
+                        i * CROSS_TRAFFIC_PERIOD, CROSS_TRAFFIC_JITTER,
+                        std::format("CT_L{}", stream)));
     }
   }
 
@@ -163,10 +165,12 @@ int main(int argc, char **argv) {
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
       message_streams.push_back(
           MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-                        CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
-                        CROSS_TRAFFIC_JITTER));
+                        i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
+                        i * CROSS_TRAFFIC_PERIOD, CROSS_TRAFFIC_JITTER,
+                        std::format("CT_R{}", stream)));
     }
   }
+  size_t offset = message_streams.size();
 
   // wireless traffic from left to right
   for (int stream = 0; stream < streams; stream++) {
@@ -189,9 +193,10 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    message_streams.push_back(MessageStream(
-        network, route, WIRELESS_TRAFFIC_PERIOD, WIRELESS_FRAME_SIZE,
-        WIRELESS_TRAFFIC_PERIOD, rti_map, 0, WIRELESS_TRAFFIC_JITTER));
+    message_streams.push_back(
+        MessageStream(network, route, WIRELESS_TRAFFIC_PERIOD,
+                      WIRELESS_FRAME_SIZE, WIRELESS_TRAFFIC_PERIOD, rti_map, 0,
+                      WIRELESS_TRAFFIC_JITTER, std::format("W_LR{}", stream)));
   }
 
   // wireless traffic from right to left
@@ -215,28 +220,29 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    message_streams.push_back(MessageStream(
-        network, route, WIRELESS_TRAFFIC_PERIOD, WIRELESS_FRAME_SIZE,
-        WIRELESS_TRAFFIC_PERIOD, rti_map, 0, WIRELESS_TRAFFIC_JITTER));
+    message_streams.push_back(
+        MessageStream(network, route, WIRELESS_TRAFFIC_PERIOD,
+                      WIRELESS_FRAME_SIZE, WIRELESS_TRAFFIC_PERIOD, rti_map, 0,
+                      WIRELESS_TRAFFIC_JITTER, std::format("W_RL{}", stream)));
   }
 
   TabuSearch tabu_search(network, message_streams);
   if (tabu_search.com.rank != 0)
     std::cout.setstate(std::ios::failbit);
 
-  auto objective = CriticalPath::Objective::relative_fixed_lateness;
+  auto objective = CriticalPath::Objective::weighted_fixed_lateness;
   auto bound = CriticalPath::get_termination_bound(objective);
 
   TabuSearchConfig config{
       objective,
       TerminationConfig(60, bound),
-      IntensificationConfig(10, 200),
+      IntensificationConfig(10, 500),
       DiversificationConfig(10, 10),
       CompressionConfig(true, TerminationConfig(timeout, bound),
-                        IntensificationConfig(10, 200)),
+                        IntensificationConfig(10, 500)),
   };
 
-  using InitialHeuristic = NoInitial;
+  using InitialHeuristic = EffectiveReleaseInitial;
   using TerminationCriterion = TimeoutTerminationCriterion;
   using Intensification = StrictAdmissionIntensification<
       DifferentialTerminationCriterion,
@@ -246,15 +252,11 @@ int main(int argc, char **argv) {
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
                   TransformationHeuristic>(config);
-
   tabu_search.dgm.print_critical_path(objective);
-  tabu_search.dgm.print();
-  tabu_search.dgm.print_fixed_lateness();
-  tabu_search.dgm.print_relative_fixed_lateness();
   auto tabu_search1 = tabu_search;
 
   objective = CriticalPath::Objective::fixed_tardiness;
-  if (tabu_search.dgm.critical_path(objective).objective > 0) {
+  if (tabu_search.best_selection > 0) {
     std::cout << "\noptimum not found; exiting...\n" << std::endl;
     exit(1);
   }
@@ -267,22 +269,25 @@ int main(int argc, char **argv) {
     int degradation_lower[] = {-degradation, 0, degradation};
 
     for (int dl : degradation_lower) {
+      ShuffleGraphProperty &prop =
+          tabu_search.dgm.shuffle_graph[boost::graph_bundle];
       std::map<MessageStreamHandle, RTIMap> rti_updates;
-      for (int stream = 2 * cross_traffic; stream < 2 * cross_traffic + streams;
-           stream++) {
-        rti_updates[stream] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
-                                                 WIRELESS_UL_DMIN + dl)}};
-      }
-      for (int stream = 2 * cross_traffic * streams;
-           stream < 2 * (cross_traffic + streams); stream++) {
-        rti_updates[stream] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
-                                                 WIRELESS_DL_DMIN + dl)}};
+
+      for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+        if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
+          rti_updates[ms] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
+                                               WIRELESS_UL_DMIN + dl)}};
+        } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
+          rti_updates[ms] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
+                                               WIRELESS_DL_DMIN + dl)}};
+        }
       }
 
       tabu_search.update_rti(rti_updates, objective);
       std::cout << dl << ", " << degradation << ", "
                 << tabu_search.dgm.critical_path(objective).objective
                 << std::endl;
+      tabu_search.dgm.print_critical_path(objective);
     }
   }
 
@@ -294,28 +299,29 @@ int main(int argc, char **argv) {
     int degradation_lower[] = {-degradation, 0, degradation};
 
     for (int dl : degradation_lower) {
+      ShuffleGraphProperty &prop =
+          tabu_search.dgm.shuffle_graph[boost::graph_bundle];
       std::map<MessageStreamHandle, RTIMap> rti_updates;
-      for (int stream = 2 * cross_traffic; stream < 2 * cross_traffic + streams;
-           stream++) {
-        rti_updates[stream] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
-                                                 WIRELESS_UL_DMIN + dl)}};
-      }
-      for (int stream = 2 * cross_traffic + streams;
-           stream < 2 * (cross_traffic + streams); stream++) {
-        rti_updates[stream] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
-                                                 WIRELESS_DL_DMIN + dl)}};
+
+      for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+        if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
+          rti_updates[ms] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
+                                               WIRELESS_UL_DMIN + dl)}};
+        } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
+          rti_updates[ms] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
+                                               WIRELESS_DL_DMIN + dl)}};
+        }
       }
 
       auto tabu_search_adaptive = tabu_search1;
-
       bound = CriticalPath::get_termination_bound(objective);
       TabuSearchConfig config1{
           objective,
           TerminationConfig(2, bound),
-          IntensificationConfig(10, 200),
+          IntensificationConfig(10, 500),
           DiversificationConfig(10, 10),
           CompressionConfig(true, TerminationConfig(8, bound),
-                            IntensificationConfig(10, 100)),
+                            IntensificationConfig(10, 250)),
       };
 
       tabu_search_adaptive.com.sync();
@@ -327,6 +333,7 @@ int main(int argc, char **argv) {
       std::cout << dl << ", " << degradation << ", "
                 << tabu_search_adaptive.dgm.critical_path(objective).objective
                 << std::endl;
+      tabu_search_adaptive.dgm.print_critical_path(objective);
     }
   }
 

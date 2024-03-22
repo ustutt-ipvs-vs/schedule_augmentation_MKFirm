@@ -125,6 +125,7 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   for (auto &[edge, rti] : rti_map) {
     prop.streams[ms].rti_map[edge] = rti_map[edge];
   }
+  prop.streams[ms].initialize();
 }
 
 void DisjunctiveGraphModel::internal_commit_all(size_t index) {
@@ -891,6 +892,11 @@ void DisjunctiveGraphModel::remove_fifo_edges(V u, V v) {
 
 void DisjunctiveGraphModel::build() {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  std::ranges::sort(prop.streams,
+                    [&](const MessageStream &s1, const MessageStream &s2) {
+                      return s1.phase < s2.phase;
+                    });
+
   for (MessageStreamHandle i = 0; i < prop.streams.size(); i++)
     build_stream(i);
   resize_properties();

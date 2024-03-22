@@ -163,7 +163,28 @@ public:
       }
     }
   }
-  inline void print_relative_fixed_lateness() {
+  inline void print_dynamic_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    dgm_traversal(shuffle_graph,
+                  visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+      Edge talker = stream.route->get_talker();
+      V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_talker] << " " << prop.slack[v_talker]
+                  << " " << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_dynamic_lateness(ms, listener) << std::endl;
+      }
+    }
+  }
+  inline void print_weighted_fixed_lateness() {
     ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
     for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
       auto &stream = prop.streams[ms];
@@ -175,7 +196,29 @@ public:
         std::cout << ms << ", (" << listener.first << ", " << listener.second
                   << "): " << stream.phase << " " << stream.e2e_latency << " "
                   << prop.crit_cost[v_listener] << " "
-                  << crit_path.get_relative_fixed_lateness(ms, listener)
+                  << crit_path.get_weighted_fixed_lateness(ms, listener)
+                  << std::endl;
+      }
+    }
+  }
+  inline void print_weighted_dynamic_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    dgm_traversal(shuffle_graph,
+                  visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+      Edge talker = stream.route->get_talker();
+      V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_talker] << " " << prop.slack[v_talker]
+                  << " " << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_weighted_dynamic_lateness(ms, listener)
                   << std::endl;
       }
     }

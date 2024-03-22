@@ -7,7 +7,6 @@
 namespace tsndgm {
 
 typedef unsigned int FrameSize;
-typedef unsigned short PCPValue;
 
 class RTI {
 public:
@@ -42,15 +41,14 @@ typedef unsigned int MessageStreamHandle;
 class MessageStream {
 public:
   std::shared_ptr<Route> route;
-  RTIMap rti_map;
 
   Tick period;
-  Tick phase;
   FrameSize frame_size;
-
   Delay e2e_latency;
+  RTIMap rti_map;
+  Tick phase;
   Delay jitter;
-  PCPValue pcp;
+  std::string name;
 
   WirelessLinks wireless_links;
   DelayMap effective_release, effective_deadline;
@@ -59,38 +57,34 @@ public:
                 const std::shared_ptr<Route> &route, Tick period,
                 FrameSize frame_size, Delay e2e_latency,
                 const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0,
-                PCPValue pcp = 0)
+                std::string name = "")
       : network(network), route(route), period(period), frame_size(frame_size),
         e2e_latency(e2e_latency), rti_map(rti_map), phase(phase),
-        jitter(jitter), pcp(pcp) {
-    compute_wired_rtis();
-    compute_effective_deadline(route->root.childs.front());
-    compute_effective_release(route->root.childs.front(), phase);
+        jitter(jitter), name(name) {
+    initialize();
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network, Route &&route,
                 Tick period, FrameSize frame_size, Delay e2e_latency,
                 const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0,
-                PCPValue pcp = 0)
+                std::string name = "")
       : network(network), route(std::make_shared<Route>(std::move(route))),
         period(period), frame_size(frame_size), e2e_latency(e2e_latency),
-        rti_map(rti_map), phase(phase), jitter(jitter), pcp(pcp) {
-    compute_wired_rtis();
-    compute_effective_deadline(this->route->root.childs.front());
-    compute_effective_release(this->route->root.childs.front(), phase);
+        rti_map(rti_map), phase(phase), jitter(jitter), name(name) {
+    initialize();
   }
 
   MessageStream(const std::shared_ptr<NetworkTopology> &network,
                 const Route &route, Tick period, FrameSize frame_size,
                 Delay e2e_latency, const RTIMap &rti_map = {}, Tick phase = 0,
-                Delay jitter = 0, PCPValue pcp = 0)
+                Delay jitter = 0, std::string name = "")
       : network(network), route(std::make_shared<Route>(route)), period(period),
         frame_size(frame_size), e2e_latency(e2e_latency), rti_map(rti_map),
-        phase(phase), jitter(jitter), pcp(pcp) {
-    compute_wired_rtis();
-    compute_effective_deadline(this->route->root.childs.front());
-    compute_effective_release(this->route->root.childs.front(), phase);
+        phase(phase), jitter(jitter), name(name) {
+    initialize();
   }
+
+  void initialize();
 
 private:
   std::shared_ptr<NetworkTopology> network;

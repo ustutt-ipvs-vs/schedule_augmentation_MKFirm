@@ -158,7 +158,7 @@ public:
   }
 
   void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
-    if (v == prop.sink)
+    if (v == prop.sink || boost::edge(v, prop.sink, shuffle_graph).second)
       prop.slack[v] = 0;
     else
       prop.slack[v] = std::numeric_limits<Delay>::max();
@@ -187,12 +187,14 @@ public:
 
   enum Objective {
     makespan,
-    fixed_tardiness,
-    dynamic_tardiness,
     fixed_lateness,
     dynamic_lateness,
-    relative_fixed_lateness,
-    relative_fixed_tardiness
+    weighted_fixed_lateness,
+    weighted_dynamic_lateness,
+    fixed_tardiness,
+    dynamic_tardiness,
+    weighted_fixed_tardiness,
+    weighted_dynamic_tardiness
   };
 
   struct Result {
@@ -214,12 +216,14 @@ public:
     case makespan:
     case fixed_tardiness:
     case dynamic_tardiness:
-    case relative_fixed_tardiness:
+    case weighted_fixed_tardiness:
+    case weighted_dynamic_tardiness:
       return 0;
     case fixed_lateness:
     case dynamic_lateness:
       return std::numeric_limits<Delay>::min();
-    case relative_fixed_lateness:
+    case weighted_fixed_lateness:
+    case weighted_dynamic_lateness:
       return -100;
     default:
       throw std::logic_error("type does not exist: " + std::to_string(type));
@@ -230,12 +234,15 @@ public:
 
   Result path(Objective type);
   Result makespan_path();
-  Result fixed_tardiness_path(Delay min = 0);
-  Result relative_fixed_tardiness_path(Delay min = 0);
-  Result dynamic_tardiness_path(Delay min = 0);
+  Result fixed_lateness_path(Delay min = 0);
+  Result weighted_fixed_lateness_path(Delay min = 0);
+  Result dynamic_lateness_path(Delay min = 0);
+  Result weighted_dynamic_lateness_path(Delay min = 0);
 
   Delay get_fixed_lateness(MessageStreamHandle ms, Edge listener);
-  double get_relative_fixed_lateness(MessageStreamHandle ms, Edge listener);
+  double get_weighted_fixed_lateness(MessageStreamHandle ms, Edge listener);
+  Delay get_dynamic_lateness(MessageStreamHandle ms, Edge listener);
+  double get_weighted_dynamic_lateness(MessageStreamHandle ms, Edge listener);
 
   void print(Result res, const NetworkTopology &network);
 

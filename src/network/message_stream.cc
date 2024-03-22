@@ -36,4 +36,10 @@ void MessageStream::compute_effective_release(TreeRouteHop &hop,
   }
 }
 
+void MessageStream::initialize() {
+  compute_wired_rtis();
+  compute_effective_deadline(this->route->root.childs.front());
+  compute_effective_release(this->route->root.childs.front(), phase);
+}
+
 } // namespace tsndgm
