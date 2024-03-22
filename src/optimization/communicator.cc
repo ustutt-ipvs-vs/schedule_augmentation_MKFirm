@@ -130,6 +130,7 @@ void Synchronization::start() {
   if (com.size > 1)
     sync_thread = std::thread(&Communicator::continuous_exchange, &com,
                               std::ref(sync_selection));
+  com.global_state = Communicator::running;
 }
 
 void Synchronization::stop(SelectionStorage &storage) {
@@ -149,7 +150,7 @@ void Synchronization::update(SelectionStorage &storage) {
     sync_selection.selection = storage.best();
   } else if (storage.best().objective > sync_selection.selection.objective) {
     std::lock_guard<std::mutex> lock(sync_selection.m);
-    storage.update_candidates(sync_selection.selection);
+    storage.update_candidates(EncodedSelection(sync_selection.selection));
   }
 }
 

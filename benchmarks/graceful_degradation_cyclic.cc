@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
       message_streams.push_back(
           MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
                         CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
-                        CROSS_TRAFFIC_JITTER, std::format("CT_L{}", stream)));
+                        CROSS_TRAFFIC_JITTER, "CT_L"));
     }
   }
 
@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
       message_streams.push_back(
           MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
                         CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
-                        CROSS_TRAFFIC_JITTER, std::format("CT_R{}", stream)));
+                        CROSS_TRAFFIC_JITTER, "CT_R"));
     }
   }
   size_t offset = message_streams.size();
@@ -191,10 +191,9 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    message_streams.push_back(
-        MessageStream(network, route, WIRELESS_TRAFFIC_PERIOD,
-                      WIRELESS_FRAME_SIZE, WIRELESS_TRAFFIC_PERIOD, rti_map, 0,
-                      WIRELESS_TRAFFIC_JITTER, std::format("W_LR{}", stream)));
+    message_streams.push_back(MessageStream(
+        network, route, WIRELESS_TRAFFIC_PERIOD, WIRELESS_FRAME_SIZE,
+        WIRELESS_TRAFFIC_PERIOD, rti_map, 0, WIRELESS_TRAFFIC_JITTER, "W_LR"));
   }
 
   // wireless traffic from right to left
@@ -218,10 +217,9 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
-    message_streams.push_back(
-        MessageStream(network, route, WIRELESS_TRAFFIC_PERIOD,
-                      WIRELESS_FRAME_SIZE, WIRELESS_TRAFFIC_PERIOD, rti_map, 0,
-                      WIRELESS_TRAFFIC_JITTER, std::format("W_RL{}", stream)));
+    message_streams.push_back(MessageStream(
+        network, route, WIRELESS_TRAFFIC_PERIOD, WIRELESS_FRAME_SIZE,
+        WIRELESS_TRAFFIC_PERIOD, rti_map, 0, WIRELESS_TRAFFIC_JITTER, "W_RL"));
   }
 
   TabuSearch tabu_search(network, message_streams);
@@ -256,7 +254,7 @@ int main(int argc, char **argv) {
   objective = CriticalPath::Objective::dynamic_tardiness;
   if (tabu_search.dgm.critical_path(objective).objective > 0) {
     std::cout << "\noptimum not found; exiting...\n" << std::endl;
-    exit(1);
+    return 0;
   }
 
   std::cout << "\nGRACEFUL DEGRADATION\n" << std::endl;

@@ -22,8 +22,8 @@ struct EncodedSelection {
     dgm.encode(buf, offset_map);
   }
 
-  EncodedSelection(Delay objective, std::vector<unsigned int> &&buf)
-      : objective(objective), buf(std::move(buf)) {
+  EncodedSelection(const EncodedSelection &other)
+      : objective(other.objective), buf(other.buf) {
     for (int i = 0; i < this->buf.size(); i++) {
       if (this->buf[i] == MACHINE_SEPARATOR && i + 2 < this->buf.size()) {
         Edge edge(this->buf[i + 1], this->buf[i + 2]);
