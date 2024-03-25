@@ -1057,6 +1057,7 @@ void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf,
                                    shuffle_graph_t &g, OffsetMap &offset_map) {
   auto &prop = g[boost::graph_bundle];
   buf.clear();
+  offset_map.clear();
 
   for (auto &[e, streams] : prop.edge_to_streams) {
     offset_map[e] = buf.end() - buf.begin();

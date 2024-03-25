@@ -28,7 +28,7 @@ public:
   State exchange_state(State state, double ratio = 0.5);
   Communicator::State sync(State final = terminated, double ratio = 0.5);
 
-  void
+  Delay
   exchange_best_selection(SynchronizationSelection &sync_selection,
                           Delay prev_best = std::numeric_limits<Delay>::max());
   void continuous_exchange(SynchronizationSelection &sync_selection);

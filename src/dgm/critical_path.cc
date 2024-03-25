@@ -73,8 +73,11 @@ Delay CriticalPath::get_fixed_lateness(MessageStreamHandle ms, Edge listener) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   auto &stream = prop.streams[ms];
   V v_listener = prop.operation_to_vertex[{listener, ms}];
-  Delay lateness = prop.crit_cost[v_listener] +
-                   stream.rti_map[listener].d_max() - stream.e2e_latency;
+  Delay lateness =
+      prop.crit_cost[v_listener] +
+      shuffle_graph[boost::edge(v_listener, prop.sink, shuffle_graph).first]
+          .weight -
+      stream.e2e_latency;
   return lateness;
 }
 
@@ -105,11 +108,15 @@ double CriticalPath::get_weighted_fixed_lateness(MessageStreamHandle ms,
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   auto &stream = prop.streams[ms];
   V v_listener = prop.operation_to_vertex[{listener, ms}];
-  Delay lateness = prop.crit_cost[v_listener] +
-                   stream.rti_map[listener].d_max() - stream.e2e_latency;
+  Delay lateness =
+      prop.crit_cost[v_listener] +
+      shuffle_graph[boost::edge(v_listener, prop.sink, shuffle_graph).first]
+          .weight -
+      stream.e2e_latency;
   double weighted_lateness =
       static_cast<double>(lateness) /
-      (stream.e2e_latency - stream.effective_release[listener]);
+      (stream.e2e_latency - stream.effective_release[listener] -
+       stream.rti_map[listener].d_max());
 
   return weighted_lateness;
 }
@@ -131,7 +138,9 @@ CriticalPath::Result CriticalPath::dynamic_lateness_path(Delay min) {
     for (Edge listener : listeners) {
       V v_listener = prop.operation_to_vertex[{listener, ms}];
       Delay recv =
-          prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+          prop.crit_cost[v_listener] +
+          shuffle_graph[boost::edge(v_listener, prop.sink, shuffle_graph).first]
+              .weight;
       Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
                        stream.e2e_latency;
       if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
@@ -152,7 +161,10 @@ Delay CriticalPath::get_dynamic_lateness(MessageStreamHandle ms,
   V v_talker = prop.operation_to_vertex[{talker, ms}];
 
   V v_listener = prop.operation_to_vertex[{listener, ms}];
-  Delay recv = prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+  Delay recv =
+      prop.crit_cost[v_listener] +
+      shuffle_graph[boost::edge(v_listener, prop.sink, shuffle_graph).first]
+          .weight;
   Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
                    stream.e2e_latency;
   if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
@@ -178,7 +190,9 @@ CriticalPath::Result CriticalPath::weighted_dynamic_lateness_path(Delay min) {
     for (Edge listener : listeners) {
       V v_listener = prop.operation_to_vertex[{listener, ms}];
       Delay recv =
-          prop.crit_cost[v_listener] + stream.rti_map[listener].d_max();
+          prop.crit_cost[v_listener] +
+          shuffle_graph[boost::edge(v_listener, prop.sink, shuffle_graph).first]
+              .weight;
       Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] -
                        stream.e2e_latency;
       if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
@@ -186,8 +200,8 @@ CriticalPath::Result CriticalPath::weighted_dynamic_lateness_path(Delay min) {
 
       double weighted_lateness =
           static_cast<double>(lateness) /
-          (stream.e2e_latency - stream.effective_release[listener] +
-           stream.phase);
+          (stream.e2e_latency - stream.effective_release[listener] -
+           stream.rti_map[listener].d_max() + stream.phase);
       if (weighted_lateness > max_lateness.first)
         max_lateness = {weighted_lateness, v_listener};
     }

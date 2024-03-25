@@ -76,10 +76,10 @@ Communicator::State Communicator::exchange_state(State state, double ratio) {
   return running;
 }
 
-void Communicator::exchange_best_selection(
+Delay Communicator::exchange_best_selection(
     SynchronizationSelection &sync_selection, Delay prev_best) {
   if (size == 1) {
-    return;
+    return prev_best;
   }
 
   EncodedSelection selection;
@@ -93,7 +93,7 @@ void Communicator::exchange_best_selection(
   MPI_Allreduce(local.data(), global.data(), 2, MPI_LONG, op, MPI_COMM_WORLD);
 
   if (prev_best <= global[0])
-    return;
+    return global[0];
 
   auto &buf = selection.buf;
   unsigned int buf_size;
@@ -113,16 +113,24 @@ void Communicator::exchange_best_selection(
       sync_selection.selection = selection;
     }
   }
+  return global[0];
 }
 
 void Communicator::continuous_exchange(
     SynchronizationSelection &sync_selection) {
   Delay prev_best = std::numeric_limits<Delay>::max();
   State state = running;
-  while ((state = exchange_state(global_state, 1)) == running) {
-    exchange_best_selection(sync_selection, prev_best);
-    prev_best = std::min(sync_selection.selection.objective, prev_best);
+  while (state == running) {
+    Delay objective = exchange_best_selection(sync_selection, prev_best);
+    prev_best = std::min(objective, prev_best);
+
     std::this_thread::sleep_for(std::chrono::seconds(1));
+    {
+      std::lock_guard<std::mutex> lock(sync_selection.m);
+      state = sync_selection.selection.objective < prev_best ? running
+                                                             : global_state;
+    }
+    state = exchange_state(state, 1);
   }
 }
 

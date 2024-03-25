@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 500),
       DiversificationConfig(10, 10),
       CompressionConfig(true, TerminationConfig(timeout, bound),
-                        IntensificationConfig(10, 500)),
+                        IntensificationConfig(10, 500), timeout / 4),
   };
 
   using InitialHeuristic = EffectiveReleaseInitial;

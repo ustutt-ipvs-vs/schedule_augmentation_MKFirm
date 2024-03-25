@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   if (argc != 8) {
     std::cout << "Usage: ./adaptive_scheduling <talkers> <listeners> "
                  "<wireless_streams> <cross_traffic> <timeout>"
-                 "<degradation_max> <degradation_step>"
+                 "<improvement_max> <improvement_step>"
               << std::endl;
     exit(0);
   }
@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
   int talkers = pow(2, std::stoi(argv[1])),
       listeners = pow(2, std::stoi(argv[2])), streams = std::stoi(argv[3]),
       cross_traffic = std::stoi(argv[4]), timeout = std::stoi(argv[5]),
-      degradation_max = std::stoi(argv[6]),
-      degradation_step = std::stoi(argv[7]);
+      improvement_max = std::stoi(argv[6]),
+      improvement_step = std::stoi(argv[7]);
 
   // setup network topology
   std::vector<NetworkDeviceProperty> device_properties;
@@ -130,10 +130,10 @@ int main(int argc, char **argv) {
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
-      message_streams.push_back(MessageStream(
-          network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-          i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
-          i * CROSS_TRAFFIC_PERIOD, CROSS_TRAFFIC_JITTER, "CT_L"));
+      message_streams.push_back(
+          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
+                        CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
+                        CROSS_TRAFFIC_JITTER, "CT_L"));
     }
   }
 
@@ -162,10 +162,10 @@ int main(int argc, char **argv) {
     std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
     route->check();
     for (int i = 0; i < WIRELESS_TRAFFIC_PERIOD / CROSS_TRAFFIC_PERIOD; i++) {
-      message_streams.push_back(MessageStream(
-          network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
-          i * CROSS_TRAFFIC_PERIOD + CROSS_TRAFFIC_DEADLINE, {},
-          i * CROSS_TRAFFIC_PERIOD, CROSS_TRAFFIC_JITTER, "CT_R"));
+      message_streams.push_back(
+          MessageStream(network, route, CROSS_TRAFFIC_PERIOD, WIRED_FRAME_SIZE,
+                        CROSS_TRAFFIC_DEADLINE, {}, i * CROSS_TRAFFIC_PERIOD,
+                        CROSS_TRAFFIC_JITTER, "CT_R"));
     }
   }
   size_t offset = message_streams.size();
@@ -182,7 +182,8 @@ int main(int argc, char **argv) {
       path.push_back(Edge(d, (d - 1 - ((d + 1) % 2)) / 2));
     }
     path.push_back(Edge(0, ho));
-    rti_map[Edge(0, ho)] = RTI(WIRELESS_UL_DMAX, WIRELESS_UL_DMIN);
+    rti_map[Edge(0, ho)] = RTI(WIRELESS_UL_DMAX + improvement_max,
+                               WIRELESS_UL_DMIN + improvement_max);
     for (int d = lo + listener; d > ho;
          d = ho + (d - ho - 1 - ((d - ho + 1) % 2)) / 2) {
       path1.push_front(Edge(ho + (d - ho - 1 - ((d - ho + 1) % 2)) / 2, d));
@@ -209,7 +210,8 @@ int main(int argc, char **argv) {
       path.push_back(Edge(d, ho + (d - ho - 1 - ((d - ho + 1) % 2)) / 2));
     }
     path.push_back(Edge(ho, 0));
-    rti_map[Edge(ho, 0)] = RTI(WIRELESS_DL_DMAX, WIRELESS_DL_DMIN);
+    rti_map[Edge(ho, 0)] = RTI(WIRELESS_DL_DMAX + improvement_max,
+                               WIRELESS_DL_DMIN + improvement_max);
     for (int d = to + listener; d > 0; d = (d - 1 - ((d + 1) % 2)) / 2) {
       path1.push_front(Edge((d - 1 - ((d + 1) % 2)) / 2, d));
     }
@@ -226,7 +228,7 @@ int main(int argc, char **argv) {
   if (tabu_search.com.rank != 0)
     std::cout.setstate(std::ios::failbit);
 
-  auto objective = CriticalPath::Objective::weighted_fixed_lateness;
+  auto objective = CriticalPath::Objective::weighted_dynamic_lateness;
   auto bound = CriticalPath::get_termination_bound(objective);
 
   TabuSearchConfig config{
@@ -235,7 +237,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 500),
       DiversificationConfig(10, 10),
       CompressionConfig(true, TerminationConfig(timeout, bound),
-                        IntensificationConfig(10, 500), timeout / 4),
+                        IntensificationConfig(10, 500)),
   };
 
   using InitialHeuristic = EffectiveReleaseInitial;
@@ -251,8 +253,8 @@ int main(int argc, char **argv) {
   tabu_search.dgm.print_critical_path(objective);
   auto tabu_search1 = tabu_search;
 
-  objective = CriticalPath::Objective::fixed_tardiness;
-  if (tabu_search.best_selection > 0) {
+  objective = CriticalPath::Objective::weighted_dynamic_lateness;
+  if (tabu_search.dgm.critical_path(objective).objective > 0) {
     std::cout << "\noptimum not found; exiting...\n" << std::endl;
     return 0;
   }
@@ -260,77 +262,122 @@ int main(int argc, char **argv) {
   std::cout << "\nGRACEFUL DEGRADATION\n" << std::endl;
 
   // update rtis of wireless streams
-  for (int degradation = 0; degradation <= degradation_max;
-       degradation += degradation_step) {
-    int degradation_lower[] = {-degradation, 0, degradation};
+  for (int improvement = improvement_step; improvement <= improvement_max;
+       improvement += improvement_step) {
+    int dl = improvement;
 
-    for (int dl : degradation_lower) {
-      ShuffleGraphProperty &prop =
-          tabu_search.dgm.shuffle_graph[boost::graph_bundle];
-      std::map<MessageStreamHandle, RTIMap> rti_updates;
+    if (WIRELESS_UL_DMAX + improvement_max - improvement <=
+            WIRELESS_UL_DMIN + improvement_max - dl ||
+        WIRELESS_DL_DMAX + improvement_max - improvement <=
+            WIRELESS_DL_DMIN + improvement_max - dl)
+      continue;
 
-      for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
-        if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
-          rti_updates[ms] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
-                                               WIRELESS_UL_DMIN + dl)}};
-        } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
-          rti_updates[ms] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
-                                               WIRELESS_DL_DMIN + dl)}};
+    auto tabu_search_gd = tabu_search;
+    ShuffleGraphProperty &prop =
+        tabu_search_gd.dgm.shuffle_graph[boost::graph_bundle];
+    std::map<MessageStreamHandle, RTIMap> rti_updates;
+
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
+        rti_updates[ms] = {
+            {Edge(0, ho), RTI(WIRELESS_UL_DMAX + improvement_max - improvement,
+                              WIRELESS_UL_DMIN + improvement_max - dl)}};
+      } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
+        rti_updates[ms] = {
+            {Edge(ho, 0), RTI(WIRELESS_DL_DMAX + improvement_max - improvement,
+                              WIRELESS_DL_DMIN + improvement_max - dl)}};
+      }
+    }
+
+    tabu_search_gd.update_rti(rti_updates, objective);
+    std::cout << dl << ", " << improvement << ", "
+              << tabu_search_gd.dgm.critical_path(objective).objective
+              << std::endl;
+
+    Delay max_wl_lateness = std::numeric_limits<Delay>::min();
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      if (prop.streams[ms].name.find("W_") != std::string::npos) {
+        const std::list<Edge> &listeners =
+            prop.streams[ms].route->get_listeners();
+
+        for (Edge listener : listeners) {
+          auto v_listener = prop.operation_to_vertex[{listener, ms}];
+          max_wl_lateness = std::max(
+              max_wl_lateness,
+              tabu_search_gd.dgm.crit_path.get_dynamic_lateness(ms, listener));
         }
       }
-
-      tabu_search.update_rti(rti_updates, objective);
-      std::cout << dl << ", " << degradation << ", "
-                << tabu_search.dgm.critical_path(objective).objective
-                << std::endl;
-      tabu_search.dgm.print_critical_path(objective);
     }
+    std::cout << max_wl_lateness << std::endl;
   }
 
   std::cout << "\nADAPTIVE\n" << std::endl;
 
   // update rtis of wireless streams
-  for (int degradation = 0; degradation <= degradation_max;
-       degradation += degradation_step) {
-    int degradation_lower[] = {-degradation, 0, degradation};
+  for (int improvement = 0; improvement <= improvement_max;
+       improvement += improvement_step) {
+    int improvement_lower[] = {-improvement, 0, improvement};
+    int dl = improvement;
 
-    for (int dl : degradation_lower) {
-      ShuffleGraphProperty &prop =
-          tabu_search.dgm.shuffle_graph[boost::graph_bundle];
-      std::map<MessageStreamHandle, RTIMap> rti_updates;
+    if (WIRELESS_UL_DMAX + improvement_max - improvement <=
+            WIRELESS_UL_DMIN + improvement_max - dl ||
+        WIRELESS_DL_DMAX + improvement_max - improvement <=
+            WIRELESS_DL_DMIN + improvement_max - dl)
+      continue;
 
-      for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
-        if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
-          rti_updates[ms] = {{Edge(0, ho), RTI(WIRELESS_UL_DMAX + degradation,
-                                               WIRELESS_UL_DMIN + dl)}};
-        } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
-          rti_updates[ms] = {{Edge(ho, 0), RTI(WIRELESS_DL_DMAX + degradation,
-                                               WIRELESS_DL_DMIN + dl)}};
+    ShuffleGraphProperty &prop =
+        tabu_search.dgm.shuffle_graph[boost::graph_bundle];
+    std::map<MessageStreamHandle, RTIMap> rti_updates;
+
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      if (prop.streams[ms].name.find("W_LR") != std::string::npos) {
+        rti_updates[ms] = {
+            {Edge(0, ho), RTI(WIRELESS_UL_DMAX + improvement_max - improvement,
+                              WIRELESS_UL_DMIN + improvement_max - dl)}};
+      } else if (prop.streams[ms].name.find("W_RL") != std::string::npos) {
+        rti_updates[ms] = {
+            {Edge(ho, 0), RTI(WIRELESS_DL_DMAX + improvement_max - improvement,
+                              WIRELESS_DL_DMIN + improvement_max - dl)}};
+      }
+    }
+
+    auto tabu_search_adaptive = tabu_search1;
+    bound = CriticalPath::get_termination_bound(objective);
+    TabuSearchConfig config1{
+        objective,
+        TerminationConfig(2, bound),
+        IntensificationConfig(10, 500),
+        DiversificationConfig(10, 10),
+        CompressionConfig(true, TerminationConfig(8, bound),
+                          IntensificationConfig(10, 250)),
+    };
+
+    tabu_search_adaptive.com.sync();
+    tabu_search_adaptive.reset_timer();
+    tabu_search_adaptive.run<InitialHeuristic, TerminationCriterion,
+                             Intensification, TransformationHeuristic>(
+        config1, rti_updates);
+
+    std::cout << dl << ", " << improvement << ", "
+              << tabu_search_adaptive.dgm.critical_path(objective).objective
+              << std::endl;
+
+    Delay max_wl_lateness = std::numeric_limits<Delay>::min();
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      if (prop.streams[ms].name.find("W_") != std::string::npos) {
+        const std::list<Edge> &listeners =
+            prop.streams[ms].route->get_listeners();
+
+        for (Edge listener : listeners) {
+          auto v_listener = prop.operation_to_vertex[{listener, ms}];
+          max_wl_lateness =
+              std::max(max_wl_lateness,
+                       tabu_search_adaptive.dgm.crit_path.get_dynamic_lateness(
+                           ms, listener));
         }
       }
-
-      auto tabu_search_adaptive = tabu_search1;
-      bound = CriticalPath::get_termination_bound(objective);
-      TabuSearchConfig config1{
-          objective,
-          TerminationConfig(2, bound),
-          IntensificationConfig(10, 500),
-          DiversificationConfig(10, 10),
-          CompressionConfig(true, TerminationConfig(8, bound),
-                            IntensificationConfig(10, 250)),
-      };
-
-      tabu_search_adaptive.com.sync();
-      tabu_search_adaptive.reset_timer();
-      tabu_search_adaptive.run<InitialHeuristic, TerminationCriterion,
-                               Intensification, TransformationHeuristic>(
-          config1, rti_updates);
-
-      std::cout << dl << ", " << degradation << ", "
-                << tabu_search_adaptive.dgm.critical_path(objective).objective
-                << std::endl;
-      tabu_search_adaptive.dgm.print_critical_path(objective);
     }
+    std::cout << max_wl_lateness << std::endl;
   }
 
   return 0;

@@ -32,3 +32,6 @@ target_link_libraries(graceful_degradation_cyclic PUBLIC tsndgm)
 
 add_executable(graceful_degradation_isochronous graceful_degradation_isochronous.cc)
 target_link_libraries(graceful_degradation_isochronous PUBLIC tsndgm)
+
+add_executable(channel_improvement_cyclic channel_improvement_cyclic.cc)
+target_link_libraries(channel_improvement_cyclic PUBLIC tsndgm)

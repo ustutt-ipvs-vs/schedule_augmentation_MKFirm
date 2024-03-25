@@ -38,6 +38,7 @@ public:
   unsigned long total_flips = 0;
   shuffle_graph_t shuffle_graph;
   std::shared_ptr<NetworkTopology> network;
+  CriticalPath crit_path;
   std::list<E> flip_log;
 
   DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
@@ -276,7 +277,6 @@ public:
   }
 
 private:
-  CriticalPath crit_path;
   bool valid_crit_path = false;
 
   /** CommitIndices is used to name the internal usage of commit indices.
