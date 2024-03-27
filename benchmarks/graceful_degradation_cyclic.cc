@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
   if (tabu_search.com.rank != 0)
     std::cout.setstate(std::ios::failbit);
 
-  auto objective = CriticalPath::Objective::weighted_dynamic_lateness;
+  auto objective = CriticalPath::Objective::dynamic_lateness;
   auto bound = CriticalPath::get_termination_bound(objective);
 
   TabuSearchConfig config{
@@ -256,6 +256,9 @@ int main(int argc, char **argv) {
     std::cout << "\noptimum not found; exiting...\n" << std::endl;
     return 0;
   }
+
+  if (streams == 0)
+    return 0;
 
   std::cout << "\nGRACEFUL DEGRADATION\n" << std::endl;
 

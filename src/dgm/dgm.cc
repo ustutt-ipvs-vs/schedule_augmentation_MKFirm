@@ -618,7 +618,8 @@ void DisjunctiveGraphModel::complete_shuffle(
           std::numeric_limits<Delay>::min())
         shuffle_graph[uw].weight = std::numeric_limits<Delay>::min();
       else
-        shuffle_graph[uw].weight += shuffle_graph[vw].weight;
+        shuffle_graph[uw].weight +=
+            shuffle_graph[fifo_to_disjunctive_edge(vw)].weight;
     }
 
     // Updating the incoming disjunctive and FIFO edges is more complex, as we
