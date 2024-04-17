@@ -13,6 +13,11 @@ git submodule update --init --recursive
 ```
 JSPLIB is a collection of JSP benchmarks with known makespan bounds, allowing us to fine-tune TSN-DGM against ``hard'' benchmarking instances. 
 
+## Requirements
+- Boost: used to build our shuffle graphs
+- OpenMPI: used to exchange elite solutions across multiple processes
+- nlohmann_json (optional): used to read JSP benchmark data. If you do not want this dependency, you cannot compile our JSP benchmarks and should disable the *BENCHMARKING* flag during compilation.
+
 ## Example Usage of TSN-DGM
 
 In the following, we build a simple network ring topology with ten TSN bridges B0-B9, where
