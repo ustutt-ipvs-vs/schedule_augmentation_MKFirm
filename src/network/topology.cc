@@ -32,10 +32,15 @@ NetworkTopology::NetworkTopology(
 }
 
 void NetworkTopology::add_device(const NetworkDeviceProperty &device_property) {
-  V device = boost::add_vertex(g);
-  g[device].id = device_property.id;
-  g[device].processing_delay = device_property.processing_delay;
-  g[device].name = device_property.name;
+  auto [begin, end] = boost::vertices(g);
+  if (std::find_if(begin, end, [&](auto v) {
+        return g[v].id == device_property.id;
+      }) == end) {
+    V device = boost::add_vertex(g);
+    g[device].id = device_property.id;
+    g[device].processing_delay = device_property.processing_delay;
+    g[device].name = device_property.name;
+  }
 }
 
 void NetworkTopology::add_device(const NetworkDeviceProperty &device_property,
@@ -48,7 +53,9 @@ void NetworkTopology::add_data_link(const DataLink &data_link) {
   Edge edge = data_link.first;
   V v1 = get_vertex_by_id<true>(edge.first);
   V v2 = get_vertex_by_id<true>(edge.second);
-  boost::add_edge(v1, v2, data_link.second, g);
+  if (!boost::edge(v1, v2, g).second) {
+    boost::add_edge(v1, v2, data_link.second, g);
+  }
 }
 
 void NetworkTopology::add_data_links(const std::vector<DataLink> &data_links) {
@@ -67,6 +74,11 @@ const DataLinkProperty &
 NetworkTopology::get_data_link_property(Edge edge) const {
   E e = get_edge_by_ids(edge);
   return boost::get(boost::edge_bundle, g)[e];
+}
+
+bool NetworkTopology::has_multiple_subcarriers(Edge edge) const {
+  E e = get_edge_by_ids(edge);
+  return boost::get(boost::edge_bundle, g)[e].multiple_subcarriers;
 }
 
 void NetworkTopology::remove_device(const DeviceId &device) {
@@ -154,7 +166,7 @@ template <bool throw_error>
 V NetworkTopology::get_vertex_by_id(DeviceId id) const {
   for (auto vd : boost::make_iterator_range(boost::vertices(g))) {
     if (g[vd].id == id)
-      return id;
+      return vd;
   }
   if (throw_error)
     throw std::runtime_error{"device not found: id " + std::to_string(id)};

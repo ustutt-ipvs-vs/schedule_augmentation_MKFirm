@@ -1,0 +1,120 @@
+#include "selection_storage.h"
+
+namespace tsndgm {
+
+void SelectionStorage::update_candidates(EncodedSelection &&selection) {
+  auto it = std::find_if(
+      encoded_best_selections.begin(), encoded_best_selections.end(),
+      [&](auto &s) { return s.objective >= selection.objective; });
+  if (it == encoded_best_selections.end() &&
+      encoded_best_selections.size() >= max_stored_solutions)
+    return;
+
+  if (selection.objective < best_selection.objective) {
+    best_selection = selection;
+    best_selection.objective = selection.objective;
+    best_found = std::chrono::high_resolution_clock::now();
+  }
+
+  if (it != encoded_best_selections.end() &&
+      it->objective == selection.objective) {
+    *it = std::move(selection);
+  } else {
+    encoded_best_selections.insert(it, std::move(selection));
+  }
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
+}
+
+void SelectionStorage::update_candidates(EncodedSelection &selection) {
+  auto it = std::find_if(
+      encoded_best_selections.begin(), encoded_best_selections.end(),
+      [&](auto &s) { return s.objective >= selection.objective; });
+  if (it == encoded_best_selections.end() &&
+      encoded_best_selections.size() >= max_stored_solutions)
+    return;
+
+  if (selection.objective < best_selection.objective) {
+    best_selection = selection;
+    best_found = std::chrono::high_resolution_clock::now();
+  }
+
+  if (it != encoded_best_selections.end() &&
+      it->objective == selection.objective) {
+    std::swap(selection, *it);
+  } else {
+    encoded_best_selections.insert(it, selection);
+  }
+
+  if (encoded_best_selections.size() > max_stored_solutions)
+    encoded_best_selections.erase(encoded_best_selections.begin() +
+                                      max_stored_solutions,
+                                  encoded_best_selections.end());
+}
+
+void SelectionStorage::delete_candidate(EncodedSelection *res) {
+  std::erase_if(encoded_best_selections,
+                [&](auto &selection) { return &selection == res; });
+}
+
+EncodedSelection &SelectionStorage::sample(double temperature) {
+  double p = 0.5 * (1 + temperature);
+  std::geometric_distribution<size_t> dg(p);
+  return encoded_best_selections[std::min(dg(gen),
+                                          encoded_best_selections.size() - 1)];
+}
+
+size_t SelectionStorage::get_processing_index(EncodedSelection &selection,
+                                              Edge edge,
+                                              MessageStreamHandle ms) {
+  size_t offset = selection.offset_map[edge];
+  assert((edge.first == selection.buf[offset + 1] &&
+          edge.second == selection.buf[offset + 2]));
+
+  for (size_t i = offset + 3; selection.buf[i] != MACHINE_SEPARATOR; i++) {
+    if (selection.buf[i] == ms)
+      return i;
+  }
+
+  throw std::runtime_error("message stream not found");
+}
+
+void SelectionStorage::set_capacity(size_t max_stored_solutions) {
+  this->max_stored_solutions = max_stored_solutions;
+}
+
+void SelectionStorage::renew_storage_objectives(CriticalPath::Objective type) {
+  if (best_selection.objective < encoded_best_selections[0].objective)
+    encoded_best_selections.insert(encoded_best_selections.begin(),
+                                   best_selection);
+
+  for (EncodedSelection &selection : encoded_best_selections) {
+    dgm->decode(selection.buf);
+    auto res = dgm->critical_path(type);
+    selection.objective = res.objective;
+    selection.neighborhood = {};
+    selection.extension_level = 0;
+    if (res.objective <= CriticalPath::get_termination_bound(type)) {
+      std::swap(selection, encoded_best_selections[0]);
+      best_selection = encoded_best_selections[0];
+      best_found = std::chrono::high_resolution_clock::now();
+      return;
+    }
+  }
+  std::sort(encoded_best_selections.begin(), encoded_best_selections.end(),
+            [&](auto &s1, auto &s2) { return s1.objective < s2.objective; });
+  best_selection = encoded_best_selections[0];
+  best_found = std::chrono::high_resolution_clock::now();
+}
+
+EncodedSelection &SelectionStorage::best() {
+  if (best_selection.objective <= encoded_best_selections[0].objective ||
+      size() == 0)
+    return best_selection;
+  return encoded_best_selections[0];
+}
+
+} // namespace tsndgm

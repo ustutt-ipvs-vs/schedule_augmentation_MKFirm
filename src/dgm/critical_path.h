@@ -8,11 +8,14 @@ namespace tsndgm {
 
 class longest_path_visitor : public boost::default_dfs_visitor {
 public:
+  static int total_traversals;
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
   longest_path_visitor(shuffle_graph_t &shuffle_graph)
-      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {}
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {
+    total_traversals++;
+  }
 
   virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     throw std::runtime_error(
@@ -76,8 +79,9 @@ public:
   void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
     assert((shuffle_graph[e].state() == allowed));
 
-    if (shuffle_graph[e].edge_type != disjunctive)
+    if (shuffle_graph[e].edge_type == conjunctive)
       return;
+    e = fifo_to_disjunctive_edge(e, shuffle_graph);
 
     V u = source(e, shuffle_graph), v = target(e, shuffle_graph);
     if (shuffle_graph[u].neighbors_are_valid)
@@ -92,6 +96,25 @@ public:
                 .state() == blocked) {
       updated_machine_successors[u] = v;
     }
+  }
+
+  inline E
+  fifo_to_disjunctive_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
+    if (shuffle_graph[uv].edge_type == disjunctive) {
+      return uv;
+    } else if (shuffle_graph[uv].edge_type == fifo) {
+      V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+      for (const NeighborVertex &JS : shuffle_graph[v].JS) {
+        auto e = boost::edge(u, JS.v, shuffle_graph);
+        if (e.second) {
+          return e.first;
+        }
+      }
+      // this should never happen
+      throw std::runtime_error("shuffle graph is invalid");
+    }
+    throw std::runtime_error("operation not supported for edges of type: " +
+                             std::to_string(shuffle_graph[uv].edge_type));
   }
 
   std::map<V, V> &updated_machine_successors;
@@ -115,12 +138,64 @@ private:
   bool &feasible;
 };
 
+class slack_visitor : public boost::default_dfs_visitor {
+public:
+  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
+  slack_visitor(shuffle_graph_t &shuffle_graph)
+      : prop(boost::get_property(shuffle_graph, boost::graph_bundle)) {
+    longest_path_visitor::total_traversals++;
+  }
+
+  virtual bool back_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    throw std::runtime_error(
+        "Selection is not complete; disjunctive graph is acyclic.");
+  }
+
+  void examine_edge(E e, const shuffle_graph_t &shuffle_graph) const {
+    assert((shuffle_graph[e].state() == allowed));
+  }
+
+  void discover_vertex(V v, const shuffle_graph_t &shuffle_graph) const {
+    if (v == prop.sink || boost::edge(v, prop.sink, shuffle_graph).second)
+      prop.slack[v] = 0;
+    else
+      prop.slack[v] = std::numeric_limits<Delay>::max();
+  }
+
+  void finish_edge(E uv, const shuffle_graph_t &shuffle_graph) const {
+    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+
+    if (shuffle_graph[uv].weight == std::numeric_limits<Delay>::min())
+      return;
+
+    Delay uv_slack =
+        prop.crit_cost[v] - prop.crit_cost[u] - shuffle_graph[uv].weight;
+    if (uv_slack + prop.slack[v] < prop.slack[u])
+      prop.slack[u] = uv_slack + prop.slack[v];
+  }
+
+  ShuffleGraphProperty &prop;
+  bool reversed = false;
+};
+
 class CriticalPath {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
 
-  enum Objective { makespan, tardiness };
+  enum Objective {
+    makespan,
+    fixed_lateness,
+    dynamic_lateness,
+    weighted_fixed_lateness,
+    weighted_dynamic_lateness,
+    fixed_tardiness,
+    dynamic_tardiness,
+    weighted_fixed_tardiness,
+    weighted_dynamic_tardiness
+  };
 
   struct Result {
     Delay objective;
@@ -136,11 +211,38 @@ public:
     return *this;
   }
 
+  static Delay get_termination_bound(Objective type) {
+    switch (type) {
+    case makespan:
+    case fixed_tardiness:
+    case dynamic_tardiness:
+    case weighted_fixed_tardiness:
+    case weighted_dynamic_tardiness:
+      return 0;
+    case fixed_lateness:
+    case dynamic_lateness:
+      return std::numeric_limits<Delay>::min();
+    case weighted_fixed_lateness:
+    case weighted_dynamic_lateness:
+      return -100;
+    default:
+      throw std::logic_error("type does not exist: " + std::to_string(type));
+    }
+  }
+
   void compute_longest_paths(bool reverse = true);
 
   Result path(Objective type);
   Result makespan_path();
-  Result tardiness_path();
+  Result fixed_lateness_path(Delay min = 0);
+  Result weighted_fixed_lateness_path(Delay min = 0);
+  Result dynamic_lateness_path(Delay min = 0);
+  Result weighted_dynamic_lateness_path(Delay min = 0);
+
+  Delay get_fixed_lateness(MessageStreamHandle ms, Edge listener);
+  double get_weighted_fixed_lateness(MessageStreamHandle ms, Edge listener);
+  Delay get_dynamic_lateness(MessageStreamHandle ms, Edge listener);
+  double get_weighted_dynamic_lateness(MessageStreamHandle ms, Edge listener);
 
   void print(Result res, const NetworkTopology &network);
 

@@ -7,24 +7,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 add_executable(topology_test topology.cc)
-target_link_libraries(topology_test network)
+target_link_libraries(topology_test PUBLIC network)
 
 add_executable(route_test route.cc)
-target_link_libraries(route_test network)
+target_link_libraries(route_test PUBLIC network)
 
 add_test(NAME Routes COMMAND route_test)
 
 add_executable(message_stream_test message_stream.cc)
-target_link_libraries(message_stream_test network)
+target_link_libraries(message_stream_test PUBLIC network)
 
 #add_executable(traversal_test traversal.cc)
 #target_link_libraries(traversal_test dgm)
 
 add_executable(dgm_test dgm.cc)
-target_link_libraries(dgm_test dgm GTest::gtest_main)
+target_link_libraries(dgm_test PUBLIC dgm GTest::gtest_main)
 
 add_executable(tabu_search_test tabu_search.cc)
-target_link_libraries(tabu_search_test optimization initial_heuristics GTest::gtest_main)
+target_link_libraries(tabu_search_test PUBLIC tsndgm GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(dgm_test)

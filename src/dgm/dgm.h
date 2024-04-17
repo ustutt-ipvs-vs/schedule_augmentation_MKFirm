@@ -14,15 +14,31 @@ namespace tsndgm {
 #define MACHINE_SEPARATOR static_cast<unsigned int>(-1)
 #define SHUFFLE_SEPARATOR static_cast<unsigned int>(-2)
 
+typedef std::map<Edge, size_t> OffsetMap;
+
+class JitterBoundViolation : public std::exception {
+public:
+  JitterBoundViolation(MessageStreamHandle ms, Edge edge, Delay bound)
+      : ms(ms), edge(edge), bound(bound) {}
+  const char *what() { return "jitter exceeds the allowed bound"; }
+
+  MessageStreamHandle ms;
+  Edge edge;
+  Delay bound;
+};
+
 class DisjunctiveGraphModel {
 public:
   typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+
   typedef std::vector<V> MachineProcessingOrder;
   typedef std::map<Edge, MachineProcessingOrder> ProcessingOrder;
 
   unsigned long total_flips = 0;
   shuffle_graph_t shuffle_graph;
+  std::shared_ptr<NetworkTopology> network;
+  CriticalPath crit_path;
   std::list<E> flip_log;
 
   DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
@@ -46,88 +62,65 @@ public:
   CriticalPath::Result critical_path(CriticalPath::Objective type,
                                      bool reverse = true);
 
-  void update_rti(MessageStreamHandle ms, RTIMap rti_map);
+  void update_rti(std::map<MessageStreamHandle, RTIMap> rti_updates);
 
-  inline void complete_flip(std::list<E> &edges) {
-    for (E e : edges)
-      complete_flip(e);
-  }
-  inline void complete_flip(E e) {
-    if (shuffle_graph[e].state() == blocked)
-      e = rev_edge(e);
-    else if (shuffle_graph[e].edge_type == fifo)
-      e = fifo_to_disjunctive_edge(e);
+  void complete_flip(std::list<E> &edges, bool combined = true);
+  void complete_flip(E e);
 
-    std::set<OrientationState *> flipped_edges;
-    std::set<V> shuffled_operations = {};
-    complete_flip(flipped_edges, shuffled_operations, e);
-  }
-
-  inline void complete_shuffle(const std::list<E> &edges,
-                               bool commit_fallback = true) {
-    if (commit_fallback)
-      internal_commit_all(shuffle_fallback);
-    try {
-      for (E e : edges) {
-        std::set<OrientationState *> flipped_edges;
-        std::set<V> shuffled_operations;
-        complete_shuffle(e, flipped_edges, shuffled_operations);
-      }
-    } catch (UnfixableCycleException &e) {
-      internal_restore_commit(shuffle_fallback, false);
-      throw;
-    }
-    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-    renew_descriptors();
-  }
-
-  /** Notes:
-   *  - recursively shuffles until no more FlipGraphException occurs
-   *  - invalidates flip_log
-   */
-  inline void complete_shuffle(E e, bool commit_fallback = true) {
-    if (commit_fallback)
-      internal_commit_all(shuffle_fallback);
-    std::set<OrientationState *> flipped_edges;
-    std::set<V> shuffled_operations;
-    try {
-      complete_shuffle(e, flipped_edges, shuffled_operations);
-    } catch (UnfixableCycleException &e) {
-      internal_restore_commit(shuffle_fallback, false);
-      throw;
-    }
-    shuffle_graph[boost::graph_bundle].is_zips_selection = false;
-    renew_descriptors();
-  }
+  void complete_shuffle(const std::list<E> &edges, bool commit_fallback = true,
+                        bool fix_cycles = true);
+  void complete_shuffle(E e, bool commit_fallback = true,
+                        bool fix_cycles = true);
   inline void undo_last_shuffle() {
     internal_restore_commit(shuffle_fallback, false);
   }
   void split_all();
 
+  std::pair<Delay, Edge> compute_jitter_bound(MessageStreamHandle ms);
+  Delay compute_jitter(MessageStreamHandle ms, Edge listener);
+  bool apriori_jitter_violation(E uv);
+
   inline void commit_flips() { flip_log.clear(); }
-  inline void restore_flips() { restore_flips(flip_log.size()); }
+  inline void restore_flips() {
+    restore_flips(flip_log.size());
+    // update_machine_successors();
+  }
   void restore_flips(size_t n);
   inline void commit_all(size_t index = 0) {
     internal_commit_all(index + EXTERNAL_COMMIT_OFFSET);
   }
-  void restore_commit(size_t index = 0, bool swap = false) {
+  inline void restore_commit(size_t index = 0, bool swap = false) {
     internal_restore_commit(index + EXTERNAL_COMMIT_OFFSET, swap);
+  }
+  inline void copy_commit(size_t src_index, size_t dst_index) {
+    internal_copy_commit(src_index + EXTERNAL_COMMIT_OFFSET,
+                         dst_index + EXTERNAL_COMMIT_OFFSET);
   }
 
   inline void encode(std::vector<unsigned int> &buf) {
-    encode(buf, shuffle_graph);
+    OffsetMap offset_map;
+    encode(buf, offset_map);
+  }
+  inline void encode(std::vector<unsigned int> &buf, OffsetMap &offset_map) {
+    encode(buf, shuffle_graph, offset_map);
   }
   inline void encode(std::vector<unsigned int> &buf, int index) {
-    encode(buf, committed_shuffle_graphs[index + EXTERNAL_COMMIT_OFFSET]);
+    OffsetMap offset_map;
+    encode(buf, index, offset_map);
+  }
+  inline void encode(std::vector<unsigned int> &buf, int index,
+                     OffsetMap &offset_map) {
+    encode(buf, committed_shuffle_graphs[index + EXTERNAL_COMMIT_OFFSET],
+           offset_map);
   }
   void decode(std::vector<unsigned int> &buf);
 
-  inline void apply_processing_order(
-      const std::map<Edge, std::vector<V>> &processing_order) {
+  inline void apply_processing_order(const ProcessingOrder &processing_order) {
     for (auto &[edge, operations] : processing_order)
       apply_machine_processing_order(operations);
   };
   void apply_machine_processing_order(const MachineProcessingOrder &operations);
+  void update_machine_successors();
   void update_machine_successors(std::map<V, V> updates);
 
   inline MachineProcessingOrder get_processing_order(Edge edge) {
@@ -154,6 +147,82 @@ public:
   inline void print(E e) { tsndgm::print(shuffle_graph, *network, e); }
   inline void print_critical_path(CriticalPath::Objective type) {
     crit_path.print(critical_path(type), *network);
+  }
+  inline void print_fixed_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_fixed_lateness(ms, listener) << std::endl;
+      }
+    }
+  }
+  inline void print_dynamic_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    dgm_traversal(shuffle_graph,
+                  visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+      Edge talker = stream.route->get_talker();
+      V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_talker] << " " << prop.slack[v_talker]
+                  << " " << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_dynamic_lateness(ms, listener) << std::endl;
+      }
+    }
+  }
+  inline void print_weighted_fixed_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_weighted_fixed_lateness(ms, listener)
+                  << std::endl;
+      }
+    }
+  }
+  inline void print_weighted_dynamic_lateness() {
+    ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+    dgm_traversal(shuffle_graph,
+                  visitor(slack_visitor(shuffle_graph)).root_vertex(prop.src));
+    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
+      auto &stream = prop.streams[ms];
+      const std::list<Edge> &listeners = stream.route->get_listeners();
+      Edge talker = stream.route->get_talker();
+      V v_talker = prop.operation_to_vertex[{talker, ms}];
+
+      // compute tardiness of stream's end-to-end latency
+      for (Edge listener : listeners) {
+        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        std::cout << ms << ", (" << listener.first << ", " << listener.second
+                  << "): " << stream.phase << " " << stream.e2e_latency << " "
+                  << prop.crit_cost[v_talker] << " " << prop.slack[v_talker]
+                  << " " << prop.crit_cost[v_listener] << " "
+                  << crit_path.get_weighted_dynamic_lateness(ms, listener)
+                  << std::endl;
+      }
+    }
   }
 
   inline E edge(V u, V v) {
@@ -208,9 +277,6 @@ public:
   }
 
 private:
-  std::shared_ptr<NetworkTopology> network;
-
-  CriticalPath crit_path;
   bool valid_crit_path = false;
 
   /** CommitIndices is used to name the internal usage of commit indices.
@@ -224,11 +290,14 @@ private:
   void build();
   void build_stream(MessageStreamHandle handle);
   void resize_properties();
+  void update_rti(MessageStreamHandle ms, RTIMap rti_map);
 
   void internal_commit_all(size_t index);
   void internal_restore_commit(size_t index, bool swap);
+  void internal_copy_commit(size_t src_index, size_t dst_index);
 
-  void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g);
+  void encode(std::vector<unsigned int> &buf, shuffle_graph_t &g,
+              OffsetMap &offset_map);
 
   // If !uv.has_value(), complete_flip eliminates cycles with
   // at least one edge in flipped_edges
@@ -236,7 +305,8 @@ private:
                      const std::set<V> &shuffled_operations,
                      std::optional<E> uv);
   void complete_shuffle(E e, std::set<OrientationState *> &flipped_edges,
-                        std::set<V> &shuffled_operations);
+                        std::set<V> &shuffled_operations,
+                        bool fix_cycles = true);
 
   void remove_fifo_edges(V u, V v);
   void renew_descriptors();

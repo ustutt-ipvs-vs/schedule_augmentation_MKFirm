@@ -22,7 +22,16 @@ endif()
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 add_executable(jsp jsp.cc)
-target_link_libraries(jsp initial_heuristics optimization)
+target_link_libraries(jsp PUBLIC tsndgm)
 
-add_executable(converter converter.cc)
-target_link_libraries(converter initial_heuristics optimization)
+add_executable(baseline_scheduling baseline_scheduling.cc)
+target_link_libraries(baseline_scheduling PUBLIC tsndgm)
+
+add_executable(graceful_degradation_cyclic graceful_degradation_cyclic.cc)
+target_link_libraries(graceful_degradation_cyclic PUBLIC tsndgm)
+
+add_executable(graceful_degradation_isochronous graceful_degradation_isochronous.cc)
+target_link_libraries(graceful_degradation_isochronous PUBLIC tsndgm)
+
+add_executable(channel_improvement_cyclic channel_improvement_cyclic.cc)
+target_link_libraries(channel_improvement_cyclic PUBLIC tsndgm)

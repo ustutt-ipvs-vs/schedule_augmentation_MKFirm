@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "../src/heuristics/initial.h"
+#include "../src/heuristics/transformation.h"
 #include "../src/optimization/neighborhood.h"
 #include "../src/optimization/tabu_search.h"
 #include "../src/optimization/termination.h"
@@ -45,7 +46,7 @@ void print(DisjunctiveGraphModel &dgm,
 }
 
 void save(DisjunctiveGraphModel &dgm, std::map<int, Edge> &machine_to_datalink,
-          std::string subdir, std::string name) {
+          std::string subdir, std::string name, bool prompt = false) {
   fs::create_directories("../data/solutions/" + subdir);
 
   auto file = fs::path("../data/solutions/" + subdir + "/" + name + ".sol");
@@ -56,8 +57,19 @@ void save(DisjunctiveGraphModel &dgm, std::map<int, Edge> &machine_to_datalink,
     f.close();
 
     if (objective <
-        dgm.critical_path(CriticalPath::Objective::makespan).objective)
-      return;
+        dgm.critical_path(CriticalPath::Objective::makespan).objective) {
+      if (!prompt)
+        return;
+      std::string input = "";
+      do {
+        if (input != "")
+          std::cout << "invalid input" << std::endl;
+        std::cout << "save instance? [y,n]" << std::endl;
+        std::cin >> input;
+      } while (input != "y" && input != "n");
+      if (input == "n")
+        return;
+    }
   }
 
   ofstream f("../data/solutions/" + subdir + "/" + name + ".sol");
@@ -208,9 +220,8 @@ public:
     Edge edge = machine_to_datalink[operations[i][j]];
     rti_map[edge] = RTI(operations[i][j + 1], operations[i][j + 1]);
     path.push_back(edge);
-    auto device =
-        NetworkDeviceProperty((2 + i) * machines + j / 2, 0,
-                              "D" + std::to_string(i) + std::to_string(j / 2));
+    auto device = NetworkDeviceProperty(
+        unique_id, 0, "D" + std::to_string(i) + std::to_string(j / 2));
     network->add_device(device);
     edge = Edge(edge.second, device.id);
     network->add_data_link(
@@ -303,9 +314,9 @@ public:
 
   void parse_rti(std::string &rti, PathRoute &path, RTIMap &rti_map) {
     DeviceId d1 = std::stoi(rti.substr(1, rti.find(",")));
-    network->add_device(NetworkDeviceProperty(d1));
+    network->add_device(NetworkDeviceProperty(d1, 0, std::to_string(d1)));
     DeviceId d2 = std::stoi(rti.substr(rti.find(",") + 1, rti.find(")")));
-    network->add_device(NetworkDeviceProperty(d2));
+    network->add_device(NetworkDeviceProperty(d2, 0, std::to_string(d2)));
     Edge edge = Edge(d1, d2);
     path.push_back(edge);
     // to provide a similar output as JSP

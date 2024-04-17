@@ -9,9 +9,26 @@ namespace tsndgm {
 CriticalPath::Result
 DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
                                      bool reverse) {
-  if (!valid_crit_path || !reverse)
+  if (!reverse)
     crit_path.compute_longest_paths(reverse);
+  else if (!valid_crit_path)
+    update_machine_successors();
+
   return crit_path.path(type);
+}
+
+void DisjunctiveGraphModel::update_rti(
+    std::map<MessageStreamHandle, RTIMap> rti_updates) {
+  if (rti_updates.empty())
+    return;
+
+  internal_restore_commit(initial, false);
+
+  for (auto &[ms, rti_map] : rti_updates)
+    update_rti(ms, rti_map);
+
+  committed_shuffle_graphs.clear();
+  internal_commit_all(initial);
 }
 
 void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
@@ -72,9 +89,10 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
           shuffle_graph[vw].weight += delta_new - delta_old;
         }
       } else {
-        shuffle_graph[vw].weight +=
-            rti_map[edge].d_trans_max() -
-            prop.streams[ms].rti_map[edge].d_trans_max();
+        if (shuffle_graph[vw].weight != std::numeric_limits<Delay>::min())
+          shuffle_graph[vw].weight +=
+              rti_map[edge].d_trans_max() -
+              prop.streams[ms].rti_map[edge].d_trans_max();
       }
     }
   }
@@ -83,7 +101,8 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   for (auto &[edge, rti] : rti_map) {
     V v = prop.operation_to_vertex[{edge, ms}];
     for (E uv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
-      if (shuffle_graph[uv].edge_type == fifo) {
+      if (shuffle_graph[uv].edge_type == fifo &&
+          shuffle_graph[uv].weight != std::numeric_limits<Delay>::min()) {
         Delay d_min_old = std::accumulate(
             shuffle_graph[v].ms_handle.begin(),
             shuffle_graph[v].ms_handle.end(), std::numeric_limits<Delay>::max(),
@@ -106,6 +125,7 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   for (auto &[edge, rti] : rti_map) {
     prop.streams[ms].rti_map[edge] = rti_map[edge];
   }
+  prop.streams[ms].initialize();
 }
 
 void DisjunctiveGraphModel::internal_commit_all(size_t index) {
@@ -132,8 +152,29 @@ void DisjunctiveGraphModel::internal_commit_all(size_t index) {
   }
 }
 
+void DisjunctiveGraphModel::internal_copy_commit(size_t src_index,
+                                                 size_t dst_index) {
+  for (size_t i = committed_shuffle_graphs.size(); i <= dst_index; i++)
+    committed_shuffle_graphs.push_back(shuffle_graph_t());
+
+  committed_shuffle_graphs[dst_index].clear();
+  boost::copy_graph(committed_shuffle_graphs[src_index],
+                    committed_shuffle_graphs[dst_index]);
+  committed_shuffle_graphs[dst_index][boost::graph_bundle] =
+      committed_shuffle_graphs[src_index][boost::graph_bundle];
+
+  for (E e : boost::make_iterator_range(boost::edges(shuffle_graph))) {
+    if (shuffle_graph[e].edge_type == disjunctive) {
+      shuffle_graph[e].state_pair->copy_commit(src_index, dst_index);
+    }
+  }
+}
+
 void DisjunctiveGraphModel::restore_flips(size_t n) {
-  for (; n > 0; n--, flip_log.pop_front()) {
+  if (n == 0)
+    return;
+
+  for (int k = n; k > 0; k--, flip_log.pop_front()) {
     E uv = rev_edge(flip_log.front());
     shuffle_graph[uv].consistent_flip(shuffle_graph);
   }
@@ -143,6 +184,9 @@ void DisjunctiveGraphModel::restore_flips(size_t n) {
 
 void DisjunctiveGraphModel::internal_restore_commit(size_t index, bool swap) {
   flip_log.clear();
+
+  if (index > committed_shuffle_graphs.size())
+    throw std::runtime_error("commit does not exist");
 
   if (boost::num_vertices(committed_shuffle_graphs[index]) > 0) {
     shuffle_graph.clear();
@@ -162,6 +206,22 @@ void DisjunctiveGraphModel::internal_restore_commit(size_t index, bool swap) {
   }
   valid_crit_path = false;
   renew_descriptors();
+  update_machine_successors();
+}
+
+void DisjunctiveGraphModel::update_machine_successors() {
+  if (valid_crit_path)
+    return;
+
+  // ensure that processing_order is computed correctly
+  std::map<V, V> updates;
+  reversed_dgm_traversal(
+      shuffle_graph,
+      visitor(update_machine_successors_visitor(shuffle_graph, updates))
+          .root_vertex(shuffle_graph[boost::graph_bundle].sink));
+  update_machine_successors(updates);
+
+  valid_crit_path = true;
 }
 
 void DisjunctiveGraphModel::update_machine_successors(std::map<V, V> updates) {
@@ -210,6 +270,54 @@ DisjunctiveGraphModel::get_processing_order(shuffle_graph_t &g, V v) {
   }
 
   return processing_order;
+}
+
+void DisjunctiveGraphModel::complete_flip(std::list<E> &edges, bool combined) {
+  if (!combined) {
+    for (E e : edges)
+      complete_flip(e);
+  } else {
+    for (E &e : edges) {
+      if (shuffle_graph[e].state() == blocked)
+        e = rev_edge(e);
+      else if (shuffle_graph[e].edge_type == fifo)
+        e = fifo_to_disjunctive_edge(e);
+    }
+
+    std::set<OrientationState *> flipped_edges;
+    std::set<V> shuffled_operations = {};
+    size_t initial_flip_log_size = flip_log.size();
+    for (E e : edges) {
+      assert((shuffle_graph[e].edge_type != conjunctive));
+      shuffle_graph[e].consistent_flip(shuffle_graph);
+      flipped_edges.insert(shuffle_graph[e].state_pair->state.get());
+      flip_log.push_front(e);
+    }
+    try {
+      complete_flip(flipped_edges, shuffled_operations, {});
+    } catch (FlipGraphException &e) {
+      // restore initial state
+      restore_flips(flip_log.size() - initial_flip_log_size);
+      update_machine_successors();
+      throw;
+    }
+  }
+}
+
+void DisjunctiveGraphModel::complete_flip(E e) {
+  if (shuffle_graph[e].state() == blocked)
+    e = rev_edge(e);
+  else if (shuffle_graph[e].edge_type == fifo)
+    e = fifo_to_disjunctive_edge(e);
+
+  std::set<OrientationState *> flipped_edges;
+  std::set<V> shuffled_operations = {};
+  try {
+    complete_flip(flipped_edges, shuffled_operations, e);
+  } catch (FlipGraphException &e) {
+    update_machine_successors();
+    throw;
+  }
 }
 
 void DisjunctiveGraphModel::complete_flip(
@@ -268,10 +376,6 @@ void DisjunctiveGraphModel::complete_flip(
   } catch (FlipGraphException &e) {
     // restore initial state
     restore_flips(flip_log.size() - initial_flip_log_size);
-
-    // critical_path is currently invalid and needs to be recomputed
-    valid_crit_path = false;
-
     throw;
   }
 
@@ -283,10 +387,48 @@ void DisjunctiveGraphModel::complete_flip(
   valid_crit_path = true;
 }
 
+void DisjunctiveGraphModel::complete_shuffle(const std::list<E> &edges,
+                                             bool commit_fallback,
+                                             bool fix_cycles) {
+  if (commit_fallback)
+    internal_commit_all(shuffle_fallback);
+  try {
+    for (E e : edges) {
+      std::set<OrientationState *> flipped_edges;
+      std::set<V> shuffled_operations;
+      complete_shuffle(e, flipped_edges, shuffled_operations, fix_cycles);
+    }
+  } catch (std::exception &e) {
+    internal_restore_commit(shuffle_fallback, false);
+    throw;
+  }
+  shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+  if (fix_cycles)
+    renew_descriptors();
+}
+
+void DisjunctiveGraphModel::complete_shuffle(E e, bool commit_fallback,
+                                             bool fix_cycles) {
+  if (commit_fallback)
+    internal_commit_all(shuffle_fallback);
+  std::set<OrientationState *> flipped_edges;
+  std::set<V> shuffled_operations;
+  try {
+    complete_shuffle(e, flipped_edges, shuffled_operations, fix_cycles);
+  } catch (std::exception &e) {
+    internal_restore_commit(shuffle_fallback, false);
+    throw;
+  }
+  shuffle_graph[boost::graph_bundle].is_zips_selection = false;
+  if (fix_cycles)
+    renew_descriptors();
+}
+
 void DisjunctiveGraphModel::complete_shuffle(
     E uv, std::set<OrientationState *> &flipped_edges,
-    std::set<V> &shuffled_operations) {
+    std::set<V> &shuffled_operations, bool fix_cycles) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
   if (shuffle_graph[uv].state() == blocked)
     uv = rev_edge(uv);
   else if (shuffle_graph[uv].edge_type == fifo)
@@ -336,6 +478,7 @@ void DisjunctiveGraphModel::complete_shuffle(
   }
 
   // Remove FIFO edges induced by (u,v) and shuffle the operations
+  std::set<MessageStreamHandle> affected_streams;
   for (auto &[u, v] : shuffle_graph[uv].state_pair->equivalence_class) {
     if (shuffle_graph[u].edge != shuffle_graph[v].edge) {
       std::erase_if(shuffle_graph[v].FP, [&](const auto &item) {
@@ -351,6 +494,9 @@ void DisjunctiveGraphModel::complete_shuffle(
     }
     shuffle_graph[u].shuffle(shuffle_graph, shuffle_graph[v]);
     shuffled_operations.insert(u);
+    for (MessageStreamHandle ms_handle : shuffle_graph[u].ms_handle) {
+      affected_streams.insert(ms_handle);
+    }
   }
 
   for (auto &[u, v] : shuffle_graph[uv].state_pair->equivalence_class) {
@@ -390,29 +536,42 @@ void DisjunctiveGraphModel::complete_shuffle(
         shuffle_graph[u].JS.push_back({w, uw.e});
         shuffle_graph[w].JP.push_back({u, uw.e});
       }
+    }
 
-      shuffle_graph[uw.e].weight = 0;
-      std::pair<Delay, Delay> max_delay = {0, 0};
-      for (auto &handle : shuffle_graph[u].ms_handle) {
-        if (std::find(shuffle_graph[uw.v].ms_handle.begin(),
-                      shuffle_graph[uw.v].ms_handle.end(),
-                      handle) != shuffle_graph[uw.v].ms_handle.end()) {
-          std::pair<Delay, Delay> delay = {
-              prop.streams[handle].rti_map[edge].d_max(),
-              std::max(prop.streams[handle].rti_map[edge].d_trans_max() -
-                           prop.streams[handle].rti_map[n_edge].d_trans_min(),
-                       (Delay)0)};
-          if (delay.first > max_delay.first)
-            max_delay = delay;
-          // (edge, handle) is shuffled with w
-          shuffle_graph[uw.e].weight += delay.second;
-        } else {
-          // (edge, handle) is not shuffled with w
-          shuffle_graph[uw.e].weight +=
-              prop.streams[handle].rti_map[edge].d_trans_max();
+    for (auto &[w, uw] : conjunctive_out_edges(u, shuffle_graph)) {
+      Edge edge = shuffle_graph[u].edge;
+      Edge n_edge = shuffle_graph[w].edge;
+      shuffle_graph[uw].weight = 0;
+      if (network->has_multiple_subcarriers(edge)) {
+        for (auto &handle : shuffle_graph[u].ms_handle) {
+          shuffle_graph[uw].weight =
+              std::max(shuffle_graph[uw].weight,
+                       prop.streams[handle].rti_map[edge].d_max());
         }
+      } else {
+        std::pair<Delay, Delay> max_delay = {0, 0};
+        for (auto &handle : shuffle_graph[u].ms_handle) {
+          if (std::find(shuffle_graph[w].ms_handle.begin(),
+                        shuffle_graph[w].ms_handle.end(),
+                        handle) != shuffle_graph[w].ms_handle.end() &&
+              !network->has_multiple_subcarriers(n_edge)) {
+            std::pair<Delay, Delay> delay = {
+                prop.streams[handle].rti_map[edge].d_max(),
+                std::max(prop.streams[handle].rti_map[edge].d_trans_max() -
+                             prop.streams[handle].rti_map[n_edge].d_trans_min(),
+                         (Delay)0)};
+            if (delay.first > max_delay.first)
+              max_delay = delay;
+            // (edge, handle) is shuffled with w
+            shuffle_graph[uw].weight += delay.second;
+          } else {
+            // (edge, handle) is not shuffled with w
+            shuffle_graph[uw].weight +=
+                prop.streams[handle].rti_map[edge].d_trans_max();
+          }
+        }
+        shuffle_graph[uw].weight += max_delay.first - max_delay.second;
       }
-      shuffle_graph[uw.e].weight += max_delay.first - max_delay.second;
     }
 
     // Analogously, we need to update the *first* conjunctive edges that are
@@ -455,20 +614,71 @@ void DisjunctiveGraphModel::complete_shuffle(
           shuffle_graph[vw].relates_to(shuffle_graph[rev_edge(uw)]))
         continue;
 
-      shuffle_graph[uw].weight += shuffle_graph[vw].weight;
-      if (shuffle_graph[vw].edge_type == fifo)
+      if (std::min(shuffle_graph[uw].weight, shuffle_graph[vw].weight) ==
+          std::numeric_limits<Delay>::min())
+        shuffle_graph[uw].weight = std::numeric_limits<Delay>::min();
+      else
+        shuffle_graph[uw].weight +=
+            shuffle_graph[fifo_to_disjunctive_edge(vw)].weight;
+    }
+
+    // Updating the incoming disjunctive and FIFO edges is more complex, as we
+    // need to update the machine successors/predecessors here as well.
+    for (E wv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
+      V w = source(wv, shuffle_graph);
+      if (shuffle_graph[uv].relates_to(shuffle_graph[wv]) ||
+          shuffle_graph[wv].edge_type != fifo)
         continue;
+
+      // FIFO edge w -> u does not necessarily exist. Thus, add this edge if
+      // needed and adjust the weights accordingly.
+      auto wu = boost::edge(w, u, shuffle_graph);
+      if (!wu.second) {
+        wu = boost::add_edge(w, u, shuffle_graph[wv], shuffle_graph);
+        shuffle_graph[wu.first].state_pair->add_edge(wu.first, shuffle_graph);
+      } else {
+        shuffle_graph[wu.first].weight =
+            std::min(shuffle_graph[wu.first].weight, shuffle_graph[wv].weight);
+      }
+
+      // Update FS[w] and FP[u]
+      auto u_JS = std::find_if(shuffle_graph[u].JS.begin(),
+                               shuffle_graph[u].JS.end(), [&](auto &nv) {
+                                 return nv.v == w || shuffle_graph[nv.v].edge ==
+                                                         shuffle_graph[w].edge;
+                               });
+      if (shuffle_graph[w].FS.remove_if(
+              [v](NeighborVertex &nv) { return nv.v == v; }) > 0) {
+        assert((u_JS != shuffle_graph[u].JS.end() && w != prop.sink));
+
+        shuffle_graph[w].FS.push_back({u, wu.first});
+        shuffle_graph[u].FP[(*u_JS).v] = {w, wu.first};
+      }
+    }
+  }
+
+  for (auto &[u, v] : shuffle_graph[uv].state_pair->equivalence_class) {
+    for (E vw :
+         boost::make_iterator_range(boost::out_edges(v, shuffle_graph))) {
+      V w = target(vw, shuffle_graph);
+      if (w == u || shuffle_graph[vw].edge_type != disjunctive)
+        continue;
+
+      auto [uw, exists] = boost::edge(u, w, shuffle_graph);
+      if (!exists || shuffle_graph[vw].relates_to(shuffle_graph[uw]) ||
+          shuffle_graph[vw].relates_to(shuffle_graph[rev_edge(uw)]))
+        continue;
+
+      // replace vw (which will be invalid after merging) with uw in
+      // flipped_edges (if vw is contained in flipped_edges)
+      if (flipped_edges.erase(shuffle_graph[vw].state_pair->state.get()) > 0)
+        flipped_edges.insert(shuffle_graph[uw].state_pair->state.get());
 
       if (shuffle_graph[vw].state() != shuffle_graph[uw].state()) {
         if (shuffle_graph[uw].state() == blocked)
           shuffle_graph[rev_edge(uw)].consistent_flip(shuffle_graph);
         else
           shuffle_graph[rev_edge(vw)].consistent_flip(shuffle_graph);
-
-        // replace vw (which will be invalid after merging) with uw in
-        // flipped_edges (if vw is contained in flipped_edges)
-        if (flipped_edges.erase(shuffle_graph[vw].state_pair->state.get()) > 0)
-          flipped_edges.insert(shuffle_graph[uw].state_pair->state.get());
 
         // remove vw from flipped_edges (if exists) and add uw either way
         flipped_edges.erase(shuffle_graph[vw].state_pair->reversed_state.get());
@@ -479,58 +689,27 @@ void DisjunctiveGraphModel::complete_shuffle(
       shuffle_graph[vw].merge_equivalence_classes(uw, shuffle_graph, prop);
     }
 
-    // Updating the incoming disjunctive and FIFO edges is more complex, as we
-    // need to update the machine successors/predecessors here as well.
     for (E wv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
       V w = source(wv, shuffle_graph);
       if (shuffle_graph[uv].relates_to(shuffle_graph[wv]) ||
-          shuffle_graph[wv].edge_type == conjunctive)
+          shuffle_graph[wv].edge_type != disjunctive)
         continue;
 
-      if (shuffle_graph[wv].edge_type == disjunctive) {
-        // Merge equivalence classes and update machine successor from v to u
-        auto [wu, exists] = boost::edge(w, u, shuffle_graph);
-        if (!exists || shuffle_graph[wv].relates_to(shuffle_graph[wu]) ||
-            shuffle_graph[wv].relates_to(shuffle_graph[rev_edge(wu)]))
-          continue;
+      auto [wu, exists] = boost::edge(w, u, shuffle_graph);
+      if (!exists || shuffle_graph[wv].relates_to(shuffle_graph[wu]) ||
+          shuffle_graph[wv].relates_to(shuffle_graph[rev_edge(wu)]))
+        continue;
 
-        // replace wv (which will be invalid after merging) with wu in
-        // flipped_edges (if wv is contained in flipped_edges)
-        if (flipped_edges.erase(shuffle_graph[wv].state_pair->state.get()) > 0)
-          flipped_edges.insert(shuffle_graph[wu].state_pair->state.get());
-        if (flipped_edges.erase(
-                shuffle_graph[wv].state_pair->reversed_state.get()) > 0)
-          flipped_edges.insert(
-              shuffle_graph[wu].state_pair->reversed_state.get());
+      // replace wv (which will be invalid after merging) with wu in
+      // flipped_edges (if wv is contained in flipped_edges)
+      if (flipped_edges.erase(shuffle_graph[wv].state_pair->state.get()) > 0)
+        flipped_edges.insert(shuffle_graph[wu].state_pair->state.get());
+      if (flipped_edges.erase(
+              shuffle_graph[wv].state_pair->reversed_state.get()) > 0)
+        flipped_edges.insert(
+            shuffle_graph[wu].state_pair->reversed_state.get());
 
-        shuffle_graph[wv].merge_equivalence_classes(wu, shuffle_graph, prop);
-      } else {
-        // FIFO edge w -> u does not necessarily exist. Thus, add this edge if
-        // needed and adjust the weights accordingly.
-        auto wu = boost::edge(w, u, shuffle_graph);
-        if (!wu.second) {
-          wu = boost::add_edge(w, u, shuffle_graph[wv], shuffle_graph);
-          shuffle_graph[wu.first].state_pair->add_edge(wu.first, shuffle_graph);
-        } else {
-          shuffle_graph[wu.first].weight = std::min(
-              shuffle_graph[wu.first].weight, shuffle_graph[wv].weight);
-        }
-
-        // Update FS[w] and FP[u]
-        auto u_JS =
-            std::find_if(shuffle_graph[u].JS.begin(), shuffle_graph[u].JS.end(),
-                         [&](auto &nv) {
-                           return nv.v == w || shuffle_graph[nv.v].edge ==
-                                                   shuffle_graph[w].edge;
-                         });
-        if (shuffle_graph[w].FS.remove_if(
-                [v](NeighborVertex &nv) { return nv.v == v; }) > 0) {
-          assert((u_JS != shuffle_graph[u].JS.end() && w != prop.sink));
-
-          shuffle_graph[w].FS.push_back({u, wu.first});
-          shuffle_graph[u].FP[(*u_JS).v] = {w, wu.first};
-        }
-      }
+      shuffle_graph[wv].merge_equivalence_classes(wu, shuffle_graph, prop);
     }
   }
 
@@ -564,6 +743,14 @@ void DisjunctiveGraphModel::complete_shuffle(
     }
   }
 
+  // check jitter bounds
+  for (auto ms : affected_streams) {
+    auto max_jitter = compute_jitter_bound(ms);
+    if (max_jitter.first > prop.streams[ms].jitter)
+      throw JitterBoundViolation(ms, max_jitter.second,
+                                 prop.streams[ms].jitter);
+  }
+
   // remove deleted edges from equivalence classes
   for (E e : boost::make_iterator_range(boost::edges(shuffle_graph))) {
     std::erase_if(shuffle_graph[e].state_pair->equivalence_class, [&](auto uv) {
@@ -572,18 +759,22 @@ void DisjunctiveGraphModel::complete_shuffle(
     });
   }
 
-  bool complete = false;
-  while (!complete) {
-    try {
-      // complete_flip should not modify flipped_edges here
-      auto flipped_edges_copy = flipped_edges;
-      complete_flip(flipped_edges_copy, shuffled_operations, {});
-      complete = true;
-    } catch (FlipGraphException &e) {
-      complete_shuffle(edge(e.required_shuffle), flipped_edges,
-                       shuffled_operations);
+  if (fix_cycles) {
+    bool complete = false;
+    while (!complete) {
+      try {
+        // complete_flip should not modify flipped_edges here
+        auto flipped_edges_copy = flipped_edges;
+        complete_flip(flipped_edges_copy, shuffled_operations, {});
+        complete = true;
+      } catch (FlipGraphException &e) {
+        // update_machine_successors();
+        complete_shuffle(edge(e.required_shuffle), flipped_edges,
+                         shuffled_operations);
+      }
     }
   }
+
   flip_log.clear();
 }
 
@@ -620,6 +811,71 @@ void DisjunctiveGraphModel::split_all() {
   apply_processing_order(processing_order);
 }
 
+std::pair<Delay, Edge>
+DisjunctiveGraphModel::compute_jitter_bound(MessageStreamHandle ms) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+
+  Delay max_jitter = 0;
+  Edge edge;
+  for (auto &listener : prop.streams[ms].route->get_listeners()) {
+    Delay jitter = compute_jitter(ms, listener);
+    if (jitter > max_jitter) {
+      edge = listener;
+      max_jitter = jitter;
+    }
+  }
+
+  return {max_jitter, edge};
+}
+
+Delay DisjunctiveGraphModel::compute_jitter(MessageStreamHandle ms,
+                                            Edge listener) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  V v_listener = prop.operation_to_vertex[{listener, ms}];
+
+  // at worst (best), ms is transmitted last (first).
+  Delay jitter =
+      std::accumulate(shuffle_graph[v_listener].ms_handle.begin(),
+                      shuffle_graph[v_listener].ms_handle.end(), (Delay)0,
+                      [&](Delay dmax, auto ms1) {
+                        return dmax +
+                               prop.streams[ms1].rti_map[listener].d_max();
+                      }) -
+      prop.streams[ms].rti_map[listener].d_min();
+  return jitter;
+}
+
+bool DisjunctiveGraphModel::apriori_jitter_violation(E e) {
+  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  for (auto [u, v] : shuffle_graph[e].state_pair->equivalence_class) {
+    E uv = edge(u, v);
+    if (shuffle_graph[uv].edge_type == fifo)
+      continue;
+
+    for (auto u_ms : shuffle_graph[u].ms_handle) {
+      for (auto &u_ms_listener : prop.streams[u_ms].route->get_listeners()) {
+        Delay u_jitter = compute_jitter(u_ms, u_ms_listener);
+        for (auto v_ms : shuffle_graph[v].ms_handle) {
+          for (auto &v_ms_listener :
+               prop.streams[v_ms].route->get_listeners()) {
+            if (u_ms_listener != v_ms_listener)
+              continue;
+            Delay v_jitter = compute_jitter(v_ms, v_ms_listener);
+            if (u_jitter + v_jitter +
+                        prop.streams[v_ms].rti_map[v_ms_listener].d_min() >
+                    prop.streams[u_ms].jitter ||
+                u_jitter + v_jitter +
+                        prop.streams[u_ms].rti_map[u_ms_listener].d_min() >
+                    prop.streams[v_ms].jitter)
+              return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 void DisjunctiveGraphModel::remove_fifo_edges(V u, V v) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
@@ -637,6 +893,11 @@ void DisjunctiveGraphModel::remove_fifo_edges(V u, V v) {
 
 void DisjunctiveGraphModel::build() {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  std::ranges::sort(prop.streams,
+                    [&](const MessageStream &s1, const MessageStream &s2) {
+                      return s1.phase < s2.phase;
+                    });
+
   for (MessageStreamHandle i = 0; i < prop.streams.size(); i++)
     build_stream(i);
   resize_properties();
@@ -649,6 +910,7 @@ void DisjunctiveGraphModel::resize_properties() {
   prop.crit_cost.resize(boost::num_vertices(shuffle_graph));
   prop.crit_pred.resize(boost::num_vertices(shuffle_graph));
   prop.cycle_pred.resize(boost::num_vertices(shuffle_graph));
+  prop.slack.resize(boost::num_vertices(shuffle_graph));
 }
 
 void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
@@ -667,7 +929,6 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
                  CONJUNCTIVE_STATE, conjunctive},
                 shuffle_graph)
                 .first;
-      shuffle_graph[v].root = shuffle_graph[v_parent].root;
       shuffle_graph[v].JP = {{v_parent, e}};
       shuffle_graph[v_parent].JS.push_back({v, e});
     } else {
@@ -676,7 +937,6 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
                 {prop.streams[handle].phase, CONJUNCTIVE_STATE, conjunctive},
                 shuffle_graph)
                 .first;
-      shuffle_graph[v].root = {v};
       shuffle_graph[v].JP = {{prop.src, e}};
       shuffle_graph[prop.src].JS.push_back({v, e});
     }
@@ -728,50 +988,53 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
 
         V v_parent, u_parent;
         E fvu, fuv;
-        // add FIFO edges v -> u
+        // add FIFO edges u -> v
         if (!hop.parent->is_root()) {
+          Delay weight =
+              network->has_multiple_subcarriers(hop.edge)
+                  ? std::numeric_limits<Delay>::min()
+                  : prop.streams[other].rti_map[hop.edge].d_trans_max() -
+                        prop.streams[handle]
+                            .rti_map[v_hop_parent->edge]
+                            .d_min();
           v_parent = prop.operation_to_vertex[{v_hop_parent->edge, handle}];
-          fuv =
-              boost::add_edge(
-                  u, v_parent,
-                  {prop.streams[other].rti_map[hop.edge].d_trans_max() -
-                       prop.streams[handle].rti_map[v_hop_parent->edge].d_min(),
-                   states.second, fifo},
-                  shuffle_graph)
-                  .first;
+          fuv = boost::add_edge(u, v_parent, {weight, states.second, fifo},
+                                shuffle_graph)
+                    .first;
           shuffle_graph[fuv].state_pair->add_edge(fuv, shuffle_graph);
         }
 
-        // add FIFO edges u -> v
+        // add FIFO edges v -> u
         if (!u_hop_parent->is_root()) {
+          Delay weight =
+              network->has_multiple_subcarriers(hop.edge)
+                  ? std::numeric_limits<Delay>::min()
+                  : prop.streams[handle].rti_map[hop.edge].d_trans_max() -
+                        prop.streams[other].rti_map[u_hop_parent->edge].d_min();
           u_parent = prop.operation_to_vertex[{u_hop_parent->edge, other}];
-          fvu =
-              boost::add_edge(
-                  v, u_parent,
-                  {prop.streams[handle].rti_map[hop.edge].d_trans_max() -
-                       prop.streams[other].rti_map[u_hop_parent->edge].d_min(),
-                   states.first, fifo},
-                  shuffle_graph)
-                  .first;
+          fvu = boost::add_edge(v, u_parent, {weight, states.first, fifo},
+                                shuffle_graph)
+                    .first;
           shuffle_graph[fvu].state_pair->add_edge(fvu, shuffle_graph);
         }
 
         // add disjunctive edge v -> u
-        E vu = boost::add_edge(
-                   v, u,
-                   {prop.streams[handle].rti_map[hop.edge].d_trans_max(),
-                    states.first, disjunctive},
-                   shuffle_graph)
+        Delay weight =
+            network->has_multiple_subcarriers(hop.edge)
+                ? std::numeric_limits<Delay>::min()
+                : prop.streams[handle].rti_map[hop.edge].d_trans_max();
+        E vu = boost::add_edge(v, u, {weight, states.first, disjunctive},
+                               shuffle_graph)
                    .first;
         shuffle_graph[vu].state_pair->add_edge(vu, shuffle_graph);
         prop.equivalence_class_representative[states.first->state.get()] = vu;
 
         // add disjunctive edge u -> v
-        E uv = boost::add_edge(
-                   u, v,
-                   {prop.streams[other].rti_map[hop.edge].d_trans_max(),
-                    states.second, disjunctive},
-                   shuffle_graph)
+        weight = network->has_multiple_subcarriers(hop.edge)
+                     ? std::numeric_limits<Delay>::min()
+                     : prop.streams[other].rti_map[hop.edge].d_trans_max();
+        E uv = boost::add_edge(u, v, {weight, states.second, disjunctive},
+                               shuffle_graph)
                    .first;
         shuffle_graph[uv].state_pair->add_edge(uv, shuffle_graph);
         prop.equivalence_class_representative[states.second->state.get()] = uv;
@@ -792,11 +1055,13 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
 }
 
 void DisjunctiveGraphModel::encode(std::vector<unsigned int> &buf,
-                                   shuffle_graph_t &g) {
+                                   shuffle_graph_t &g, OffsetMap &offset_map) {
   auto &prop = g[boost::graph_bundle];
   buf.clear();
+  offset_map.clear();
 
   for (auto &[e, streams] : prop.edge_to_streams) {
+    offset_map[e] = buf.end() - buf.begin();
     buf.insert(buf.end(), {MACHINE_SEPARATOR, e.first, e.second});
 
     auto processing_order = get_processing_order(g, e);
@@ -819,6 +1084,8 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
 
   std::map<Edge, std::vector<V>> processing_order;
 
+  internal_restore_commit(initial, false);
+
   // compute processing order, and shuffle operations
   int offset = 0, len;
   while (offset + 1 < buf.size()) {
@@ -838,7 +1105,7 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
           MessageStreamHandle u_ms = buf[offset + len];
           V u = prop.operation_to_vertex[{edge, u_ms}];
           if (u != v) {
-            complete_shuffle(this->edge(v, u));
+            complete_shuffle(this->edge(v, u), false, false);
             if (shuffle_graph[v].ms_handle.empty())
               v = u;
           }
@@ -857,6 +1124,7 @@ void DisjunctiveGraphModel::decode(std::vector<unsigned int> &buf) {
 
   apply_processing_order(processing_order);
   valid_crit_path = false;
+  update_machine_successors();
 }
 
 // Precondition: operations contains all vertices of the machine

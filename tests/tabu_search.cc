@@ -6,9 +6,9 @@
 #include "../src/dgm/critical_path.h"
 #include "../src/dgm/dgm.h"
 #include "../src/heuristics/initial.h"
+#include "../src/heuristics/transformation.h"
 #include "../src/optimization/neighborhood.h"
 #include "../src/optimization/tabu_search.h"
-#include "../src/optimization/termination.h"
 
 using namespace std;
 using namespace tsndgm;
@@ -138,25 +138,20 @@ protected:
 
 TEST_F(DGMTest1, TabuSearchCompression) {
   TabuSearch tabu_search(network, streams);
-  TabuSearch::Config config = {1,
-                               CriticalPath::Objective::makespan,
-                               IntensificationConfig(5, 50),
-                               ExhaustiveSearchConfig(5, 20),
-                               RelinkingConfig(IntensificationConfig(5, 10)),
-                               3,
-                               3,
-                               true};
+  TabuSearchConfig config = {
+      CriticalPath::Objective::makespan,
+      TerminationConfig(10),
+      IntensificationConfig(10, 100),
+      DiversificationConfig(5),
+  };
 
   using InitialHeuristic = RandomInitial;
   using TerminationCriterion = DifferentialTerminationCriterion;
-  using Intensification =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using ExhaustiveSearch =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using TransformationHeuristic = SlackTransformation;
+  using Intensification = StrictAdmissionIntensification<
+      DifferentialTerminationCriterion,
+      ReducedSelectionCriticalBlockNeighborhood<>>;
+  using TransformationHeuristic = NoTransformation;
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
-                  ExhaustiveSearch, TransformationHeuristic>(config);
+                  TransformationHeuristic>(config);
 }

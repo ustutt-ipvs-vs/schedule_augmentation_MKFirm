@@ -79,10 +79,19 @@ void Route::print_route() {
 
   while (!hops.empty()) {
     TreeRouteHop *next = hops.front();
-    std::cout << edge_to_string(next->edge) << std::endl;
+    std::cout << edge_to_string(next->edge) << " ";
     for (TreeRouteHop &child : next->childs)
       hops.push_back(&child);
     hops.pop_front();
+  }
+  std::cout << std::endl;
+}
+
+void Route::compute_talker_and_listeners() {
+  talker = root.childs.front().edge;
+  for (const TreeRouteHop &hop : *this) {
+    if (hop.is_leaf())
+      listeners.push_back(hop.edge);
   }
 }
 

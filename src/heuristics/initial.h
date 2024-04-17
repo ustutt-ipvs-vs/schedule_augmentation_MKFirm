@@ -2,7 +2,6 @@
 #define TSN_DGM_HEURISTIC_INITIAL_H
 
 #include "../dgm/dgm.h"
-#include "transformation.h"
 #include <random>
 
 namespace tsndgm {
@@ -43,31 +42,29 @@ protected:
   std::mt19937 gen;
 };
 
-// Based on "A Fast Taboo Search Algorithm for the Job Shop Problem" by
-// Eugeniusz Nowicki and Czeslaw Smutnicki (1996)
-//
-// We use a slightly simpler version, where we select a processing order that
-// directly minimizes the makespan (out of all possible permutations).
-// In the original version, the authors propose using the processing order that
-// minimizes the cost of the longest path from src -> sink that contains the
-// newly inserted operation
-class InsertionInitialHeuristic : public RandomInitial {
+class EffectiveReleaseInitial : public InitialSelectionHeuristic {
 public:
-  InsertionInitialHeuristic(DisjunctiveGraphModel &dgm,
-                            CriticalPath::Objective type)
-      : RandomInitial(dgm, type) {}
+  EffectiveReleaseInitial(DisjunctiveGraphModel &dgm,
+                          CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type) {}
 
   void generate();
 };
 
-class RandomTransformHeuristic : public RandomInitial, public Transformation {
+template <class A, class B>
+class CombinedInitial : public InitialSelectionHeuristic {
 public:
-  RandomTransformHeuristic(DisjunctiveGraphModel &dgm,
-                           CriticalPath::Objective type)
-      : RandomInitial(dgm, type), Transformation(dgm, type) {}
+  CombinedInitial(DisjunctiveGraphModel &dgm, CriticalPath::Objective type)
+      : InitialSelectionHeuristic(dgm, type), a(dgm, type), b(dgm, type) {}
 
-  void generate();
-  void transform(int k);
+  void generate() {
+    a.generate();
+    b.generate();
+  }
+
+private:
+  A a;
+  B b;
 };
 
 } // namespace tsndgm

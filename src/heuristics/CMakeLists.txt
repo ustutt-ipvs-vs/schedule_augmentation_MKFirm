@@ -1,7 +1,7 @@
 include_directories(${CMAKE_SOURCE_DIR})
 
 add_library(initial_heuristics STATIC initial.cc)
-target_link_libraries(initial_heuristics dgm)
+target_link_libraries(initial_heuristics PUBLIC dgm)
 
-add_library(transform_heuristics STATIC transformation.cc transformation.cc)
-target_link_libraries(transform_heuristics dgm)
+add_library(heuristics INTERFACE)
+target_link_libraries(heuristics INTERFACE initial_heuristics)

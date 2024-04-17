@@ -46,12 +46,18 @@ struct DataLinkProperty {
   DataLinkType type;
   DataRate data_rate;
   Delay propagation_delay;
+  // needs to be changed to correctly model 5G / Wifi
+  bool multiple_subcarriers;
 
   DataLinkProperty(DataLinkType type = wired,
                    DataRate data_rate = DEFAULT_DATA_RATE,
                    Delay propagation_delay = 0)
-      : type(type), data_rate(data_rate), propagation_delay(propagation_delay) {
-  }
+      : type(type), data_rate(data_rate), propagation_delay(propagation_delay),
+        multiple_subcarriers(false) {}
+
+  DataLinkProperty(DataLinkType type, bool multiple_subcarriers)
+      : type(type), data_rate(DEFAULT_DATA_RATE), propagation_delay(0),
+        multiple_subcarriers(multiple_subcarriers) {}
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
@@ -81,6 +87,7 @@ public:
 
   const NetworkDeviceProperty &get_device_property(DeviceId id) const;
   const DataLinkProperty &get_data_link_property(Edge edge) const;
+  bool has_multiple_subcarriers(Edge edge) const;
 
   void remove_device(const DeviceId &device);
   void remove_devices(const std::vector<DeviceId> &devices);

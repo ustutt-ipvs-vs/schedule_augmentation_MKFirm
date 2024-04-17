@@ -2,58 +2,42 @@
 #define TSN_DGM_MPI_UTILS_H
 
 #include "../dgm/dgm.h"
-#include "../optimization/selection.h"
+#include "selection.h"
+#include "selection_storage.h"
 #include <cstdio>
 #include <iostream>
 #include <mpi.h>
+#include <semaphore>
+#include <thread>
 
 namespace tsndgm {
 
+struct SynchronizationSelection {
+  EncodedSelection selection;
+  std::mutex m;
+};
+
+static int coms = 0;
 class Communicator {
 public:
-  Communicator() {
-    MPI_Init(NULL, NULL);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Op_create(reduce_delay_pair, true, &op);
-
-    std::string filename = "output_rank" + std::to_string(rank) + ".log";
-    std::freopen(filename.c_str(), "w", stdout);
-  }
-
-  BestSelection exchange_best_selection(DisjunctiveGraphModel &dgm,
-                                        BestSelection &best_selection);
-
   enum State { running, found_better, terminated };
-  State exchange_state(State state);
 
-  Communicator::State sync() {
-    Communicator::State state = Communicator::running;
-    while (state == Communicator::running)
-      state = exchange_state(Communicator::terminated);
-    return state;
-  }
+  Communicator(const Communicator &other);
+  Communicator();
 
-  ~Communicator() {
-    MPI::Finalize();
-    std::fclose(stdout);
-  }
+  State exchange_state(State state, double ratio = 0.5);
+  Communicator::State sync(State final = terminated, double ratio = 0.5);
 
-  template <typename T> std::pair<T, T> partition(T first, T last) {
-    size_t n = last - first;
-    size_t q = n / size, r = n % size;
-    size_t offset = rank * q + (rank < r ? rank : r);
-    size_t len = q + (rank < r ? 1 : 0);
-    return {first + offset, first + offset + len};
-  }
+  Delay
+  exchange_best_selection(SynchronizationSelection &sync_selection,
+                          Delay prev_best = std::numeric_limits<Delay>::max());
+  void continuous_exchange(SynchronizationSelection &sync_selection);
 
-  template <typename T> bool smaller_partition(T first, T last) {
-    size_t r = (last - first) % size;
-    return rank >= r;
-  }
+  ~Communicator();
 
   int rank;
   int size;
+  State global_state;
 
 private:
   MPI_Op op;
@@ -61,6 +45,22 @@ private:
 
   static void reduce_delay_pair(void *invec, void *inoutvec, int *len,
                                 MPI_Datatype *datatype);
+};
+
+class Synchronization {
+public:
+  Synchronization(Communicator &com) : com(com){};
+  Synchronization(const Synchronization &other) : com(other.com) {}
+
+  void start();
+  void stop(SelectionStorage &storage);
+  void update(SelectionStorage &storage);
+
+private:
+  Communicator &com;
+  SynchronizationSelection sync_selection;
+
+  std::thread sync_thread;
 };
 
 } // namespace tsndgm

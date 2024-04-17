@@ -5,10 +5,6 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
-#include "../src/heuristics/initial.h"
-#include "../src/optimization/neighborhood.h"
-#include "../src/optimization/tabu_search.h"
-#include "../src/optimization/termination.h"
 #include "setup.h"
 
 using json = nlohmann::json;
@@ -17,32 +13,31 @@ using namespace tsndgm;
 namespace fs = std::filesystem;
 
 template <class InitialHeuristic, class TerminationCriterion,
-          class Intensification, class ExhaustiveSearch,
-          class TransformationHeuristic>
+          class Intensification, class TransformationHeuristic>
 void benchmark_instance(
     json &benchmark_data,
-    const std::function<TabuSearch::Config(int, int)> &config) {
+    const std::function<TabuSearchConfig(int, int)> &config) {
 
-  JSPwithFIFOSetup jsp;
+  JSPSetup jsp;
   jsp.setup(benchmark_data);
 
   auto c = config(jsp.machines, jsp.jobs);
   if (!benchmark_data["optimum"].is_null()) {
-    c.termination_bound = benchmark_data["optimum"].template get<Delay>();
+    c.tconfig.bound = benchmark_data["optimum"].template get<Delay>();
   } else {
-    c.termination_bound =
-        benchmark_data["bounds"]["lower"].template get<Delay>();
+    c.tconfig.bound = benchmark_data["bounds"]["lower"].template get<Delay>();
   }
 
-  DisjunctiveGraphModel dgm(jsp.network, jsp.streams);
-  // set_initial_solution(dgm, machine_to_datalink, machines, jobs);
+  TabuSearch tabu_search(jsp.network, jsp.streams);
+  DisjunctiveGraphModel &dgm = tabu_search.dgm;
 
-  TabuSearch tabu_search(dgm);
+  if (tabu_search.com.rank != 0)
+    std::cout.setstate(std::ios::failbit);
 
   cout << benchmark_data["name"].template get<std::string>() << std::endl;
 
   tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
-                  ExhaustiveSearch, TransformationHeuristic>(c);
+                  TransformationHeuristic>(c);
 
   if (!benchmark_data["optimum"].is_null()) {
     cout << "Known Optimal Solution: " << benchmark_data["optimum"]
@@ -58,54 +53,49 @@ void benchmark_instance(
 }
 
 template <class InitialHeuristic, class TerminationCriterion,
-          class Intensification, class ExhaustiveSearch,
-          class TransformationHeuristic>
-void benchmark(const std::function<TabuSearch::Config(int, int)> &config,
+          class Intensification, class TransformationHeuristic>
+void benchmark(const std::function<TabuSearchConfig(int, int)> &config,
                int benchmark_id) {
   std::ifstream f("../data/JSPLIB/instances.json");
   json data = json::parse(f);
 
   auto start = std::chrono::high_resolution_clock::now();
   benchmark_instance<InitialHeuristic, TerminationCriterion, Intensification,
-                     ExhaustiveSearch, TransformationHeuristic>(
-      data[benchmark_id], config);
+                     TransformationHeuristic>(data[benchmark_id], config);
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = duration_cast<std::chrono::seconds>(stop - start);
   cout << "Time: " << duration.count() << " s" << endl;
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cout << "Usage: ./jsp [0-161]" << std::endl;
+  if (argc != 6) {
+    std::cout << "Usage: ./jsp [0-161] maxt timeout div maxit" << std::endl;
     exit(0);
   }
 
-  auto config = [](int machines, int jobs) {
-    return TabuSearch::Config{
-        5,
-        CriticalPath::Objective::makespan,
-        IntensificationConfig(machines, 10 * machines * jobs),
-        ExhaustiveSearchConfig(machines, 10 * machines * jobs),
-        RelinkingConfig(IntensificationConfig(machines, 10 * machines * jobs)),
-        5,
-        5,
-        true};
+  int benchmark_id = stoi(argv[1]);
+  int maxt = stoi(argv[2]);
+  int timeout = stoi(argv[3]);
+  int div = stoi(argv[4]);
+  int maxit = stoi(argv[5]);
+
+  auto config = [&](int machines, int jobs) {
+    return TabuSearchConfig{
+        CriticalPath::Objective::makespan, TerminationConfig(timeout),
+        IntensificationConfig(maxt, maxit * machines * jobs),
+        DiversificationConfig(div)};
   };
 
-  int benchmark_id = stoi(argv[1]);
-
   using InitialHeuristic = RandomInitial;
-  using TerminationCriterion = DifferentialTerminationCriterion;
-  using Intensification =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using ExhaustiveSearch =
-      TestStrictIntensification<DifferentialTerminationCriterion,
-                                ReducedSelectionCriticalBlockNeighborhood>;
-  using TransformationHeuristic = SlackTransformation;
+  using TerminationCriterion = TimeoutTerminationCriterion;
+  using Intensification = StrictAdmissionIntensification<
+      DifferentialTerminationCriterion,
+      ReducedSelectionCriticalBlockNeighborhood<1>>;
+  using TransformationHeuristic =
+      RandomCriticalPathTransformation<ConstantThenSlowTemperature>;
 
   benchmark<InitialHeuristic, TerminationCriterion, Intensification,
-            ExhaustiveSearch, TransformationHeuristic>(config, benchmark_id);
+            TransformationHeuristic>(config, benchmark_id);
 
   return 0;
 }

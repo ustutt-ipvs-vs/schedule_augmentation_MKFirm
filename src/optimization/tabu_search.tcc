@@ -6,131 +6,144 @@
 namespace tsndgm {
 
 template <class InitialHeuristic, class TerminationCriterion,
-          class Intensification, class ExhaustiveSearch,
-          class TransformationHeuristic>
-void TabuSearch::run(Config &config) {
-  best_selection = BestSelection(&config.commit_index);
-  BestSelection res;
+          class Intensification, class TransformationHeuristic>
+void TabuSearch::run(TabuSearchConfig &config,
+                     std::map<MessageStreamHandle, RTIMap> rti_updates) {
+  log << "\n----------------------------------------------" << std::endl;
+  log << "                 Solver (ZIPS)                " << std::endl;
+  log << "----------------------------------------------" << std::endl;
+
+  best_selection = std::numeric_limits<Delay>::max();
+  storage.set_capacity(config.dconfig.max_stored_solutions);
+  compressed_storage.set_capacity(config.dconfig.max_stored_solutions);
+  dgm.update_rti(rti_updates);
+
+  TerminationCriterion termination_criterion(config.tconfig);
+  EncodedSelection res;
   size_t phase;
 
-  auto print_result = [&](Delay res) {
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = duration_cast<std::chrono::seconds>(stop - start);
-    std::cout << "  -> Result: " << res << " (" << duration << ") "
-              << dgm.total_flips << std::endl;
-  };
-  auto update_best_selection = [&](BestSelection &res) {
-    this->update_best_selection(best_selection, res);
-    relinking.update_candidates(best_selection);
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = duration_cast<std::chrono::seconds>(stop - start);
-    std::cout << "  -> New Best Selection: " << best_selection.objective << " ("
-              << duration << ")" << std::endl;
-  };
-
-  std::cout << "Phase 0:\n Initial: " << std::endl;
-  best_selection = run_initial_phase<InitialHeuristic, Intensification>(
-      config.initial_solutions, config.int_config, config.type,
-      config.termination_bound);
-  best_selection = com.exchange_best_selection(dgm, best_selection);
-  print_result(best_selection.objective);
-
-  TransformationHeuristic heuristic(dgm, config.type);
-  TerminationCriterion termination_criterion(config.maxit,
-                                             config.termination_bound);
-  for (phase = 0;
-       !termination_criterion.satisfied(phase, best_selection.objective);
-       phase++) {
-    std::cout << "Phase " << phase + 1 << ":" << std::endl;
-    std::cout << " Diversify ";
-    if (relinking.ready(config.relinking_config)) {
-      std::cout << "(Relinking):" << std::endl;
-      res = run_relinking_phase<Intensification>(
-          config.relinking_config, config.type, best_selection.objective);
-    } else {
-      std::cout << "(Transformation):" << std::endl;
-      heuristic.transform(config.diversification_rounds);
-      res = run_intensification_phase<Intensification>(
-          config.int_config, config.type, config.termination_bound);
-      com.sync();
+  // compute initial solution
+  if (storage.size() == 0) {
+    log << "Phase 0:\n Initial: " << std::endl;
+    res = run_initial_phase<InitialHeuristic, Intensification>(
+        config.initial_solutions, config.iconfig, config.type,
+        config.tconfig.bound);
+    sync.start();
+    update_storage(storage, res);
+    print_result(best_selection);
+  } else {
+    sync.start();
+    if (compressed_storage.size() > 0) {
+      compressed_storage.renew_storage_objectives(config.type);
+      best_selection = compressed_storage.best().objective;
     }
-    relinking.update_candidates(res);
-    res = com.exchange_best_selection(dgm, res);
-    relinking.update_candidates(res);
-    print_result(res.objective);
+    storage.renew_storage_objectives(config.type);
+    best_selection = std::min(best_selection, storage.best().objective);
+  }
 
-    std::cout << " Intensify: " << std::endl;
-    res = run_exhaustive_search<ExhaustiveSearch>(
-        best_selection, res, config.exhaustive_search_config, config.type);
-    res = com.exchange_best_selection(dgm, res);
-    relinking.update_candidates(res);
-    if (res < best_selection)
-      update_best_selection(res);
+  int N = termination_criterion.progress(0, best_selection).second;
+  TransformationHeuristic heuristic(dgm, storage, config.type,
+                                    config.dconfig.T_0, config.dconfig.c, N);
+  std::uniform_int_distribution<> d(0, config.dconfig.maxit);
+  for (phase = 0; !termination_criterion.satisfied(phase, best_selection);
+       phase++) {
+    log << "Phase " << phase + 1 << ":" << std::endl;
+    // randomly select one of the best stored selections
+    EncodedSelection &next = storage.sample(heuristic.temperature);
+    dgm.decode(next.buf);
+
+    // transform solution to break out of local minima
+    int progress = termination_criterion.progress(phase, best_selection).first;
+    heuristic.update_temperature(progress);
+    int rounds = heuristic.transform(d(gen));
+    log << " Temperature: " << heuristic.temperature
+        << "; Diversify Rounds: " << rounds
+        << "; Total Flips: " << dgm.total_flips
+        << "; Total Traversals: " << longest_path_visitor::total_traversals
+        << std::endl;
+    log << " Storage: ";
+    for (auto &stored_selection : storage.encoded_best_selections) {
+      log << stored_selection.objective << " ";
+    }
+    log << std::endl;
+    if (rounds == 0)
+      continue;
+
+    // intensify search to improve transformed solution
+    res = run_intensification_phase<Intensification>(
+        config.iconfig, config.type, config.tconfig.bound,
+        create_tabu_list(heuristic.flipped_edges));
+    update_storage(storage, res, time_to_sync(config));
     print_result(res.objective);
   }
-  std::cout << "Global Solution: " << best_selection.objective << std::endl;
-  dgm.restore_commit(*best_selection.commit_index);
-  std::cout << dgm.critical_path(config.type).objective << std::endl;
 
-  if (config.compress) {
-    run_compression_phase<Intensification>(config.int_config, config.type,
-                                           config.termination_bound);
-    best_selection = com.exchange_best_selection(dgm, best_selection);
-    std::cout << "Compressed Solution: " << best_selection.objective
-              << std::endl;
+  // compress solution by shuffling operations
+  if (config.cconfig.enabled) {
+    log << "----------------------------------------------" << std::endl;
+    log << "          Compression (ZIPS -> FIPS)          " << std::endl;
+    log << "----------------------------------------------" << std::endl;
+    reset_timeout();
+    run_compression_phase<Intensification, TerminationCriterion>(
+        config.cconfig, config.type, config.tconfig.bound);
+    sync.stop(compressed_storage);
+    update_storage(compressed_storage);
+    dgm.decode(compressed_storage.best().buf);
+  } else {
+    sync.stop(storage);
+    update_storage(storage);
+    dgm.decode(storage.best().buf);
   }
+
+  log << "Global Solution: " << dgm.critical_path(config.type).objective
+      << std::endl;
 }
 
 template <class InitialHeuristic, class Intensification>
-BestSelection TabuSearch::run_initial_phase(int initial_solutions,
-                                            IntensificationConfig &config,
-                                            CriticalPath::Objective type,
-                                            Delay termination_bound) {
+EncodedSelection TabuSearch::run_initial_phase(int initial_solutions,
+                                               IntensificationConfig &config,
+                                               CriticalPath::Objective type,
+                                               Delay termination_bound) {
+  EncodedSelection best;
   InitialHeuristic initial_heuristic(dgm, type);
   for (int i = 0; i < initial_solutions; i++) {
     initial_heuristic.generate();
-    BestSelection res = run_intensification_phase<Intensification>(
+    EncodedSelection res = run_intensification_phase<Intensification>(
         config, type, termination_bound);
-    relinking.update_candidates(res);
-    if (res < best_selection) {
-      update_best_selection(this->best_selection, res);
+    if (res.objective < best.objective) {
+      std::swap(res, best);
     }
     Communicator::State state = res.objective <= termination_bound
                                     ? Communicator::found_better
                                     : Communicator::running;
     state = com.exchange_state(state);
     if (state != Communicator::running)
-      return best_selection;
+      return best;
   }
   com.sync();
 
-  return best_selection;
+  return best;
 }
 
 template <class Intensification>
-BestSelection
-TabuSearch::run_intensification_phase(IntensificationConfig &config,
-                                      CriticalPath::Objective type,
-                                      Delay termination_bound) {
+EncodedSelection TabuSearch::run_intensification_phase(
+    IntensificationConfig &config, CriticalPath::Objective type,
+    Delay termination_bound, TabuList tabu_list) {
   Intensification int_phase(dgm, config, termination_bound);
-  NextSelection next_selection;
-  BestSelection best_selection(&config.commit_index,
-                               dgm.critical_path(type).objective);
-  dgm.commit_all(config.commit_index);
-  best_selection.committed = true;
+  int_phase.tabu_list = tabu_list;
+  EncodedSelection best(dgm, type);
 
-  size_t iteration;
-  for (iteration = 0; !int_phase.completed(iteration, next_selection.objective);
-       iteration++) {
-    next_selection = int_phase.compute_next_selection(type);
+  auto shuffle_and_restart = [&](auto e) {
+    dgm.complete_shuffle(e, false);
+    // start from beginning
+    int_phase.reset_phase();
+    best = EncodedSelection(dgm, type);
+  };
 
-    if (next_selection < best_selection) {
-      update_best_selection(best_selection, next_selection);
-    } else if (!best_selection.committed) {
-      // commit best known solution if we start with uphill moves
-      dgm.critical_path(type);
-      dgm.commit_all(*best_selection.commit_index);
-      best_selection.committed = true;
+  for (size_t it = 0; !int_phase.completed(it, best.objective); it++) {
+    auto next_selection = int_phase.compute_next_selection(type);
+    if (next_selection.edges.size() == 0) {
+      // if there is no disjunctive edge on the CS, we reached the optimum
+      return EncodedSelection(dgm, type);
     }
 
     if (next_selection.operation == flip) {
@@ -138,161 +151,158 @@ TabuSearch::run_intensification_phase(IntensificationConfig &config,
         dgm.complete_flip(next_selection.edges);
       } catch (FlipGraphException &e) {
         if (config.recursive_shuffle) {
-          dgm.complete_shuffle(e.required_shuffle, false);
-          int_phase.clear_tabu_list();
+          shuffle_and_restart(e.required_shuffle);
         } else {
           continue;
         }
       }
+
+      if (dgm.critical_path(type).objective < best.objective)
+        best = EncodedSelection(dgm, type);
     } else {
-      dgm.complete_shuffle(next_selection.edges, false);
-      int_phase.clear_tabu_list();
+      shuffle_and_restart(next_selection.edges);
     }
   }
 
-  // best_selection might not be committed if next_selection.objective ==
-  // best_selection.objective for maxit iterations
-  if (!best_selection.committed) {
-    dgm.commit_all(*best_selection.commit_index);
-    best_selection.committed = true;
-  }
-
-  return best_selection;
+  return best;
 }
 
-template <class Intensification>
-BestSelection TabuSearch::run_exhaustive_search(BestSelection &best_selection,
-                                                BestSelection &int_phase,
-                                                ExhaustiveSearchConfig &config,
-                                                CriticalPath::Objective type,
-                                                Delay termination_bound) {
-  BestSelection res;
-  SelectionCriticalBlockNeighborhood selection_neighborhood(dgm);
-  auto neighborhood =
-      selection_neighborhood.compute(this->dgm.critical_path(type))
-          .flip_candidates;
-  auto partition = com.partition(neighborhood.begin(), neighborhood.end());
+template <class Intensification, class TerminationCriterion>
+void TabuSearch::run_compression_phase(CompressionConfig &config,
+                                       CriticalPath::Objective type,
+                                       Delay termination_bound) {
+  TerminationCriterion termination_criterion(config.tconfig);
+  WirelessCompressionNeighborhood compression_neighborhood(dgm);
+  double temperature = 0;
+  config.iconfig.recursive_shuffle = true;
 
-  for (auto it = partition.first; it != partition.second; ++it) {
-    auto edges = *it;
-
-    // edge descriptors in neighborhood might be invalidated after restoring
-    for (auto &e : edges)
-      e = dgm.edge(e);
-
-    this->dgm.complete_flip(edges);
-    res = run_intensification_phase<Intensification>(config, type,
-                                                     termination_bound);
-    Communicator::State state = res < best_selection
-                                    ? Communicator::found_better
-                                    : Communicator::running;
-    state = com.exchange_state(state);
-    if (state != Communicator::running)
-      return res;
-    dgm.restore_commit(*int_phase.commit_index);
+  for (auto &stored_selection : storage.encoded_best_selections) {
+    compressed_storage.update_candidates(stored_selection);
   }
-  com.sync();
 
-  return res;
-}
-
-template <class Intensification>
-BestSelection TabuSearch::run_relinking_phase(RelinkingConfig &config,
-                                              CriticalPath::Objective type,
-                                              Delay bound) {
-  BestSelection best_selection(&config.best_commit_index);
-
-  while (!best_selection.committed) {
-    auto [initial_index, guiding_index] = relinking.sample(config);
-    auto differing_machines =
-        relinking.compute_differing_machines(initial_index, guiding_index);
-    dgm.decode(relinking.encoded_best_selections[initial_index].buf);
-    EncodedSelection &guiding_selection =
-        relinking.encoded_best_selections[guiding_index];
-    int steps = config.min_separation;
-
-    for (int it = 0;; it++) {
-      bool success =
-          relinking.step_towards(guiding_selection, differing_machines, steps);
-      if (!success)
-        break;
-      dgm.commit_all(config.backup_commit_index);
-
-      BestSelection res = run_intensification_phase<Intensification>(
-          config.local_search_config, type);
-      Communicator::State state = res < this->best_selection
-                                      ? Communicator::found_better
-                                      : Communicator::running;
-      state = com.exchange_state(state);
-      if (state == Communicator::found_better) {
-        return res;
-      } else if (state == Communicator::terminated) {
-        return best_selection;
-      } else if (res <= best_selection &&
-                 relinking.differs(res, initial_index) &&
-                 relinking.differs(res, guiding_index)) {
-        steps = config.min_separation;
-        update_best_selection(best_selection, res);
-      } else {
-        steps *= 2;
-      }
-
-      dgm.restore_commit(config.backup_commit_index);
+  for (size_t phase = 0;
+       !termination_criterion.satisfied(phase, best_selection); phase++) {
+    log << "Phase " << phase + 1 << ":" << std::endl;
+    log << " Storage (ZIPS): ";
+    for (auto &stored_selection : storage.encoded_best_selections) {
+      log << stored_selection.objective << " ";
     }
-  }
+    log << std::endl << " Storage (FIPS): ";
+    for (auto &stored_selection : compressed_storage.encoded_best_selections) {
+      log << stored_selection.objective << " ["
+          << stored_selection.extension_level;
+      if (stored_selection.neighborhood.has_value())
+        log << ", " << stored_selection.neighborhood->shuffle_candidates.size();
+      log << "] ";
+    }
+    log << std::endl;
 
-  com.sync();
-  return best_selection;
-}
+    EncodedSelection &next = compressed_storage.sample(temperature);
+    dgm.decode(next.buf);
 
-template <class Intensification>
-BestSelection TabuSearch::run_compression_phase(IntensificationConfig &config,
-                                                CriticalPath::Objective type,
-                                                Delay termination_bound) {
-  config.recursive_shuffle = true;
+    if (!next.neighborhood.has_value()) {
+      next.neighborhood = compression_neighborhood.extend(
+          dgm.critical_path(type), next.extension_level);
+      next.extension_level++;
+    }
 
-  BestSelection res;
-  CompressionNeighborhood neighborhood(dgm);
-  bool improvement_found = true;
-  while (improvement_found) {
-    improvement_found = false;
-    dgm.restore_commit(*best_selection.commit_index);
+    size_t k;
+    EncodedSelection res;
+    auto &neighborhood = next.neighborhood->shuffle_candidates;
+    for (k = 0; k < neighborhood.size(); ++k) {
+      std::uniform_int_distribution<size_t> d(k, neighborhood.size() - 1);
+      size_t i = d(gen);
+      neighborhood[k].swap(neighborhood[i]);
+      auto edges = neighborhood[k];
 
-    auto &shuffle_candidates =
-        neighborhood.compute(dgm.critical_path(type)).shuffle_candidates;
-
-    for (auto edges : shuffle_candidates) {
       // edge descriptors in neighborhood might be invalidated after restoring
       for (auto &e : edges)
         e = dgm.edge(e);
 
       try {
         dgm.complete_shuffle(edges);
-        res = run_intensification_phase<Intensification>(config, type,
+        res = run_intensification_phase<Intensification>(config.iconfig, type,
                                                          termination_bound);
-      } catch (UnfixableCycleException &e) {
-        // complete_shuffle already restores the fallback, there is no need
-        // to call undo_last_shuffle
-        continue;
-      }
-
-      if (res < best_selection) {
-        dgm.restore_commit(*res.commit_index);
-        update_best_selection(best_selection, res);
-        improvement_found = true;
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = duration_cast<std::chrono::seconds>(stop - start);
-        std::cout << "  -> New Compressed Selection: "
-                  << best_selection.objective << " (" << duration << ")"
-                  << std::endl;
+        if (res.objective <= next.objective)
+          break;
+      } catch (std::exception &e) {
+        res.objective = std::numeric_limits<Delay>::max();
       }
 
       dgm.undo_last_shuffle();
     }
+
+    print_result(res.objective);
+    if (k < neighborhood.size()) {
+      neighborhood.erase(neighborhood.begin(), neighborhood.begin() + k + 1);
+      temperature = res.objective < best_selection ? 1 : 0;
+      update_storage(compressed_storage, res, time_to_sync(config));
+    } else if (next.extension_level <=
+               WirelessCompressionNeighborhood::max_extension) {
+      next.neighborhood = {};
+      update_storage(compressed_storage, time_to_sync(config));
+      temperature = 0;
+    } else {
+      compressed_storage.delete_candidate(&next);
+      update_storage(compressed_storage, time_to_sync(config));
+      temperature = 0;
+    }
+  }
+  compressed_storage.update_candidates(compressed_storage.best());
+}
+
+void TabuSearch::update_storage(SelectionStorage &storage,
+                                EncodedSelection &res, bool sync) {
+  auto print_new_best = [&]() {
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = duration_cast<std::chrono::seconds>(stop - start);
+    log << " New Best Selection: " << best_selection << " (" << duration << ")"
+        << std::endl;
+  };
+
+  storage.update_candidates(res);
+  if (sync) {
+    this->sync.update(storage);
+    last_sync = std::chrono::high_resolution_clock::now();
   }
 
-  config.recursive_shuffle = false;
-  return best_selection;
+  if (storage.best().objective < best_selection) {
+    best_selection = storage.best().objective;
+    print_new_best();
+  }
+}
+
+void TabuSearch::update_storage(SelectionStorage &storage, bool sync) {
+  EncodedSelection dummy;
+  update_storage(storage, dummy, sync);
+}
+
+void TabuSearch::update_rti(std::map<MessageStreamHandle, RTIMap> rti_updates,
+                            CriticalPath::Objective type) {
+  dgm.update_rti(rti_updates);
+  EncodedSelection *best;
+  if (compressed_storage.size() > 0) {
+    compressed_storage.renew_storage_objectives(type);
+    best = &compressed_storage.best();
+    dgm.decode(best->buf);
+  } else if (storage.size() > 0) {
+    storage.renew_storage_objectives(type);
+    best = &storage.best();
+    dgm.decode(best->buf);
+  }
+}
+
+bool TabuSearch::time_to_sync(auto &config) {
+  if (last_sync < start) {
+    last_sync = start;
+    return true;
+  } else if (best_selection <= config.tconfig.bound) {
+    return true;
+  }
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration = duration_cast<std::chrono::seconds>(stop - last_sync);
+  return duration >= static_cast<std::chrono::seconds>(config.sync_gap);
 }
 
 } // namespace tsndgm

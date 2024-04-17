@@ -249,6 +249,8 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
         dgm.complete_shuffle(ed);
       } catch (UnfixableCycleException &e) {
         std::cout << "WARNING: " << e.what() << std::endl;
+      } catch (JitterBoundViolation &e) {
+        std::cout << "WARNING: " << e.what() << std::endl;
       }
       dgm.print();
       assert_synchronicity(dgm.shuffle_graph);
