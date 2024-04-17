@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
       IntensificationConfig(10, 500),
       DiversificationConfig(10, 10),
       CompressionConfig(true, TerminationConfig(timeout, bound),
-                        IntensificationConfig(10, 500), timeout / 4),
+                        IntensificationConfig(10, 50), timeout / 4),
   };
 
   using InitialHeuristic = EffectiveReleaseInitial;
@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
           IntensificationConfig(10, 500),
           DiversificationConfig(10, 10),
           CompressionConfig(true, TerminationConfig(8, bound),
-                            IntensificationConfig(10, 250)),
+                            IntensificationConfig(10, 50)),
       };
 
       tabu_search_adaptive.com.sync();
