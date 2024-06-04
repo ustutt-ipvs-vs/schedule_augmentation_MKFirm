@@ -2,6 +2,7 @@
 #define TSN_DGM_TOPOLOGY_H
 
 #include <boost/graph/adjacency_list.hpp>
+#include <filesystem>
 
 namespace tsndgm {
 
@@ -10,8 +11,8 @@ typedef long Tick;
 typedef Tick Delay;
 typedef unsigned long DataRate;
 
-#define DEFAULT_DATA_RATE 1000000000UL
-#define SECONDS_TO_TICKS(seconds) (Tick) seconds * 1000000000UL
+#define DEFAULT_DATA_RATE 12500000UL                            // 100Mbps
+#define SECONDS_TO_TICKS(seconds) (Tick) seconds * 1000000000UL // 1 Tick = 1ns
 
 static DeviceId unique_id = 0;
 struct NetworkDeviceProperty {
@@ -42,18 +43,28 @@ UniqueNetworkDeviceProperty(Delay processing_delay = 0) {
 
 enum DataLinkType { wired, wireless };
 
+/** DataLinkProperty has different semantics for wireline and wireless links.
+ * For wireline links, type = wired, multiple_subcarriers = false, and the
+ * frame's delay is computed via
+ *  d = frame_size / data_rate + propagation_delay
+ * For wireless links, type = wireless, multiple_subcarriers \in {true, false},
+ * and the frames's delay is computed via
+ *  d = frame_size / data_rate + propagation_delay + RTI
+ * In particular, the data_rate now specifies a "wireline" transmission delay
+ * that covers the wired portion between the TSN bridge's egress port and the
+ * radio link. The delay of the radio link itself is covered by the RTI. */
 struct DataLinkProperty {
   DataLinkType type;
   DataRate data_rate;
   Delay propagation_delay;
-  // needs to be changed to correctly model 5G / Wifi
   bool multiple_subcarriers;
 
   DataLinkProperty(DataLinkType type = wired,
                    DataRate data_rate = DEFAULT_DATA_RATE,
-                   Delay propagation_delay = 0)
+                   Delay propagation_delay = 0,
+                   bool multiple_subcarriers = false)
       : type(type), data_rate(data_rate), propagation_delay(propagation_delay),
-        multiple_subcarriers(false) {}
+        multiple_subcarriers(multiple_subcarriers) {}
 
   DataLinkProperty(DataLinkType type, bool multiple_subcarriers)
       : type(type), data_rate(DEFAULT_DATA_RATE), propagation_delay(0),
@@ -75,6 +86,11 @@ public:
   NetworkTopology() {
     NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
                     std::initializer_list<DataLink>{});
+  }
+  NetworkTopology(std::filesystem::path in) {
+    NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
+                    std::initializer_list<DataLink>{});
+    load_topology(in);
   }
   NetworkTopology(const std::vector<NetworkDeviceProperty> &device_properties,
                   const std::vector<DataLink> &data_links);
@@ -101,6 +117,9 @@ public:
   void clear();
 
   void print_topology();
+
+  void dump_topology(std::filesystem::path out);
+  void load_topology(std::filesystem::path in);
 
   inline const NetworkDeviceProperty &operator[](DeviceId v) const {
     return g[v];

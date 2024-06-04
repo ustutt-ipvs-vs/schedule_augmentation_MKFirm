@@ -6,6 +6,10 @@
 
 namespace tsndgm {
 
+TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration() {
+  return TSNConfiguration(shuffle_graph, *network);
+}
+
 CriticalPath::Result
 DisjunctiveGraphModel::critical_path(CriticalPath::Objective type,
                                      bool reverse) {
@@ -34,6 +38,11 @@ void DisjunctiveGraphModel::update_rti(
 void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
 
+  // ensure that wireline delays remain intact (operation is idempotent)
+  for (auto &[edge, rti] : rti_map) {
+    rti.add_wireline(prop.streams[ms].rti_map[edge].d_wireline());
+  }
+
   // F2 requires that we also update the weight of JP[v] -> v. To this end, we
   // extend rti_map to contain all relevant job predecessors
   for (auto &[edge, rti] : rti_map) {
@@ -55,11 +64,13 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
     V v = prop.operation_to_vertex[{edge, ms}];
     for (E vw :
          boost::make_iterator_range(boost::out_edges(v, shuffle_graph))) {
+      if (shuffle_graph[vw].edge_type != conjunctive)
+        continue;
       V w = target(vw, shuffle_graph);
       bool w_contains_ms = std::find(shuffle_graph[w].ms_handle.begin(),
                                      shuffle_graph[w].ms_handle.end(),
                                      ms) != shuffle_graph[w].ms_handle.end();
-      if (shuffle_graph[vw].edge_type == conjunctive && w_contains_ms) {
+      if (w_contains_ms) {
         Delay d_max_old = std::accumulate(
             shuffle_graph[v].ms_handle.begin(),
             shuffle_graph[v].ms_handle.end(), (Delay)0,
@@ -89,10 +100,9 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
           shuffle_graph[vw].weight += delta_new - delta_old;
         }
       } else {
-        if (shuffle_graph[vw].weight != std::numeric_limits<Delay>::min())
-          shuffle_graph[vw].weight +=
-              rti_map[edge].d_trans_max() -
-              prop.streams[ms].rti_map[edge].d_trans_max();
+        shuffle_graph[vw].weight +=
+            rti_map[edge].d_trans_max() -
+            prop.streams[ms].rti_map[edge].d_trans_max();
       }
     }
   }
@@ -101,8 +111,7 @@ void DisjunctiveGraphModel::update_rti(MessageStreamHandle ms, RTIMap rti_map) {
   for (auto &[edge, rti] : rti_map) {
     V v = prop.operation_to_vertex[{edge, ms}];
     for (E uv : boost::make_iterator_range(boost::in_edges(v, shuffle_graph))) {
-      if (shuffle_graph[uv].edge_type == fifo &&
-          shuffle_graph[uv].weight != std::numeric_limits<Delay>::min()) {
+      if (shuffle_graph[uv].edge_type == fifo) {
         Delay d_min_old = std::accumulate(
             shuffle_graph[v].ms_handle.begin(),
             shuffle_graph[v].ms_handle.end(), std::numeric_limits<Delay>::max(),
@@ -543,11 +552,14 @@ void DisjunctiveGraphModel::complete_shuffle(
       Edge n_edge = shuffle_graph[w].edge;
       shuffle_graph[uw].weight = 0;
       if (network->has_multiple_subcarriers(edge)) {
+        Delay d_wireline = 0;
         for (auto &handle : shuffle_graph[u].ms_handle) {
           shuffle_graph[uw].weight =
               std::max(shuffle_graph[uw].weight,
                        prop.streams[handle].rti_map[edge].d_max());
+          d_wireline += prop.streams[handle].rti_map[edge].d_wireline();
         }
+        shuffle_graph[uw].weight += d_wireline;
       } else {
         std::pair<Delay, Delay> max_delay = {0, 0};
         for (auto &handle : shuffle_graph[u].ms_handle) {
@@ -614,12 +626,8 @@ void DisjunctiveGraphModel::complete_shuffle(
           shuffle_graph[vw].relates_to(shuffle_graph[rev_edge(uw)]))
         continue;
 
-      if (std::min(shuffle_graph[uw].weight, shuffle_graph[vw].weight) ==
-          std::numeric_limits<Delay>::min())
-        shuffle_graph[uw].weight = std::numeric_limits<Delay>::min();
-      else
-        shuffle_graph[uw].weight +=
-            shuffle_graph[fifo_to_disjunctive_edge(vw)].weight;
+      shuffle_graph[uw].weight +=
+          shuffle_graph[fifo_to_disjunctive_edge(vw)].weight;
     }
 
     // Updating the incoming disjunctive and FIFO edges is more complex, as we
@@ -895,11 +903,14 @@ void DisjunctiveGraphModel::build() {
   ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
   std::ranges::sort(prop.streams,
                     [&](const MessageStream &s1, const MessageStream &s2) {
-                      return s1.phase < s2.phase;
+                      return s1.phase > s2.phase;
                     });
 
-  for (MessageStreamHandle i = 0; i < prop.streams.size(); i++)
+  prop.hyperperiod = 1;
+  for (MessageStreamHandle i = 0; i < prop.streams.size(); i++) {
     build_stream(i);
+    prop.hyperperiod = std::lcm(prop.hyperperiod, prop.streams[i].period);
+  }
   resize_properties();
 
   internal_commit_all(initial);
@@ -991,12 +1002,10 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
         // add FIFO edges u -> v
         if (!hop.parent->is_root()) {
           Delay weight =
-              network->has_multiple_subcarriers(hop.edge)
-                  ? std::numeric_limits<Delay>::min()
-                  : prop.streams[other].rti_map[hop.edge].d_trans_max() -
-                        prop.streams[handle]
-                            .rti_map[v_hop_parent->edge]
-                            .d_min();
+              (network->has_multiple_subcarriers(hop.edge)
+                   ? prop.streams[other].rti_map[hop.edge].d_wireline()
+                   : prop.streams[other].rti_map[hop.edge].d_trans_max()) -
+              prop.streams[handle].rti_map[v_hop_parent->edge].d_min();
           v_parent = prop.operation_to_vertex[{v_hop_parent->edge, handle}];
           fuv = boost::add_edge(u, v_parent, {weight, states.second, fifo},
                                 shuffle_graph)
@@ -1007,10 +1016,10 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
         // add FIFO edges v -> u
         if (!u_hop_parent->is_root()) {
           Delay weight =
-              network->has_multiple_subcarriers(hop.edge)
-                  ? std::numeric_limits<Delay>::min()
-                  : prop.streams[handle].rti_map[hop.edge].d_trans_max() -
-                        prop.streams[other].rti_map[u_hop_parent->edge].d_min();
+              (network->has_multiple_subcarriers(hop.edge)
+                   ? prop.streams[handle].rti_map[hop.edge].d_wireline()
+                   : prop.streams[handle].rti_map[hop.edge].d_trans_max()) -
+              prop.streams[other].rti_map[u_hop_parent->edge].d_min();
           u_parent = prop.operation_to_vertex[{u_hop_parent->edge, other}];
           fvu = boost::add_edge(v, u_parent, {weight, states.first, fifo},
                                 shuffle_graph)
@@ -1021,7 +1030,7 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
         // add disjunctive edge v -> u
         Delay weight =
             network->has_multiple_subcarriers(hop.edge)
-                ? std::numeric_limits<Delay>::min()
+                ? prop.streams[handle].rti_map[hop.edge].d_wireline()
                 : prop.streams[handle].rti_map[hop.edge].d_trans_max();
         E vu = boost::add_edge(v, u, {weight, states.first, disjunctive},
                                shuffle_graph)
@@ -1031,7 +1040,7 @@ void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle) {
 
         // add disjunctive edge u -> v
         weight = network->has_multiple_subcarriers(hop.edge)
-                     ? std::numeric_limits<Delay>::min()
+                     ? prop.streams[other].rti_map[hop.edge].d_wireline()
                      : prop.streams[other].rti_map[hop.edge].d_trans_max();
         E uv = boost::add_edge(u, v, {weight, states.second, disjunctive},
                                shuffle_graph)

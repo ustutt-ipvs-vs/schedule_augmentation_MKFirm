@@ -39,6 +39,7 @@ struct ShuffleGraphProperty {
   std::vector<V> cycle_pred;
 
   bool is_zips_selection;
+  Delay hyperperiod;
 };
 
 struct NeighborVertex {
@@ -453,7 +454,7 @@ static void print(const shuffle_graph_t &shuffle_graph,
     if (shuffle_graph[v].ms_handle.size() == 0)
       std::cout << "})";
     for (auto handle : shuffle_graph[v].ms_handle)
-      std::cout << handle
+      std::cout << prop.streams[handle].name
                 << (handle == shuffle_graph[v].ms_handle.back() ? "})" : ", ");
   }
 }

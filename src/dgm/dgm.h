@@ -7,6 +7,7 @@
 #include "critical_path.h"
 #include "shuffle_graph.h"
 #include "traversal.h"
+#include "tsn_configuration.h"
 #include <boost/graph/adjacency_list.hpp>
 
 namespace tsndgm {
@@ -58,6 +59,8 @@ public:
         network(other.network),
         committed_shuffle_graphs(other.committed_shuffle_graphs),
         crit_path(shuffle_graph) {}
+
+  TSNConfiguration derive_tsn_configuration();
 
   CriticalPath::Result critical_path(CriticalPath::Objective type,
                                      bool reverse = true);

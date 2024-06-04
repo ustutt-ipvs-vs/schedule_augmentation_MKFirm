@@ -1,5 +1,7 @@
 #include <boost/graph/graph_utility.hpp>
 #include <exception>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 #include "topology.h"
 
@@ -159,6 +161,52 @@ void NetworkTopology::print_topology() {
     std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id
               << ")\t" << g[ed].type << "\t" << g[ed].data_rate << "\t"
               << g[ed].propagation_delay << std::endl;
+  }
+}
+
+void NetworkTopology::dump_topology(std::filesystem::path out) {
+  nlohmann::json j = {{"nodes", nlohmann::json::array()},
+                      {"links", nlohmann::json::array()}};
+
+  for (auto vd : boost::make_iterator_range(boost::vertices(g))) {
+    j["nodes"].push_back({{"id", g[vd].id},
+                          {"processing_delay", g[vd].processing_delay},
+                          {"name", g[vd].name}});
+  }
+
+  for (auto ed : boost::make_iterator_range(boost::edges(g))) {
+    j["links"].push_back(
+        {{"source", boost::source(ed, g)},
+         {"target", boost::target(ed, g)},
+         {"type", g[ed].type},
+         {"data_rate", g[ed].data_rate},
+         {"propagation_delay", g[ed].propagation_delay},
+         {"multiple_subcarriers", g[ed].multiple_subcarriers}});
+  }
+
+  std::ofstream o(out);
+  o << std::setw(4) << j << std::endl;
+}
+
+void NetworkTopology::load_topology(std::filesystem::path in) {
+  std::ifstream i(in);
+  nlohmann::json j = nlohmann::json::parse(i);
+
+  for (auto n : j["nodes"]) {
+    NetworkDeviceProperty device(n["id"], n["processing_delay"], n["name"]);
+    add_device(device);
+  }
+
+  for (auto l : j["links"]) {
+    Edge edge(l["source"], l["target"]);
+    DataLinkProperty link;
+    if (l["type"] == wired) {
+      link = {wired, l["data_rate"], l["propagation_delay"]};
+    } else {
+      link = {wireless, l["data_rate"], l["propagation_delay"],
+              (bool)l["multiple_subcarriers"]};
+    }
+    add_data_link({edge, link});
   }
 }
 

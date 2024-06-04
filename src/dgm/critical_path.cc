@@ -202,8 +202,8 @@ CriticalPath::Result CriticalPath::weighted_dynamic_lateness_path(Delay min) {
           static_cast<double>(lateness) /
           (stream.e2e_latency - stream.effective_release[listener] -
            stream.rti_map[listener].d_max() + stream.phase);
-      if (weighted_lateness > max_lateness.first)
-        max_lateness = {weighted_lateness, v_listener};
+      if (weighted_lateness * stream.weight > max_lateness.first)
+        max_lateness = {weighted_lateness * stream.weight, v_listener};
     }
   }
 
