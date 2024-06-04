@@ -145,13 +145,13 @@ namespace tsndgm
             switch (type)
             {
             case makespan:
-                [[fallthrough]]
+                [[fallthrough]];
             case fixed_tardiness:
-                [[fallthrough]]
+                [[fallthrough]];
             case dynamic_tardiness:
                 return 0;
             case fixed_lateness:
-                [[fallthrough]]
+                [[fallthrough]];
             case dynamic_lateness:
                 return std::numeric_limits<Delay>::min();
             default:
