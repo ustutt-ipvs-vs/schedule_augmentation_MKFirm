@@ -1,5 +1,4 @@
 #include <memory>
-#include <string>
 
 #include "src/network/topology.h"
 
@@ -19,6 +18,7 @@ auto main(int argc, char* argv[])
      *
      * - create output
      */
-    std::string network_file = "data/network.json";
-    auto network = make_shared<tsndgm::NetworkTopology>(network_file);
+    std::filesystem::__cxx11::path network_file = "../data/network.json";
+    const auto network = std::make_shared<tsndgm::NetworkTopology>(network_file);
+    network->print_topology();
 }

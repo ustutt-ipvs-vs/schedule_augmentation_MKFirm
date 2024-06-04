@@ -15,11 +15,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(TESTING "1" CACHE STRING "Enable Testing")
 set(BENCHMARKING "1" CACHE STRING "Enable Testing")
 
-add_subdirectory(src)
 
-add_library(tsndgm INTERFACE)
-target_link_libraries(tsndgm INTERFACE optimization heuristics)
-
+## dependencies
 # download JSPLIB, which contains Job-Shop Scheduling Problems
 find_package(Git QUIET)
 if (GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
@@ -47,12 +44,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+## tsndgm library
+add_subdirectory(src)
+
+add_library(tsndgm INTERFACE)
+target_link_libraries(tsndgm INTERFACE optimization heuristics)
 
 ## Executable
 add_executable(DgmExec main.cpp)
 
 target_link_libraries(DgmExec
-        nlohmann_json
+        tsndgm
 )
 
 
