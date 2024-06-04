@@ -8,8 +8,8 @@ namespace tsndgm {
 
 class InitialSelectionHeuristic {
 public:
-  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   InitialSelectionHeuristic(DisjunctiveGraphModel &dgm,
                             CriticalPath::Objective type)

@@ -34,7 +34,7 @@ struct EncodedSelection {
 };
 
 struct NextSelection {
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   std::list<E> edges;
   DGMOperation operation;

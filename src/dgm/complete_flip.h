@@ -7,7 +7,7 @@ namespace tsndgm {
 
 class FlipGraphException : public std::exception {
 public:
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   FlipGraphException(E required_shuffle) : required_shuffle(required_shuffle) {}
   const char *what() { return "flip graph violation detected"; }
@@ -17,7 +17,7 @@ public:
 
 class IncompleteSelectionException : public std::exception {
 public:
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   IncompleteSelectionException() {}
   const char *what() {
@@ -27,7 +27,7 @@ public:
 
 class UnfixableCycleException : public std::exception {
 public:
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   UnfixableCycleException() {}
   const char *what() {
@@ -37,29 +37,29 @@ public:
 
 class complete_flip_visitor : public update_machine_successors_visitor {
 public:
-  complete_flip_visitor(shuffle_graph_t &shuffle_graph,
+  complete_flip_visitor(transmission_graph_t &transmission_graph,
                         const std::set<OrientationState *> &flipped_edges,
                         const std::set<V> &shuffled_operations,
                         std::list<E> &required_flips,
                         std::map<V, V> &updated_machine_successors)
-      : update_machine_successors_visitor(shuffle_graph,
+      : update_machine_successors_visitor(transmission_graph,
                                           updated_machine_successors),
         flipped_edges(flipped_edges), shuffled_operations(shuffled_operations),
         required_flips(required_flips) {}
 
-  void tree_edge(E e, const shuffle_graph_t &shuffle_graph) const {
-    prop.cycle_pred[source(e, shuffle_graph)] = target(e, shuffle_graph);
+  void tree_edge(E e, const transmission_graph_t &transmission_graph) const {
+    prop.cycle_pred[source(e, transmission_graph)] = target(e, transmission_graph);
   }
 
-  void add_required_flips(E uv, const shuffle_graph_t &shuffle_graph) {
-    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph);
+  void add_required_flips(E uv, const transmission_graph_t &transmission_graph) {
+    V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
     V w = prop.cycle_pred[v];
     do {
-      auto [wv, found] = boost::edge(w, v, shuffle_graph);
-      if (found && shuffle_graph[wv].edge_type != conjunctive &&
-          shuffle_graph[wv].state() == allowed) {
+      auto [wv, found] = boost::edge(w, v, transmission_graph);
+      if (found && transmission_graph[wv].edge_type != conjunctive &&
+          transmission_graph[wv].state() == allowed) {
         bool new_flip = required_flips_classes
-                            .insert(shuffle_graph[wv].state_pair->state.get())
+                            .insert(transmission_graph[wv].state_pair->state.get())
                             .second;
         if (new_flip)
           required_flips.push_back(wv);
@@ -68,18 +68,18 @@ public:
     } while (w != v);
   }
 
-  bool back_edge(E uv, const shuffle_graph_t &shuffle_graph) {
-    V u = source(uv, shuffle_graph), v = target(uv, shuffle_graph), w = v;
+  bool back_edge(E uv, const transmission_graph_t &transmission_graph) {
+    V u = source(uv, transmission_graph), v = target(uv, transmission_graph), w = v;
 
     V old_pred = prop.cycle_pred[u];
     prop.cycle_pred[u] = v;
 
     // if cycle contains edge to be flipped, there's nothing to do
     do {
-      E e = boost::edge(w, prop.cycle_pred[w], shuffle_graph).first;
+      E e = boost::edge(w, prop.cycle_pred[w], transmission_graph).first;
 
       if (required_flips_classes.contains(
-              shuffle_graph[e].state_pair->state.get())) {
+              transmission_graph[e].state_pair->state.get())) {
         prop.cycle_pred[u] = old_pred;
         return false;
       }
@@ -92,14 +92,14 @@ public:
     std::optional<V> breaking_operation = {};
 
     do {
-      E e = boost::edge(w, prop.cycle_pred[w], shuffle_graph).first;
+      E e = boost::edge(w, prop.cycle_pred[w], transmission_graph).first;
       w = prop.cycle_pred[w];
 
       // if cycle contains newly shuffled operation, last_disjunctive_edge
       // is flipped next
       if (shuffled_operations.contains(w)) {
         if (last_disjunctive_edge.has_value()) {
-          add_required_flips(*last_disjunctive_edge, shuffle_graph);
+          add_required_flips(*last_disjunctive_edge, transmission_graph);
           prop.cycle_pred[u] = old_pred;
           return false;
         } else if (!breaking_operation.has_value()) {
@@ -111,17 +111,17 @@ public:
       }
 
       // conjunctive edges cannot be flipped, continue
-      if (shuffle_graph[e].edge_type == conjunctive) {
+      if (transmission_graph[e].edge_type == conjunctive) {
         continue;
       }
 
       if (!flipped_edges.contains(
-              shuffle_graph[e].state_pair->reversed_state.get())) {
+              transmission_graph[e].state_pair->reversed_state.get())) {
         // store edge that is eligible for flipping
         last_disjunctive_edge = e;
       } else {
         if (last_disjunctive_edge.has_value()) {
-          add_required_flips(*last_disjunctive_edge, shuffle_graph);
+          add_required_flips(*last_disjunctive_edge, transmission_graph);
           prop.cycle_pred[u] = old_pred;
           return false;
         }

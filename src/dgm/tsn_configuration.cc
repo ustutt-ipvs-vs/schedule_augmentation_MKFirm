@@ -3,9 +3,9 @@
 namespace tsndgm {
 
 void TSNConfiguration::compute() {
-  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
   reversed_dgm_traversal(
-      shuffle_graph, visitor(tsn_configuration_visitor(shuffle_graph, topology,
+      transmission_graph, visitor(tsn_configuration_visitor(transmission_graph, topology,
                                                        gcl_config, psfp_config))
                          .root_vertex(prop.sink));
 
@@ -29,7 +29,7 @@ void TSNConfiguration::compute() {
 }
 
 void TSNConfiguration::dump(std::filesystem::path out) {
-  ShuffleGraphProperty &prop = shuffle_graph[boost::graph_bundle];
+  TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
   nlohmann::json j = {{"INIT", nlohmann::json::object()},
                       {"GCL", nlohmann::json::object()},
                       {"PSFP", nlohmann::json::object()}};
@@ -87,12 +87,12 @@ void TSNConfiguration::dump(std::filesystem::path out) {
 }
 
 void tsn_configuration_visitor::finish_vertex(
-    V v, const shuffle_graph_t &shuffle_graph) {
+    V v, const transmission_graph_t &transmission_graph) {
   if (v == prop.src || v == prop.sink)
     return;
 
   // add entry to GCL config
-  Edge egress_port = shuffle_graph[v].edge;
+  Edge egress_port = transmission_graph[v].edge;
   DataRate rate = topology.get_data_link_property(egress_port).data_rate;
   Delay prop_delay =
       topology.get_data_link_property(egress_port).propagation_delay;
@@ -101,13 +101,13 @@ void tsn_configuration_visitor::finish_vertex(
   Delay open_duration = 0;
   Delay d_trans_min = std::numeric_limits<Delay>::max();
   Delay d_trans_total = 0;
-  for (MessageStreamHandle ms : shuffle_graph[v].ms_handle) {
+  for (MessageStreamHandle ms : transmission_graph[v].ms_handle) {
     // GCL only covers wireline portion
     // If link is wireless, it only covers the wireless portion between switch
     // and the radio link
     open_duration +=
         WIRED_RTI(prop.streams[ms].frame_size, rate, prop_delay).d_trans_max();
-    if (topology.has_multiple_subcarriers(shuffle_graph[v].edge))
+    if (topology.has_multiple_subcarriers(transmission_graph[v].edge))
       d_trans_total = std::max(
           d_trans_total, prop.streams[ms].rti_map[egress_port].d_trans_max());
     else
@@ -131,7 +131,7 @@ void tsn_configuration_visitor::finish_vertex(
   Delay proc_delay =
       topology.get_device_property(egress_port.second).processing_delay;
   psfp_gates.push_back(PSFPGate(
-      shuffle_graph[v].ms_handle, prop.crit_cost[v] + d_trans_min + proc_delay,
+      transmission_graph[v].ms_handle, prop.crit_cost[v] + d_trans_min + proc_delay,
       prop.crit_cost[v] + d_trans_total + proc_delay));
 }
 

@@ -6,8 +6,8 @@
 namespace tsndgm {
 
 struct Neighborhood {
-  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   void clear() {
     flip_candidates.clear();
@@ -55,8 +55,8 @@ private:
 
 class SelectionCriticalBlockNeighborhood : public SelectionNeighborhood {
 public:
-  typedef boost::graph_traits<shuffle_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<shuffle_graph_t>::edge_descriptor E;
+  typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   SelectionCriticalBlockNeighborhood(DisjunctiveGraphModel &dgm,
                                      int restriction = 0)

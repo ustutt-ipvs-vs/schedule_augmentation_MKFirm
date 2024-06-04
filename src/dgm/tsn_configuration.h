@@ -4,7 +4,7 @@
 #include "../network/message_stream.h"
 #include "../network/topology.h"
 #include "critical_path.h"
-#include "shuffle_graph.h"
+#include "transmission_graph.h"
 #include "traversal.h"
 
 namespace tsndgm {
@@ -36,8 +36,8 @@ typedef std::map<MessageStreamHandle, Delay> InitialTransmissionConfiguration;
 
 struct TSNConfiguration {
 public:
-  TSNConfiguration(shuffle_graph_t &shuffle_graph, NetworkTopology &topology)
-      : shuffle_graph(shuffle_graph), topology(topology) {
+  TSNConfiguration(transmission_graph_t &transmission_graph, NetworkTopology &topology)
+      : transmission_graph(transmission_graph), topology(topology) {
     compute();
   };
 
@@ -50,20 +50,20 @@ public:
 protected:
   void compute();
 
-  shuffle_graph_t &shuffle_graph;
+  transmission_graph_t &transmission_graph;
   NetworkTopology &topology;
 };
 
 class tsn_configuration_visitor : public longest_path_visitor {
 public:
-  tsn_configuration_visitor(shuffle_graph_t &shuffle_graph,
+  tsn_configuration_visitor(transmission_graph_t &transmission_graph,
                             NetworkTopology &topology,
                             GCLConfiguration &gcl_config,
                             PSFPConfiguration &psfp_config)
-      : longest_path_visitor(shuffle_graph), topology(topology),
+      : longest_path_visitor(transmission_graph), topology(topology),
         gcl_config(gcl_config), psfp_config(psfp_config){};
 
-  void finish_vertex(V v, const shuffle_graph_t &shuffle_graph);
+  void finish_vertex(V v, const transmission_graph_t &transmission_graph);
 
   GCLConfiguration &gcl_config;
   PSFPConfiguration &psfp_config;

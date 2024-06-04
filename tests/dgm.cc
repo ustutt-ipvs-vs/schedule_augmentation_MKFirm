@@ -211,9 +211,9 @@ protected:
 
 static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
                                int SHUFFLE, int FLIP_RESTORE) {
-  CriticalPath critical_path(dgm.shuffle_graph);
-  ShuffleGraphProperty &prop =
-      boost::get_property(dgm.shuffle_graph, boost::graph_bundle);
+  CriticalPath critical_path(dgm.transmission_graph);
+  TransmissionGraphProperty &prop =
+      boost::get_property(dgm.transmission_graph, boost::graph_bundle);
 
   for (int i = 1; i < N; i++) {
     std::cout << " " << i
@@ -222,14 +222,14 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
     if (i % SPLIT == 0) {
       std::cout << "TEST Split_All" << std::endl;
       dgm.split_all();
-      assert_synchronicity(dgm.shuffle_graph);
+      assert_synchronicity(dgm.transmission_graph);
     } else if (i % SHUFFLE == 0) {
-      vector<boost::graph_traits<shuffle_graph_t>::edge_descriptor>
+      vector<boost::graph_traits<transmission_graph_t>::edge_descriptor>
           eligible_edges;
       for (auto ed :
-           boost::make_iterator_range(boost::edges(dgm.shuffle_graph))) {
-        if (dgm.shuffle_graph[ed].edge_type == disjunctive &&
-            dgm.shuffle_graph[ed].state() == allowed) {
+           boost::make_iterator_range(boost::edges(dgm.transmission_graph))) {
+        if (dgm.transmission_graph[ed].edge_type == disjunctive &&
+            dgm.transmission_graph[ed].state() == allowed) {
           eligible_edges.push_back(ed);
         }
       }
@@ -253,26 +253,26 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
         std::cout << "WARNING: " << e.what() << std::endl;
       }
       dgm.print();
-      assert_synchronicity(dgm.shuffle_graph);
+      assert_synchronicity(dgm.transmission_graph);
 
       for (auto v :
-           boost::make_iterator_range(boost::vertices(dgm.shuffle_graph))) {
-        for (auto ms : dgm.shuffle_graph[v].ms_handle) {
+           boost::make_iterator_range(boost::vertices(dgm.transmission_graph))) {
+        for (auto ms : dgm.transmission_graph[v].ms_handle) {
           ASSERT_TRUE(std::any_of(
-              dgm.shuffle_graph[v].JS.begin(), dgm.shuffle_graph[v].JS.end(),
+              dgm.transmission_graph[v].JS.begin(), dgm.transmission_graph[v].JS.end(),
               [&](auto &nv) {
                 return nv.v == 1 ||
-                       std::find(dgm.shuffle_graph[nv.v].ms_handle.begin(),
-                                 dgm.shuffle_graph[nv.v].ms_handle.end(),
-                                 ms) != dgm.shuffle_graph[nv.v].ms_handle.end();
+                       std::find(dgm.transmission_graph[nv.v].ms_handle.begin(),
+                                 dgm.transmission_graph[nv.v].ms_handle.end(),
+                                 ms) != dgm.transmission_graph[nv.v].ms_handle.end();
               }));
           ASSERT_TRUE(std::any_of(
-              dgm.shuffle_graph[v].JP.begin(), dgm.shuffle_graph[v].JP.end(),
+              dgm.transmission_graph[v].JP.begin(), dgm.transmission_graph[v].JP.end(),
               [&](auto &nv) {
                 return nv.v == 0 ||
-                       std::find(dgm.shuffle_graph[nv.v].ms_handle.begin(),
-                                 dgm.shuffle_graph[nv.v].ms_handle.end(),
-                                 ms) != dgm.shuffle_graph[nv.v].ms_handle.end();
+                       std::find(dgm.transmission_graph[nv.v].ms_handle.begin(),
+                                 dgm.transmission_graph[nv.v].ms_handle.end(),
+                                 ms) != dgm.transmission_graph[nv.v].ms_handle.end();
               }));
         }
       }
@@ -280,14 +280,14 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
     } else if (i % FLIP_RESTORE == 0) {
       std::cout << "TEST Flip Restore: " << std::endl;
       dgm.restore_flips();
-      assert_synchronicity(dgm.shuffle_graph);
+      assert_synchronicity(dgm.transmission_graph);
     } else {
-      vector<boost::graph_traits<shuffle_graph_t>::edge_descriptor>
+      vector<boost::graph_traits<transmission_graph_t>::edge_descriptor>
           eligible_edges;
       for (auto ed :
-           boost::make_iterator_range(boost::edges(dgm.shuffle_graph))) {
-        if (dgm.shuffle_graph[ed].edge_type == disjunctive &&
-            dgm.shuffle_graph[ed].state() == allowed) {
+           boost::make_iterator_range(boost::edges(dgm.transmission_graph))) {
+        if (dgm.transmission_graph[ed].edge_type == disjunctive &&
+            dgm.transmission_graph[ed].state() == allowed) {
           eligible_edges.push_back(ed);
         }
       }
@@ -310,7 +310,7 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
                   << std::endl;
       }
       dgm.print();
-      assert_synchronicity(dgm.shuffle_graph);
+      assert_synchronicity(dgm.transmission_graph);
     }
   }
 }
@@ -320,7 +320,7 @@ static void perform_operations(DisjunctiveGraphModel &dgm, int N, int SPLIT,
 // dgm.complete_shuffle(dgm.edge(9, 19));
 
 // std::map<Edge,
-//          std::vector<boost::graph_traits<shuffle_graph_t>::vertex_descriptor>>
+//          std::vector<boost::graph_traits<transmission_graph_t>::vertex_descriptor>>
 //     processing_order = {{Edge(0, 2), {2, 6}},   {Edge(2, 3), {3, 7}},
 //                         {Edge(3, 4), {4, 8}},   {Edge(2, 5), {13, 17}},
 //                         {Edge(5, 4), {14, 18}}, {Edge(4, 6), {5, 11, 15,
