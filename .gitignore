@@ -3,3 +3,7 @@ compile_commands.json
 documentation
 build
 Debug
+
+release/
+cmake-build-*/
+.idea/
