@@ -90,12 +90,6 @@ namespace tsndgm
         return boost::get(boost::edge_bundle, g)[e];
     }
 
-    bool NetworkTopology::has_multiple_subcarriers(Edge edge) const
-    {
-        E e = get_edge_by_ids(edge);
-        return boost::get(boost::edge_bundle, g)[e].multiple_subcarriers;
-    }
-
     void NetworkTopology::remove_device(const DeviceId& device)
     {
         V v = get_vertex_by_id<true>(device);
@@ -187,7 +181,7 @@ namespace tsndgm
         for (auto ed : boost::make_iterator_range(boost::edges(g)))
         {
             std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id
-                << ")\t" << g[ed].type << "\t" << g[ed].data_rate << "\t"
+                << ")\t" << g[ed].data_rate << "\t"
                 << g[ed].propagation_delay << std::endl;
         }
     }
@@ -214,10 +208,8 @@ namespace tsndgm
                 {
                     {"source", boost::source(ed, g)},
                     {"target", boost::target(ed, g)},
-                    {"type", g[ed].type},
                     {"data_rate", g[ed].data_rate},
-                    {"propagation_delay", g[ed].propagation_delay},
-                    {"multiple_subcarriers", g[ed].multiple_subcarriers}
+                    {"propagation_delay", g[ed].propagation_delay}
                 });
         }
 
@@ -239,18 +231,7 @@ namespace tsndgm
         for (auto l : j["links"])
         {
             Edge edge(l["source"], l["target"]);
-            DataLinkProperty link;
-            if (l["type"] == wired)
-            {
-                link = {wired, l["data_rate"], l["propagation_delay"]};
-            }
-            else
-            {
-                link = {
-                    wireless, l["data_rate"], l["propagation_delay"],
-                    (bool)l["multiple_subcarriers"]
-                };
-            }
+            DataLinkProperty link = {l["data_rate"], l["propagation_delay"]};
             add_data_link({edge, link});
         }
     }

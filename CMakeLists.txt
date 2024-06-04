@@ -47,14 +47,11 @@ FetchContent_MakeAvailable(nlohmann_json)
 ## tsndgm library
 add_subdirectory(src)
 
-add_library(tsndgm INTERFACE)
-target_link_libraries(tsndgm INTERFACE optimization heuristics)
-
 ## Executable
 add_executable(DgmExec main.cpp)
 
 target_link_libraries(DgmExec
-        tsndgm
+        dgm
 )
 
 

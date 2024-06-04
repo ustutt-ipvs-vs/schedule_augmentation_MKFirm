@@ -49,37 +49,15 @@ namespace tsndgm
         return NetworkDeviceProperty(unique_id, processing_delay);
     }
 
-    enum DataLinkType { wired, wireless };
 
-    /** DataLinkProperty has different semantics for wireline and wireless links.
-     * For wireline links, type = wired, multiple_subcarriers = false, and the
-     * frame's delay is computed via
-     *  d = frame_size / data_rate + propagation_delay
-     * For wireless links, type = wireless, multiple_subcarriers \in {true, false},
-     * and the frames's delay is computed via
-     *  d = frame_size / data_rate + propagation_delay + RTI
-     * In particular, the data_rate now specifies a "wireline" transmission delay
-     * that covers the wired portion between the TSN bridge's egress port and the
-     * radio link. The delay of the radio link itself is covered by the RTI. */
     struct DataLinkProperty
     {
-        DataLinkType type;
         DataRate data_rate;
         Delay propagation_delay;
-        bool multiple_subcarriers;
 
-        DataLinkProperty(DataLinkType type = wired,
-                         DataRate data_rate = DEFAULT_DATA_RATE,
-                         Delay propagation_delay = 0,
-                         bool multiple_subcarriers = false)
-            : type(type), data_rate(data_rate), propagation_delay(propagation_delay),
-              multiple_subcarriers(multiple_subcarriers)
-        {
-        }
-
-        DataLinkProperty(DataLinkType type, bool multiple_subcarriers)
-            : type(type), data_rate(DEFAULT_DATA_RATE), propagation_delay(0),
-              multiple_subcarriers(multiple_subcarriers)
+        DataLinkProperty(DataRate data_rate = DEFAULT_DATA_RATE,
+                         Delay propagation_delay = 0)
+            : data_rate(data_rate), propagation_delay(propagation_delay)
         {
         }
     };
@@ -121,7 +99,6 @@ namespace tsndgm
 
         const NetworkDeviceProperty& get_device_property(DeviceId id) const;
         const DataLinkProperty& get_data_link_property(Edge edge) const;
-        bool has_multiple_subcarriers(Edge edge) const;
 
         void remove_device(const DeviceId& device);
         void remove_devices(const std::vector<DeviceId>& devices);

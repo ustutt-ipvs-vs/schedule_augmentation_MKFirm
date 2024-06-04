@@ -5,7 +5,6 @@
 #include "../network/topology.h"
 #include "critical_path.h"
 #include "transmission_graph.h"
-#include "traversal.h"
 
 namespace tsndgm {
 
