@@ -147,8 +147,7 @@ namespace tsndgm
                             prop.streams[other].rti_map[u_hop_parent->edge].d_min();
                         V u_parent = prop.operation_to_vertex[{u_hop_parent->edge, other}];
                         boost::add_edge(v, u_parent, {weight, fifo},
-                                        transmission_graph)
-                            .first;
+                                        transmission_graph);
                     }
 
                     // add disjunctive edge v -> u
