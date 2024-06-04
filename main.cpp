@@ -1,7 +1,7 @@
-//
-// Created by gepperho on 03.06.2024.
-//
+#include <memory>
+#include <string>
 
+#include "src/network/topology.h"
 
 auto main(int argc, char* argv[])
     -> int
@@ -19,4 +19,6 @@ auto main(int argc, char* argv[])
      *
      * - create output
      */
+    std::string network_file = "data/network.json";
+    auto network = make_shared<tsndgm::NetworkTopology>(network_file);
 }
