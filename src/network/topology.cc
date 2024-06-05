@@ -29,6 +29,7 @@ namespace tsndgm
             g[vd].id = device_properties[vd].id;
             g[vd].processing_delay = device_properties[vd].processing_delay;
             g[vd].name = device_properties[vd].name;
+            g[vd].queues_per_port = device_properties[vd].queues_per_port;
         }
     }
 
@@ -41,6 +42,7 @@ namespace tsndgm
             g[device].id = device_property.id;
             g[device].processing_delay = device_property.processing_delay;
             g[device].name = device_property.name;
+            g[device].queues_per_port = device_property.queues_per_port;
         }
     }
 
@@ -157,12 +159,12 @@ namespace tsndgm
             std::cout << std::endl;
         }
 
-        std::cout << "ID\tProcessing Delay" << std::endl;
+        std::cout << "ID\tName\tProcessing Delay\tQueues per Port" << std::endl;
         for (auto vd : boost::make_iterator_range(boost::vertices(g)))
         {
-            std::cout << g[vd].id << "\t" << g[vd].name << "\t" << g[vd].processing_delay << std::endl;
+            std::cout << g[vd].id << "\t" << g[vd].name << "\t" << g[vd].processing_delay << "\t\t\t" << g[vd].queues_per_port << std::endl;
         }
-        std::cout << "Edge\tType\tData Rate\tPropagation Delay" << std::endl;
+        std::cout << "Edge\tData Rate\tPropagation Delay" << std::endl;
         for (auto ed : boost::make_iterator_range(boost::edges(g)))
         {
             std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t"
@@ -177,7 +179,7 @@ namespace tsndgm
         for (auto vd : boost::make_iterator_range(boost::vertices(g)))
         {
             j["nodes"].push_back(
-                {{"id", g[vd].id}, {"processing_delay", g[vd].processing_delay}, {"name", g[vd].name}});
+                {{"id", g[vd].id}, {"processing_delay_ns", g[vd].processing_delay}, {"name", g[vd].name}});
         }
 
         for (auto ed : boost::make_iterator_range(boost::edges(g)))
@@ -198,10 +200,9 @@ namespace tsndgm
         {
             std::ifstream i(in);
             nlohmann::json j = nlohmann::json::parse(i);
-
             for (auto n : j["nodes"])
             {
-                NetworkDeviceProperty device(n["id"], n["processing_delay"], n["name"]);
+                NetworkDeviceProperty device(n["id"], n["processing_delay_ns"], n["name"], n["queues_per_port"]);
                 add_device(device);
             }
 

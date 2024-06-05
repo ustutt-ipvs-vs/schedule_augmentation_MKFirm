@@ -329,112 +329,136 @@
         {
             "id": 0,
             "name": "CORE_00",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3,
+            "is_switch": false
         },
         {
             "id": 1,
             "name": "CORE_01",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3,
+            "is_switch": true
         },
         {
             "id": 2,
             "name": "CORE_02",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 3,
             "name": "CORE_03",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 4,
             "name": "CORE_04",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 5,
             "name": "CORE_05",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 6,
             "name": "CORE_06",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 7,
             "name": "CORE_07",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 8,
             "name": "CORE_08",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 9,
             "name": "CORE_09",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 10,
             "name": "CORE_10",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 11,
             "name": "CORE_11",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 12,
             "name": "CORE_12",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 13,
             "name": "CORE_13",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 14,
             "name": "CORE_14",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 15,
             "name": "AGV0_00",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 16,
             "name": "AGV0_01",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 17,
             "name": "AGV0_02",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 18,
             "name": "AGV0_03",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 19,
             "name": "AGV0_04",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 20,
             "name": "AGV0_05",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         },
         {
             "id": 21,
             "name": "AGV0_06",
-            "processing_delay": 0
+            "processing_delay_ns": 0,
+            "queues_per_port": 3
         }
     ]
 }

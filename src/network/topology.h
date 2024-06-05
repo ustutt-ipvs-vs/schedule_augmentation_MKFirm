@@ -20,13 +20,15 @@ struct NetworkDeviceProperty {
   DeviceId id;
   Delay processing_delay;
   std::string name;
+  unsigned int queues_per_port;
 
   NetworkDeviceProperty() = default;
 
   explicit NetworkDeviceProperty(const DeviceId id,
                                  const Delay processing_delay = 0,
-                                 std::string name = "")
-      : id(id), processing_delay(processing_delay), name(std::move(name)) {
+                                 std::string name = "",
+                                 const unsigned int queues_per_port = 8)
+      : id(id), processing_delay(processing_delay), name(std::move(name)), queues_per_port(queues_per_port) {
     // TODO should this be "unique_id = max(id + 1, unique_id)"? Otherwise we
     // increase the unique_id even if the id is smaller than the current
     // unique_id
