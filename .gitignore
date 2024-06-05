@@ -7,3 +7,4 @@ Debug
 release/
 cmake-build-*/
 .idea/
+.vscode/*

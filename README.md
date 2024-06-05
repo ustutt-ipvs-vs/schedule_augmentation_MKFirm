@@ -38,6 +38,11 @@ cmake ..
 cmake --build .
 ```
 
+## Run with dummy files
+```
+./DgmExec -t ../data/network.json -s ../data/streams.json -z ../data/transmission_output.json
+```
+
 ### Run JSP Benchmarks (Single Process)
 After building, you can run the JSP benchmarks via
 ```

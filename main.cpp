@@ -4,6 +4,7 @@
 #include "src/dgm/dgm.h"
 #include "src/network/message_stream.h"
 #include "src/network/topology.h"
+#include "src/network/stream_schedule.h"
 
 auto main(const int argc, char *argv[]) -> int
 {
@@ -33,8 +34,13 @@ auto main(const int argc, char *argv[]) -> int
 
     const auto network = std::make_shared<tsndgm::NetworkTopology>(options.getTopologyPath());
     network->print_topology();
+    std::cout << "Loaded network topology!\n";
 
     const auto streams = load_streams(network, options.getStreamsPath());
+    std::cout << "Loaded streams!\n";
+
+    const auto scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
+    std::cout << "Loaded schedule!\n";
 
     tsndgm::DisjunctiveGraphModel dgm(network, streams);
     dgm.print();
