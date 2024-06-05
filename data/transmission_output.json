@@ -1,0 +1,126 @@
+[
+    {
+        "stream_id": "0",
+        "pcp": 0,
+        "frames": [
+            {
+                "frame_number": 0,
+                "transmissions": [
+                    {
+                        "egress_port": "0-1",
+                        "start": 8970,
+                        "end": 16970
+                    },
+                    {
+                        "egress_port": "1-2",
+                        "start": 16980,
+                        "end": 24980
+                    },
+                    {
+                        "egress_port": "2-3",
+                        "start": 25030,
+                        "end": 33030
+                    }
+                ]
+            },
+            {
+                "frame_number": 1,
+                "transmissions": [
+                    {
+                        "egress_port": "0-1",
+                        "start": 3000010,
+                        "end": 3008010
+                    },
+                    {
+                        "egress_port": "1-2",
+                        "start": 3008020,
+                        "end": 3016020
+                    },
+                    {
+                        "egress_port": "2-3",
+                        "start": 3025030,
+                        "end": 3033030
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "stream_id": "1",
+        "pcp": 0,
+        "frames": [
+            {
+                "frame_number": 0,
+                "transmissions": [
+                    {
+                        "egress_port": "0-1",
+                        "start": 26890,
+                        "end": 42890
+                    },
+                    {
+                        "egress_port": "1-2",
+                        "start": 42900,
+                        "end": 58900
+                    },
+                    {
+                        "egress_port": "2-3",
+                        "start": 58950,
+                        "end": 74950
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "stream_id": "2",
+        "pcp": 1,
+        "frames": [
+            {
+                "frame_number": 0,
+                "transmissions": [
+                    {
+                        "egress_port": "0-1",
+                        "start": 10,
+                        "end": 8010
+                    },
+                    {
+                        "egress_port": "1-2",
+                        "start": 8020,
+                        "end": 16020
+                    },
+                    {
+                        "egress_port": "2-3",
+                        "start": 16070,
+                        "end": 24070
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "stream_id": "3",
+        "pcp": 1,
+        "frames": [
+            {
+                "frame_number": 0,
+                "transmissions": [
+                    {
+                        "egress_port": "0-1",
+                        "start": 17930,
+                        "end": 25930
+                    },
+                    {
+                        "egress_port": "1-2",
+                        "start": 25940,
+                        "end": 33940
+                    },
+                    {
+                        "egress_port": "2-3",
+                        "start": 33990,
+                        "end": 41990
+                    }
+                ]
+            }
+        ]
+    }
+]
