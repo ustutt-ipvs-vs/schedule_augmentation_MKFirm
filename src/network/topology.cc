@@ -141,7 +141,7 @@ namespace tsndgm
         }
     }
 
-    void NetworkTopology::print_topology()
+    void NetworkTopology::print_topology() const
     {
         std::cout << "Topology" << std::endl;
         typename boost::graph_traits<network_topology_t>::out_edge_iterator out_i, out_end;

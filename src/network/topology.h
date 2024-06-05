@@ -101,7 +101,7 @@ public:
 
   void clear();
 
-  void print_topology();
+  void print_topology() const;
 
   void dump_topology(std::filesystem::path out);
   void load_topology(const std::filesystem::path &in);

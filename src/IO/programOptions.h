@@ -4,20 +4,27 @@
 #include <string>
 #include <vector>
 
-class ProgramOptions
+#include "inputLoader.h"
+namespace io
 {
-public:
-    explicit ProgramOptions(std::vector<std::string> &arguments);
+    class ProgramOptions
+    {
+    public:
+        explicit ProgramOptions(std::vector<std::string> &arguments);
 
-    [[nodiscard]] auto getTopologyPath() const -> std::filesystem::__cxx11::path;
+        [[nodiscard]] auto getTopologyPath() const -> FilePath;
 
-    [[nodiscard]] auto getStreamsPath() const -> std::filesystem::__cxx11::path;
+        [[nodiscard]] auto getTimeTriggeredStreamsPath() const -> FilePath;
 
-    [[nodiscard]] auto getSchedulePath() const -> std::filesystem::__cxx11::path;
+        [[nodiscard]] auto getSchedulePath() const -> FilePath;
+
+        [[nodiscard]] auto getEmergencyStreams() const -> FilePath;
 
 
-private:
-    std::string topology_path_;
-    std::string streams_path_;
-    std::string schedule_path_;
-};
+    private:
+        std::string topology_path_;
+        std::string tt_streams_path_;
+        std::string emergency_streams_path_;
+        std::string schedule_path_;
+    };
+} // namespace io

@@ -2,13 +2,15 @@
 #include <CLI/CLI.hpp>
 
 
-ProgramOptions::ProgramOptions(std::vector<std::string> &arguments)
+io::ProgramOptions::ProgramOptions(std::vector<std::string> &arguments)
 {
     CLI::App app{"Dynamic Flow Scheduler v2"};
 
     app.add_option("-t,--topology", topology_path_, "File path to the network graph")->required();
 
-    app.add_option("-s,--streams", streams_path_, "File path to the streams")->required();
+    app.add_option("-s,--tt_streams", tt_streams_path_, "File path to the time-triggered streams")->required();
+
+    app.add_option("-e,--e_streams", emergency_streams_path_, "File path to the emergency streams")->required();
 
     app.add_option("-z,--schedule", schedule_path_, "File path to the schedule of the TT streams")->required();
 
@@ -29,8 +31,10 @@ ProgramOptions::ProgramOptions(std::vector<std::string> &arguments)
         throw std::runtime_error(errorMessage);
     }
 }
-auto ProgramOptions::getTopologyPath() const -> std::filesystem::__cxx11::path { return topology_path_; }
+auto io::ProgramOptions::getTopologyPath() const -> FilePath { return topology_path_; }
 
-auto ProgramOptions::getStreamsPath() const -> std::filesystem::__cxx11::path { return streams_path_; }
+auto io::ProgramOptions::getTimeTriggeredStreamsPath() const -> FilePath { return tt_streams_path_; }
 
-auto ProgramOptions::getSchedulePath() const -> std::filesystem::__cxx11::path { return schedule_path_; }
+auto io::ProgramOptions::getSchedulePath() const -> FilePath { return schedule_path_; }
+
+auto io::ProgramOptions::getEmergencyStreams() const -> FilePath { return emergency_streams_path_; }

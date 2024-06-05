@@ -22,7 +22,7 @@ auto main(const int argc, char *argv[]) -> int
     {
         try
         {
-            return ProgramOptions(arguments);
+            return io::ProgramOptions(arguments);
         }
         catch (const std::runtime_error &e)
         {
@@ -34,7 +34,9 @@ auto main(const int argc, char *argv[]) -> int
     const auto network = std::make_shared<tsndgm::NetworkTopology>(options.getTopologyPath());
     network->print_topology();
 
-    const auto streams = load_streams(network, options.getStreamsPath());
+    const auto streams = load_streams(network, options.getTimeTriggeredStreamsPath());
+
+    const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams(), *network);
 
     tsndgm::DisjunctiveGraphModel dgm(network, streams);
     dgm.print();

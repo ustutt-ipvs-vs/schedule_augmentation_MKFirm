@@ -4,13 +4,14 @@ namespace tsndgm
 {
     void MessageStream::compute_wired_rtis()
     {
-        for (const TreeRouteHop &hop : *route)
+        for (const auto edge : route->route)
+        // for (const TreeRouteHop &hop : *route)
         {
-            auto &data_link_property = network->get_data_link_property(hop.edge);
+            auto &data_link_property = network->get_data_link_property(edge);
 
-            auto &device_property = network->get_device_property(hop.edge.second);
-            rti_map[hop.edge] = RTI(frame_size, data_link_property.data_rate, data_link_property.propagation_delay,
-                                    device_property.processing_delay);
+            auto &device_property = network->get_device_property(edge.second);
+            rti_map[edge] = RTI(frame_size, data_link_property.data_rate, data_link_property.propagation_delay,
+                                device_property.processing_delay);
         }
     }
 
@@ -23,8 +24,8 @@ namespace tsndgm
             {"rti_map", {}}, {"phase", phase},   {"jitter", jitter},         {"name", name},
         };
 
-        for (TreeRouteHop hop : *route)
-            j["route"].push_back(hop.edge);
+        for (const auto hop : route->route)
+            j["route"].push_back(hop);
 
         return j;
     }
@@ -35,7 +36,7 @@ namespace tsndgm
         for (auto e : j["route"])
             path.push_back(Edge(e[0], e[1]));
 
-        std::shared_ptr<Route> route = make_shared<Route>(network, std::move(path));
+        std::shared_ptr<Route> route = make_shared<Route>(std::move(path));
 
         RTIMap rti_map;
         if (!j["rti_map"].is_null())

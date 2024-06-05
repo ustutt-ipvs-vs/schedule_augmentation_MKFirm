@@ -24,7 +24,7 @@ void TreeRouteHop::add_path(const PathRoute &route) {
   }
 }
 
-void Route::check() {
+void MulticastRoute::check() {
   if (valid)
     return;
 
@@ -72,7 +72,7 @@ void Route::check() {
   valid = true;
 }
 
-void Route::print_route() {
+void MulticastRoute::print_route() {
   std::list<TreeRouteHop *> hops;
   for (TreeRouteHop &child : root.childs)
     hops.push_back(&child);
@@ -87,7 +87,7 @@ void Route::print_route() {
   std::cout << std::endl;
 }
 
-void Route::compute_talker_and_listeners() {
+void MulticastRoute::compute_talker_and_listeners() {
   talker = root.childs.front().edge;
   for (const TreeRouteHop &hop : *this) {
     if (hop.is_leaf())
