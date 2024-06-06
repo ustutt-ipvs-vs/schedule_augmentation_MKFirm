@@ -21,14 +21,22 @@ JSPLIB is a collection of JSP benchmarks with known makespan bounds, allowing us
 ## Install requirements
 Only tested with Linux / WSL.
 
+Install cmake:
+```
+sudo apt-get install cmake
+```
+
+Install CXX compiler:
+```
+sudo apt-get install build-essential
+```
+
 Install boost:
 ```
 sudo apt-get install libboost-all-dev
 ```
 
-## Build and Execute Benchmarks  
-
-### Build 
+## Build 
 If you wish to modify the compile flags, please modify *CMakeLists.txt*. 
 Otherwise, you can simply run:
 ```
