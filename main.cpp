@@ -4,7 +4,7 @@
 #include "src/dgm/dgm.h"
 #include "src/network/message_stream.h"
 #include "src/network/topology.h"
-#include "src/network/stream_schedule.h"
+#include "src/IO/schedule_loader.h"
 
 auto main(const int argc, char *argv[]) -> int
 {
@@ -39,10 +39,13 @@ auto main(const int argc, char *argv[]) -> int
     const auto streams = load_streams(network, options.getStreamsPath());
     std::cout << "Loaded streams!\n";
 
-    const auto scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
+    const std::vector<tsndgm::StreamSchedule> scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
     std::cout << "Loaded schedule!\n";
+    for(tsndgm::StreamSchedule i : scheduled_streams){
+        std::cout << i.toString() << "\n";
+    }
 
-    tsndgm::DisjunctiveGraphModel dgm(network, streams);
-    dgm.print();
-    dgm.print_critical_path(tsndgm::CriticalPath::makespan);
+    //tsndgm::DisjunctiveGraphModel dgm(network, streams);
+    //dgm.print();
+    //dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }
