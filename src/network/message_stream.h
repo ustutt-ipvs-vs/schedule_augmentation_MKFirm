@@ -6,11 +6,10 @@
 #include <nlohmann/json.hpp>
 #include "route.h"
 #include "topology.h"
+#include "../util/typedefs.h"
 
 namespace tsndgm
 {
-    typedef unsigned int FrameSize;
-
     class RTI
     {
     public:
