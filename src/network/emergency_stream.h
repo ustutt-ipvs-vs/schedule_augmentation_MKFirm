@@ -19,6 +19,7 @@ namespace tsndgm
 
         std::shared_ptr<Route> route;
 
+
         [[nodiscard]] auto dump() const -> nlohmann::json
         {
             nlohmann::json j = {{"id", id},
@@ -46,5 +47,23 @@ namespace tsndgm
             return ss.str();
         }
     };
+
+    inline auto createEmergencyStream(const nlohmann::json &j) -> EmergencyStream
+    {
+        auto stream = EmergencyStream{.id = j["streamID"],
+                                      .name = j["name"],
+                                      .source = j["source"],
+                                      .destination = j["target"],
+                                      .bucket_size_byte = j["bucket_size_byte"],
+                                      .refill_rate = tsndgm::mbps_to_DataRate(j["rate_mbps"])};
+        PathRoute route;
+        route.reserve(j["route"].size());
+        for (const auto &hop : j["route"])
+        {
+            route.emplace_back(hop["from"], hop["to"]);
+        }
+        stream.route = std::make_shared<Route>(std::move(route));
+        return stream;
+    }
 
 } // namespace tsndgm

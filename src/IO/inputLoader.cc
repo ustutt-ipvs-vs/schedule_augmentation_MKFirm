@@ -21,21 +21,7 @@ auto io::load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::Emerg
         streams.reserve(j.size());
         for (const auto &js : j)
         {
-            auto temp_stream = tsndgm::EmergencyStream{.id = js["streamID"],
-                                                       .name = js["name"],
-                                                       .source = js["source"],
-                                                       .destination = js["target"],
-                                                       .bucket_size_byte = js["bucket_size_byte"],
-                                                       .refill_rate = tsndgm::mbps_to_DataRate(js["rate_mbps"])};
-            tsndgm::PathRoute route;
-            route.reserve(js["route"].size());
-            for (const auto &hop : js["route"])
-            {
-                route.emplace_back(hop["from"], hop["to"]);
-            }
-            temp_stream.route = std::make_shared<tsndgm::Route>(std::move(route));
-
-            streams.emplace_back(temp_stream);
+            streams.emplace_back(tsndgm::createEmergencyStream(js));
         }
 
         return streams;
