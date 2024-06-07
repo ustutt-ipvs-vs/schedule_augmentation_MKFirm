@@ -6,6 +6,7 @@ namespace tsndgm
     typedef unsigned int StreamID;
     typedef unsigned long BurstSize;
     typedef unsigned int DeviceId;
+    typedef unsigned int LinkId;
     typedef long Tick;
     typedef Tick Delay;
     // DataRate: Byte per second

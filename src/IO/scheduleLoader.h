@@ -1,82 +1,24 @@
 #pragma once
 
 #include <filesystem>
-#include <iostream>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include "../network/message_stream.h"
+#include "../network/schedule.h"
 
 
-namespace tsndgm
+namespace io
 {
-    class FrameTransmission
-    {
-    public:
-        unsigned int link_id;
-        std::string link_name;
-        unsigned int source;
-        unsigned int target;
-        unsigned int start;
-        unsigned int end;
 
+    auto load_schedule(const std::filesystem::path &in) -> std::vector<tsndgm::StreamSchedule>;
 
-        FrameTransmission(unsigned int link_id, std::string link_name, unsigned int source, unsigned int target, unsigned int start, unsigned int end):
-            link_id(link_id), link_name(link_name), source(source), target(target), start(start), end(end) {}
+    auto set_routes(const std::vector<tsndgm::StreamSchedule> &schedules, std::vector<tsndgm::MessageStream> &streams)
+        -> void;
 
+    /**
+     * Create the PathRoute of the given stream
+     * @param stream in StreamSchedule format
+     * @return
+     */
+    auto build_route(const tsndgm::StreamSchedule &stream) -> tsndgm::PathRoute;
 
-        FrameTransmission(nlohmann::json j) {
-            *this = FrameTransmission(j["link_id"], j["link_name"], j["source"], j["target"], j["start"], j["end"]);
-        };
-
-        std::string toString() const;
-
-    private:
-        
-    };
-
-
-    class FrameSchedule
-    {
-    public:
-        unsigned int frame_number;
-        std::vector<FrameTransmission> transmissions;
-
-
-        FrameSchedule(unsigned int frame_number, std::vector<FrameTransmission> transmissions) :
-            frame_number(frame_number), transmissions(transmissions) {}
-
-
-        FrameSchedule(nlohmann::json j);
-
-        std::string toString() const;
-
-    private:
-        
-    };
-
-
-    class StreamSchedule
-    {
-    public:
-        int stream_id;
-        int pcp;
-        std::vector<FrameSchedule> frames;
-
-
-        StreamSchedule(int stream_id, int pcp, std::vector<FrameSchedule> frames) :
-            stream_id(stream_id), pcp(pcp), frames(frames) {}
-
-
-        StreamSchedule(nlohmann::json j);
-
-        std::string toString() const;
-
-    private:
-        
-    };
-
-    std::vector<StreamSchedule> load_schedule(const std::filesystem::path &in);
-
-    void set_routes(const std::vector<StreamSchedule> &schedule, std::vector<MessageStream> &streams);
-
-} // namespace tsndgm
+} // namespace io

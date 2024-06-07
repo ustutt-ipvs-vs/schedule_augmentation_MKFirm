@@ -1,61 +1,27 @@
 #include "scheduleLoader.h"
 
-namespace tsndgm
+#include <src/util/constants.h>
+
+namespace io
 {
-    StreamSchedule::StreamSchedule(nlohmann::json j)
-    {
-        std::vector<FrameSchedule> frames;
-        frames.reserve(j["frames"].size());
-        for (const auto &js : j["frames"])
-        {
-            frames.emplace_back(js);
-        }
-        *this = StreamSchedule(j["stream_id"], j["pcp"], frames);
-    }
 
-    std::string StreamSchedule::toString() const {
-        std::string output = "ScheduledStream id: " + std::to_string(stream_id) + ", PCP: " + std::to_string(pcp);
-        for(FrameSchedule i : frames){
-            output += i.toString();
-        }
-        return output;
-    }
-
-    FrameSchedule::FrameSchedule(nlohmann::json j)
-    {
-        std::vector<FrameTransmission> transmissions;
-        transmissions.reserve(j["transmissions"].size());
-        for (const auto &js : j["transmissions"])
-        {
-            transmissions.emplace_back(js);
-        }
-        *this = FrameSchedule(j["frame_number"], transmissions);
-    }
-
-    std::string FrameSchedule::toString() const {
-        std::string output = "\n|-ScheduledFrame number: " + std::to_string(frame_number);
-        for(FrameTransmission i : transmissions){
-            output += i.toString();
-        }
-        return output;
-    }
-
-    std::string FrameTransmission::toString() const {
-        return "\n|--link_id: " + std::to_string(link_id) + ", link_name: " + link_name + ", source: " + std::to_string(source) + ", target: " + std::to_string(target) + ", start: " + std::to_string(start) + ", end: " + std::to_string(end);
-    }
-
-    std::vector<StreamSchedule> load_schedule(const std::filesystem::path &in)
+    std::vector<tsndgm::StreamSchedule> load_schedule(const std::filesystem::path &in)
     {
         try
         {
             std::ifstream i(in);
+            if (not i.good())
+            {
+                std::cout << "Error opening file: " << in.string() << "\n";
+                std::exit(error_codes::FILE_NOT_FOUND);
+            }
             nlohmann::json j = nlohmann::json::parse(i);
 
-            std::vector<StreamSchedule> scheduled_streams;
+            std::vector<tsndgm::StreamSchedule> scheduled_streams;
             scheduled_streams.reserve(j.size());
             for (const auto &js : j)
             {
-                scheduled_streams.emplace_back(js);
+                scheduled_streams.emplace_back(tsndgm::createStreamSchedule(js));
             }
             return scheduled_streams;
         }
@@ -63,27 +29,33 @@ namespace tsndgm
         {
             std::cout << "Error parsing json file: " << in.string() << "\n";
             std::cout << e.what() << std::endl;
-            std::exit(3);
+            std::exit(error_codes::JSON_PARSING_FAILED);
         }
     }
 
-    void set_routes(const std::vector<StreamSchedule> &schedules, std::vector<MessageStream> &streams){
-        std::unordered_map<StreamID,PathRoute> route_map;
+    void set_routes(const std::vector<tsndgm::StreamSchedule> &schedules, std::vector<tsndgm::MessageStream> &streams)
+    {
+        std::unordered_map<tsndgm::StreamID, tsndgm::PathRoute> route_map;
 
-        for(const StreamSchedule &current_stream : schedules){
-            PathRoute current_route;
-            const FrameSchedule &current_frame = current_stream.frames.front();
-
-            for(const FrameTransmission &current_transmission : current_frame.transmissions){
-                current_route.emplace_back(current_transmission.source,current_transmission.target);
-            }
-
-            route_map[current_stream.stream_id] = current_route;
+        for (const auto &current_stream : schedules)
+        {
+            route_map[current_stream.stream_id] = build_route(current_stream);
         }
-
-        for(MessageStream &current_stream : streams){
+        for (tsndgm::MessageStream &current_stream : streams)
+        {
             current_stream.route->route = route_map.at(current_stream.id);
         }
-
     }
-} // namespace tsndgm
+
+
+    auto build_route(const tsndgm::StreamSchedule &stream) -> tsndgm::PathRoute
+    {
+        const auto &frame = stream.frames.front();
+        tsndgm::PathRoute route;
+        for (const auto &frame_transmission : frame.transmissions)
+        {
+            route.emplace_back(frame_transmission.source, frame_transmission.target);
+        }
+        return route;
+    }
+} // namespace io

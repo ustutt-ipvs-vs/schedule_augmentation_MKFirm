@@ -42,21 +42,23 @@ auto main(const int argc, char *argv[]) -> int
 
     const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
     std::cout << "Loaded ET-streams!\n";
-    for (const tsndgm::EmergencyStream &i : emergency_streams)
+    for (const tsndgm::EmergencyStream &es : emergency_streams)
     {
-        std::cout << i.to_string() << "\n";
+        std::cout << es.to_string() << "\n";
     }
 
-    const std::vector<tsndgm::StreamSchedule> scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
+    const std::vector<tsndgm::StreamSchedule> scheduled_streams = io::load_schedule(options.getSchedulePath());
     std::cout << "Loaded schedule!\n";
-    for (const tsndgm::StreamSchedule &i : scheduled_streams)
+    for (const tsndgm::StreamSchedule &ss : scheduled_streams)
     {
-        std::cout << i.toString() << "\n";
+        std::cout << ss.toString() << "\n";
     }
 
-    set_routes(scheduled_streams,streams);
+    io::set_routes(scheduled_streams, streams);
+
+    std::cout << "input loading and parsing done!\n";
 
     tsndgm::DisjunctiveGraphModel dgm(network, streams);
     dgm.print();
-    dgm.print_critical_path(tsndgm::CriticalPath::makespan);
+    // dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }
