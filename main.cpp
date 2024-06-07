@@ -40,12 +40,17 @@ auto main(const int argc, char *argv[]) -> int
     const auto streams = load_streams(network, options.getTimeTriggeredStreamsPath());
     std::cout << "Loaded TT-streams!\n";
 
-    const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams(), *network);
+    const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
     std::cout << "Loaded ET-streams!\n";
+    for (const tsndgm::EmergencyStream &i : emergency_streams)
+    {
+        std::cout << i.to_string() << "\n";
+    }
 
     const std::vector<tsndgm::StreamSchedule> scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
     std::cout << "Loaded schedule!\n";
-    for(tsndgm::StreamSchedule i : scheduled_streams){
+    for (const tsndgm::StreamSchedule &i : scheduled_streams)
+    {
         std::cout << i.toString() << "\n";
     }
 

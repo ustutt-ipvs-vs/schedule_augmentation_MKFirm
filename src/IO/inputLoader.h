@@ -13,8 +13,7 @@ namespace io
 
     typedef std::filesystem::__cxx11::path FilePath;
 
-    auto load_emergency_traffic(const FilePath &in, const tsndgm::NetworkTopology &topology)
-        -> std::vector<tsndgm::EmergencyStream>;
+    auto load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::EmergencyStream>;
 
 
 } // namespace io
