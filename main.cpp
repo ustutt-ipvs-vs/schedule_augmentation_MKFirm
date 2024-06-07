@@ -38,9 +38,10 @@ auto main(const int argc, char *argv[]) -> int
     std::cout << "Loaded network topology!\n";
 
     const auto streams = load_streams(network, options.getTimeTriggeredStreamsPath());
+    std::cout << "Loaded TT-streams!\n";
 
     const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams(), *network);
-    std::cout << "Loaded streams!\n";
+    std::cout << "Loaded ET-streams!\n";
 
     const std::vector<tsndgm::StreamSchedule> scheduled_streams = tsndgm::load_schedule(options.getSchedulePath());
     std::cout << "Loaded schedule!\n";

@@ -167,7 +167,7 @@ namespace tsndgm
         std::cout << "Edge\tData Rate\tPropagation Delay" << std::endl;
         for (auto ed : boost::make_iterator_range(boost::edges(g)))
         {
-            std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t"
+            std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t\t"
                       << g[ed].propagation_delay << std::endl;
         }
     }
@@ -209,7 +209,7 @@ namespace tsndgm
             for (auto l : j["links"])
             {
                 Edge edge(l["source"], l["target"]);
-                DataLinkProperty link = {l["data_rate"], l["propagation_delay"]};
+                DataLinkProperty link = {l["link_speed_mbps"], l["propagation_delay_ns"]};
                 add_data_link({edge, link});
             }
         }
