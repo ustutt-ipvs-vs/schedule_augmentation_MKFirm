@@ -49,7 +49,7 @@ cmake --build .
 ### Execute
 
 ```
-./DgmExec -t ../data/network.json -s ../data/streams.json -z ../data/transmission_output.json --e_streams ../data/emergency_traffic.json
+./DgmExec -t ../data/topology.json -s ../data/streams.json -z ../data/transmission_output.json --e_streams ../data/emergency_streams.json
 ```
 
 ### Run JSP Benchmarks (Single Process)
