@@ -15,9 +15,10 @@ namespace tsndgm
 
         PathRoute route;
 
-        explicit Route(DeviceId source, DeviceId destination){
-            source = source;
-            destination = destination;
+        Route(const DeviceId source, const DeviceId destination)
+        {
+            this->source = source;
+            this->destination = destination;
         }
 
         explicit Route(PathRoute &&input_route)
@@ -37,10 +38,9 @@ namespace tsndgm
             std::cout << std::endl;
         }
 
-        auto get_talker() -> Edge { return route.front(); }
+        [[nodiscard]] auto get_talker() const -> Edge { return route.front(); }
 
-        auto get_listeners() -> std::vector<Edge> { return {route.back()}; }
+        [[nodiscard]] auto get_listeners() const -> std::vector<Edge> { return {route.back()}; }
     };
 
 } // namespace tsndgm
-

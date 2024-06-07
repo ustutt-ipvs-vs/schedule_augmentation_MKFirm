@@ -54,12 +54,8 @@ namespace tsndgm
 
         CriticalPath::Result critical_path(CriticalPath::Objective type, bool reverse = true);
 
-        void update_rti(std::map<MessageStreamHandle, RTIMap> rti_updates);
-
         void split_all();
 
-        std::pair<Delay, Edge> compute_jitter_bound(MessageStreamHandle ms);
-        Delay compute_jitter(MessageStreamHandle ms, Edge listener);
         bool apriori_jitter_violation(E uv);
 
         inline void print() { tsndgm::print(transmission_graph, *network); }
@@ -78,14 +74,14 @@ namespace tsndgm
             for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++)
             {
                 auto &stream = prop.streams[ms];
-                const auto listeners = stream.route->get_listeners();
+                const auto listeners = stream.route.get_listeners();
 
                 // compute tardiness of stream's end-to-end latency
                 for (Edge listener : listeners)
                 {
                     V v_listener = prop.operation_to_vertex[{listener, ms}];
                     std::cout << ms << ", (" << listener.first << ", " << listener.second << "): " << stream.phase
-                              << " " << stream.e2e_latency << " " << prop.crit_cost[v_listener] << " "
+                              << " " << stream.deadline << " " << prop.crit_cost[v_listener] << " "
                               << crit_path.get_fixed_lateness(ms, listener) << std::endl;
                 }
             }
@@ -111,7 +107,6 @@ namespace tsndgm
         void build();
         void build_stream(MessageStreamHandle handle);
         void resize_properties();
-        void update_rti(MessageStreamHandle ms, RTIMap rti_map);
 
         void internal_commit_all(size_t index);
         void internal_restore_commit(size_t index, bool swap);

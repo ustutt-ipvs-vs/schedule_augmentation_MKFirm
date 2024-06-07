@@ -6,6 +6,8 @@
 
 namespace tsndgm
 {
+
+
     TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration()
     {
         return TSNConfiguration(transmission_graph, *network);
@@ -15,40 +17,6 @@ namespace tsndgm
     {
         crit_path.compute_longest_paths(reverse);
         return crit_path.path(type);
-    }
-
-
-    std::pair<Delay, Edge> DisjunctiveGraphModel::compute_jitter_bound(MessageStreamHandle ms)
-    {
-        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-
-        Delay max_jitter = 0;
-        Edge edge;
-        for (auto &listener : prop.streams[ms].route->get_listeners())
-        {
-            Delay jitter = compute_jitter(ms, listener);
-            if (jitter > max_jitter)
-            {
-                edge = listener;
-                max_jitter = jitter;
-            }
-        }
-
-        return {max_jitter, edge};
-    }
-
-    Delay DisjunctiveGraphModel::compute_jitter(MessageStreamHandle ms, Edge listener)
-    {
-        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-        V v_listener = prop.operation_to_vertex[{listener, ms}];
-
-        // at worst (best), ms is transmitted last (first).
-        Delay jitter =
-            std::accumulate(transmission_graph[v_listener].ms_handle.begin(),
-                            transmission_graph[v_listener].ms_handle.end(), (Delay)0,
-                            [&](Delay dmax, auto ms1) { return dmax + prop.streams[ms1].rti_map[listener].d_max(); }) -
-            prop.streams[ms].rti_map[listener].d_min();
-        return jitter;
     }
 
     void DisjunctiveGraphModel::build()
@@ -87,8 +55,8 @@ namespace tsndgm
          * returns the last edge in case the given edge is not in the path
          */
         const auto &stream = prop.streams[other];
-        Edge predecessor = stream.route->get_talker();
-        for (const auto &current_edge : stream.route->route)
+        Edge predecessor = stream.route.get_talker();
+        for (const auto &current_edge : stream.route.route)
         {
             if (current_edge.first == edge.first && current_edge.second == edge.second)
             {
@@ -101,11 +69,13 @@ namespace tsndgm
 
     void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle)
     {
+        constexpr auto dummy_weight = 90000; // TODO remove this. This is just to make the code compile
+
         // TODO rewrite this function with the given schedule from the CP
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         auto &routeWrapper = prop.streams[handle].route;
-        Edge &previous_hop = routeWrapper->route.front();
-        for (const auto &edge : routeWrapper->route)
+        Edge &previous_hop = routeWrapper.route.front();
+        for (const auto &edge : routeWrapper.route)
         // for (const TreeRouteHop& hop : *prop.streams[handle].route)
         {
             // add vertex to disjunctive graph
@@ -113,11 +83,10 @@ namespace tsndgm
             prop.operation_to_vertex[{edge, handle}] = v;
 
             // add conjunctive edge from parent
-            if (edge.first != routeWrapper->source)
+            if (edge.first != routeWrapper.source)
             {
                 V v_parent = prop.operation_to_vertex[{previous_hop, handle}];
-                boost::add_edge(v_parent, v, {prop.streams[handle].rti_map[previous_hop].d_max(), conjunctive},
-                                transmission_graph);
+                boost::add_edge(v_parent, v, {dummy_weight, conjunctive}, transmission_graph);
             }
             else
             {
@@ -125,10 +94,9 @@ namespace tsndgm
             }
 
             // add edge to sink
-            if (edge.second == routeWrapper->destination)
+            if (edge.second == routeWrapper.destination)
             {
-                boost::add_edge(v, prop.sink, {prop.streams[handle].rti_map[edge].d_max(), conjunctive},
-                                transmission_graph);
+                boost::add_edge(v, prop.sink, {dummy_weight, conjunctive}, transmission_graph);
             }
 
             // add disjunctive edge for every transmission on the same data link
@@ -147,17 +115,14 @@ namespace tsndgm
                     Edge other_predecessor_edge = get_predecessor_edge(prop, other, edge);
 
                     // add FIFO edges v -> u
-                    if (other_predecessor_edge.first != otherRouteWrapper->source) //
+                    if (other_predecessor_edge.first != otherRouteWrapper.source) //
                     {
-                        Delay weight = prop.streams[handle].rti_map[edge].d_trans_max() -
-                            prop.streams[other].rti_map[other_predecessor_edge].d_min();
                         V u_parent = prop.operation_to_vertex[{other_predecessor_edge, other}];
-                        boost::add_edge(v, u_parent, {weight, fifo}, transmission_graph);
+                        boost::add_edge(v, u_parent, {dummy_weight, fifo}, transmission_graph);
                     }
 
                     // add disjunctive edge v -> u
-                    Delay weight = prop.streams[handle].rti_map[edge].d_trans_max();
-                    boost::add_edge(v, u, {weight, disjunctive}, transmission_graph);
+                    boost::add_edge(v, u, {dummy_weight, disjunctive}, transmission_graph);
                 }
                 edge_search->second.insert(handle);
             }

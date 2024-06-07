@@ -43,7 +43,7 @@ namespace io
         }
         for (tsndgm::MessageStream &current_stream : streams)
         {
-            current_stream.route->route = route_map.at(current_stream.id);
+            current_stream.route.route = route_map.at(current_stream.id);
         }
     }
 
