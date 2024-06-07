@@ -19,13 +19,15 @@ auto io::load_emergency_traffic(const FilePath &in, const tsndgm::NetworkTopolog
                                                        .source = js["source"],
                                                        .destination = js["destination"],
                                                        .burst_size_byte = js["burst size"],
-                                                       .refill_rate_mbps = js["refill rate"]};
-
-            temp_stream.route->route.reserve(js["route"].size());
+                                                       .refill_rate_mbps = tsndgm::mbps_to_DataRate(js["refill rate"])};
+            tsndgm::PathRoute route;
+            route.reserve(js["route"].size());
             for (const auto &hop : js["route"])
             {
-                temp_stream.route->route.emplace_back(hop["source"], hop["destination"]);
+                route.emplace_back(hop["source"], hop["destination"]);
             }
+            temp_stream.route = std::make_shared<tsndgm::Route>(std::move(route));
+
             streams.emplace_back(temp_stream);
         }
 

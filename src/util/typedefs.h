@@ -8,7 +8,19 @@ namespace tsndgm
     typedef unsigned int DeviceId;
     typedef long Tick;
     typedef Tick Delay;
+    // DataRate: Byte per second
     typedef unsigned long DataRate;
 
     typedef std::pair<DeviceId, DeviceId> Edge;
+
+    /**
+     * @param mbps data rate in mega bit
+     * @return data rate in byte per second
+     */
+    constexpr auto mbps_to_DataRate(const float mbps) -> DataRate
+    {
+        // 10^6: mega, 8: bit to byte
+        constexpr auto factor = 1e6 / 8;
+        return static_cast<DataRate>(mbps * factor);
+    }
 } // namespace tsndgm

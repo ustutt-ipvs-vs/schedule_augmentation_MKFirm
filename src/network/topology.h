@@ -9,7 +9,6 @@
 namespace tsndgm
 {
 
-#define DEFAULT_DATA_RATE 12500000UL // 100Mbps
 #define SECONDS_TO_TICKS(seconds) (Tick) seconds * 1000000000UL // 1 Tick = 1ns
 
     static DeviceId unique_id = 0;
@@ -51,7 +50,7 @@ namespace tsndgm
         DataRate data_rate;
         Delay propagation_delay;
 
-        DataLinkProperty(DataRate data_rate = DEFAULT_DATA_RATE, Delay propagation_delay = 0) :
+        explicit DataLinkProperty(const DataRate data_rate = mbps_to_DataRate(100), const Delay propagation_delay = 0) :
             data_rate(data_rate), propagation_delay(propagation_delay)
         {
         }
