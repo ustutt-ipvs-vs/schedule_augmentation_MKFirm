@@ -168,7 +168,7 @@ namespace tsndgm
         std::cout << "Edge\tData Rate\tPropagation Delay" << std::endl;
         for (auto ed : boost::make_iterator_range(boost::edges(g)))
         {
-            std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t\t"
+            std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t"
                       << g[ed].propagation_delay << std::endl;
         }
     }

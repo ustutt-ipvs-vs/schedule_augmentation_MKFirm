@@ -32,11 +32,7 @@ namespace tsndgm
 
     MessageStream::MessageStream(const std::shared_ptr<NetworkTopology> &network, nlohmann::json j)
     {
-        PathRoute path;
-        for (auto e : j["route"])
-            path.push_back(Edge(e[0], e[1]));
-
-        std::shared_ptr<Route> route = make_shared<Route>(std::move(path));
+        Route route = Route(j["source"], j["target"]);
 
         RTIMap rti_map;
         if (!j["rti_map"].is_null())
@@ -59,8 +55,7 @@ namespace tsndgm
             }
         }
 
-        *this = MessageStream(network, route, j["period"], j["frame_size"], j["e2e_latency"], rti_map, j["phase"],
-                              j["jitter"], j["name"]);
+        *this = MessageStream(network, route, j["cycle_time_ns"], j["frame_size_byte"], j["deadline_ns"], {}, 0, 0, j["name"]);
     }
 
     void dump_streams(const std::vector<MessageStream> &streams, std::filesystem::path out)

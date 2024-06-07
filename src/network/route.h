@@ -15,6 +15,11 @@ namespace tsndgm
 
         PathRoute route;
 
+        explicit Route(DeviceId source, DeviceId destination){
+            source = source;
+            destination = destination;
+        }
+
         explicit Route(PathRoute &&input_route)
         {
             route = std::move(input_route);
