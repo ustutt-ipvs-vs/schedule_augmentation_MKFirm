@@ -1,25 +1,34 @@
 [
     {
         "stream_id": 0,
-        "pcp": 0,
+        "pcp": 1,
         "frames": [
             {
                 "frame_number": 0,
                 "transmissions": [
                     {
-                        "egress_port": "0-1",
-                        "start": 8970,
-                        "end": 16970
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 200,
+                        "end": 6976
                     },
                     {
-                        "egress_port": "1-2",
-                        "start": 16980,
-                        "end": 24980
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 9176,
+                        "end": 15952
                     },
                     {
-                        "egress_port": "2-3",
-                        "start": 25030,
-                        "end": 33030
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 18152,
+                        "end": 24928
                     }
                 ]
             },
@@ -27,19 +36,28 @@
                 "frame_number": 1,
                 "transmissions": [
                     {
-                        "egress_port": "0-1",
-                        "start": 3000010,
-                        "end": 3008010
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 100200,
+                        "end": 106976
                     },
                     {
-                        "egress_port": "1-2",
-                        "start": 3008020,
-                        "end": 3016020
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 109176,
+                        "end": 115952
                     },
                     {
-                        "egress_port": "2-3",
-                        "start": 3025030,
-                        "end": 3033030
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 118152,
+                        "end": 124928
                     }
                 ]
             }
@@ -47,25 +65,63 @@
     },
     {
         "stream_id": 1,
-        "pcp": 0,
+        "pcp": 3,
         "frames": [
             {
                 "frame_number": 0,
                 "transmissions": [
                     {
-                        "egress_port": "0-1",
-                        "start": 26890,
-                        "end": 42890
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 15672,
+                        "end": 26296
                     },
                     {
-                        "egress_port": "1-2",
-                        "start": 42900,
-                        "end": 58900
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 28496,
+                        "end": 39120
                     },
                     {
-                        "egress_port": "2-3",
-                        "start": 58950,
-                        "end": 74950
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 41320,
+                        "end": 51944
+                    }
+                ]
+            },
+            {
+                "frame_number": 1,
+                "transmissions": [
+                    {
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 115672,
+                        "end": 126296
+                    },
+                    {
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 128496,
+                        "end": 139120
+                    },
+                    {
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 141320,
+                        "end": 151944
                     }
                 ]
             }
@@ -73,25 +129,34 @@
     },
     {
         "stream_id": 2,
-        "pcp": 1,
+        "pcp": 2,
         "frames": [
             {
                 "frame_number": 0,
                 "transmissions": [
                     {
-                        "egress_port": "0-1",
-                        "start": 10,
-                        "end": 8010
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 26392,
+                        "end": 37192
                     },
                     {
-                        "egress_port": "1-2",
-                        "start": 8020,
-                        "end": 16020
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 39392,
+                        "end": 50192
                     },
                     {
-                        "egress_port": "2-3",
-                        "start": 16070,
-                        "end": 24070
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 52392,
+                        "end": 63192
                     }
                 ]
             }
@@ -99,25 +164,63 @@
     },
     {
         "stream_id": 3,
-        "pcp": 1,
+        "pcp": 3,
         "frames": [
             {
                 "frame_number": 0,
                 "transmissions": [
                     {
-                        "egress_port": "0-1",
-                        "start": 17930,
-                        "end": 25930
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 7072,
+                        "end": 15576
                     },
                     {
-                        "egress_port": "1-2",
-                        "start": 25940,
-                        "end": 33940
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 17776,
+                        "end": 26280
                     },
                     {
-                        "egress_port": "2-3",
-                        "start": 33990,
-                        "end": 41990
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 28480,
+                        "end": 36984
+                    }
+                ]
+            },
+            {
+                "frame_number": 1,
+                "transmissions": [
+                    {
+                        "link_id": 5,
+                        "link_name": "3-1",
+                        "source": 3,
+                        "target": 1,
+                        "start": 107072,
+                        "end": 115576
+                    },
+                    {
+                        "link_id": 1,
+                        "link_name": "1-0",
+                        "source": 1,
+                        "target": 0,
+                        "start": 117776,
+                        "end": 126280
+                    },
+                    {
+                        "link_id": 2,
+                        "link_name": "0-2",
+                        "source": 0,
+                        "target": 2,
+                        "start": 128480,
+                        "end": 136984
                     }
                 ]
             }
