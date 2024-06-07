@@ -13,11 +13,12 @@ namespace tsndgm
         std::string name;
         DeviceId source;
         DeviceId destination;
-        BurstSize burst_size_byte;
-        DataRate refill_rate_mbps;
+        BurstSize bucket_size_byte;
+        DataRate refill_rate;
 
 
         std::shared_ptr<Route> route;
+
 
         [[nodiscard]] auto dump() const -> nlohmann::json
         {
@@ -25,8 +26,8 @@ namespace tsndgm
                                 {"name", name},
                                 {"source", source},
                                 {"destination", destination},
-                                {"burst size", burst_size_byte},
-                                {"refill rate", refill_rate_mbps},
+                                {"burst size", bucket_size_byte},
+                                {"refill rate", refill_rate},
                                 {"route", {}}};
 
             for (const auto &hop : route->route)
@@ -35,5 +36,34 @@ namespace tsndgm
             }
             return j;
         }
+
+        [[nodiscard]] auto to_string() const -> std::string
+        {
+            std::stringstream ss;
+            ss << id << ": " << name << "\t";
+            ss << source << "->" << destination << "\t";
+            ss << "b: " << bucket_size_byte << " r: " << refill_rate;
+
+            return ss.str();
+        }
     };
+
+    inline auto createEmergencyStream(const nlohmann::json &j) -> EmergencyStream
+    {
+        auto stream = EmergencyStream{.id = j["streamID"],
+                                      .name = j["name"],
+                                      .source = j["source"],
+                                      .destination = j["target"],
+                                      .bucket_size_byte = j["bucket_size_byte"],
+                                      .refill_rate = tsndgm::mbps_to_DataRate(j["rate_mbps"])};
+        PathRoute route;
+        route.reserve(j["route"].size());
+        for (const auto &hop : j["route"])
+        {
+            route.emplace_back(hop["from"], hop["to"]);
+        }
+        stream.route = std::make_shared<Route>(std::move(route));
+        return stream;
+    }
+
 } // namespace tsndgm
