@@ -1,5 +1,4 @@
-#ifndef TSN_DGM_MESSAGE_STREAM_H
-#define TSN_DGM_MESSAGE_STREAM_H
+#pragma once
 
 #include <filesystem>
 #include <fstream>
@@ -54,30 +53,31 @@ namespace tsndgm
         Tick phase;
         Delay jitter;
         std::string name;
+        unsigned int id;
 
         MessageStream(const std::shared_ptr<NetworkTopology> &network, const std::shared_ptr<Route> &route, Tick period,
                       FrameSize frame_size, Delay e2e_latency, const RTIMap &rti_map = {}, Tick phase = 0,
-                      Delay jitter = 0, std::string name = "") :
+                      Delay jitter = 0, std::string name = "", unsigned int id = 0) :
             network(network), route(route), period(period), frame_size(frame_size), e2e_latency(e2e_latency),
-            rti_map(rti_map), phase(phase), jitter(jitter), name(name)
+            rti_map(rti_map), phase(phase), jitter(jitter), name(name), id(id)
         {
             initialize();
         }
 
         MessageStream(const std::shared_ptr<NetworkTopology> &network, Route &&route, Tick period, FrameSize frame_size,
                       Delay e2e_latency, const RTIMap &rti_map = {}, Tick phase = 0, Delay jitter = 0,
-                      std::string name = "") :
+                      std::string name = "", unsigned int id = 0) :
             network(network), route(std::make_shared<Route>(std::move(route))), period(period), frame_size(frame_size),
-            e2e_latency(e2e_latency), rti_map(rti_map), phase(phase), jitter(jitter), name(name)
+            e2e_latency(e2e_latency), rti_map(rti_map), phase(phase), jitter(jitter), name(name), id(id)
         {
             initialize();
         }
 
         MessageStream(const std::shared_ptr<NetworkTopology> &network, const Route &route, Tick period,
                       FrameSize frame_size, Delay e2e_latency, const RTIMap &rti_map = {}, Tick phase = 0,
-                      Delay jitter = 0, std::string name = "") :
+                      Delay jitter = 0, std::string name = "", unsigned int id = 0) :
             network(network), route(std::make_shared<Route>(route)), period(period), frame_size(frame_size),
-            e2e_latency(e2e_latency), rti_map(rti_map), phase(phase), jitter(jitter), name(name)
+            e2e_latency(e2e_latency), rti_map(rti_map), phase(phase), jitter(jitter), name(name), id(id)
         {
             initialize();
         }
@@ -99,5 +99,3 @@ namespace tsndgm
     std::vector<MessageStream> load_streams(const std::shared_ptr<NetworkTopology> &network,
                                             const std::filesystem::path &in);
 } // namespace tsndgm
-
-#endif // TSN_DGM_MESSAGE_STREAM_H

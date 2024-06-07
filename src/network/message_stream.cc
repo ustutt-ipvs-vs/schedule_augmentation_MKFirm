@@ -55,7 +55,7 @@ namespace tsndgm
             }
         }
 
-        *this = MessageStream(network, route, j["cycle_time_ns"], j["frame_size_byte"], j["deadline_ns"], {}, 0, 0, j["name"]);
+        *this = MessageStream(network, route, j["cycle_time_ns"], j["frame_size_byte"], j["deadline_ns"], {}, 0, 0, j["name"], j["id"]);
     }
 
     void dump_streams(const std::vector<MessageStream> &streams, std::filesystem::path out)
