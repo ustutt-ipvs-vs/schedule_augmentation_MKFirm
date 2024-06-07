@@ -15,11 +15,16 @@ namespace tsndgm
 namespace io
 {
 
-    typedef std::filesystem::__cxx11::path FilePath;
+    typedef std::filesystem::path FilePath;
 
     auto load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::EmergencyStream>;
 
     auto load_time_triggered_traffic(const FilePath &in, const std::shared_ptr<tsndgm::NetworkTopology> &network)
-  -> std::vector<tsndgm::MessageStream>;
+        -> std::vector<tsndgm::MessageStream>;
+
+    auto load_schedule(const FilePath &in) -> std::vector<tsndgm::StreamSchedule>;
+
+    auto set_routes(const std::vector<tsndgm::StreamSchedule> &schedules, std::vector<tsndgm::MessageStream> &streams)
+        -> void;
 
 } // namespace io

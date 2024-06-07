@@ -1,7 +1,7 @@
 #include <memory>
 
+#include "src/IO/inputLoader.h"
 #include "src/IO/programOptions.h"
-#include "src/IO/scheduleLoader.h"
 #include "src/dgm/dgm.h"
 #include "src/network/message_stream.h"
 #include "src/network/topology.h"
@@ -11,8 +11,6 @@ auto main(const int argc, char *argv[]) -> int
 {
     /*
      * TODO:
-     * - parse schedule file
-     *
      * - build dgm graph from schedule
      * - update dgm edge weights
      * - check dgm graph for feasibility

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "schedule.h"
+
+
 #include <iostream>
 #include "topology.h"
 
@@ -42,5 +45,21 @@ namespace tsndgm
 
         [[nodiscard]] auto get_listeners() const -> std::vector<Edge> { return {route.back()}; }
     };
+
+    /**
+     * Create the PathRoute of the given stream
+     * @param stream in StreamSchedule format
+     * @return
+     */
+    inline auto build_route(const StreamSchedule &stream) -> PathRoute
+    {
+        const auto &frame = stream.frames.front();
+        PathRoute route;
+        for (const auto &frame_transmission : frame.transmissions)
+        {
+            route.emplace_back(frame_transmission.source, frame_transmission.target);
+        }
+        return route;
+    }
 
 } // namespace tsndgm
