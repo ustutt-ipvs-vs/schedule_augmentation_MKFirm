@@ -56,7 +56,7 @@ auto main(const int argc, char *argv[]) -> int
 
     set_routes(scheduled_streams,streams);
 
-    tsndgm::DisjunctiveGraphModel dgm(network, streams);
+    tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
     dgm.print();
     dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }

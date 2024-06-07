@@ -86,6 +86,7 @@ void TSNConfiguration::dump(std::filesystem::path out) {
   o << std::setw(4) << j << std::endl;
 }
 
+// not working anymore
 void tsn_configuration_visitor::finish_vertex(
     V v, const transmission_graph_t &transmission_graph) {
   if (v == prop.src || v == prop.sink)
@@ -101,6 +102,7 @@ void tsn_configuration_visitor::finish_vertex(
   Delay open_duration = 0;
   Delay d_trans_min = std::numeric_limits<Delay>::max();
   Delay d_trans_total = 0;
+  /*
   for (MessageStreamHandle ms : transmission_graph[v].ms_handle) {
     // GCL only covers wireline portion
     // If link is wireless, it only covers the wireless portion between switch
@@ -111,6 +113,7 @@ void tsn_configuration_visitor::finish_vertex(
     if (prop.streams[ms].rti_map[egress_port].d_trans_min() < d_trans_min)
       d_trans_min = prop.streams[ms].rti_map[egress_port].d_trans_min();
   }
+  */
 
   if (!last_op.contains(egress_port))
     last_op[egress_port] = 0;
@@ -126,9 +129,11 @@ void tsn_configuration_visitor::finish_vertex(
   std::list<PSFPGate> &psfp_gates = psfp_config[egress_port.second];
   Delay proc_delay =
       topology.get_device_property(egress_port.second).processing_delay;
+  /*
   psfp_gates.push_back(
       PSFPGate(transmission_graph[v].ms_handle,
-               prop.crit_cost[v] + d_trans_min + proc_delay,
-               prop.crit_cost[v] + d_trans_total + proc_delay));
-}
+              prop.crit_cost[v] + d_trans_min + proc_delay,
+              prop.crit_cost[v] + d_trans_total + proc_delay));
+  */
+  }
 } // namespace tsndgm

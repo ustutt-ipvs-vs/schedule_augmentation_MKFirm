@@ -1,9 +1,9 @@
-#ifndef TSN_DGM_DGM_H
-#define TSN_DGM_DGM_H
+#pragma once
 
 #include <boost/graph/adjacency_list.hpp>
 #include "../network/message_stream.h"
 #include "../network/topology.h"
+#include "../IO/scheduleLoader.h"
 #include "critical_path.h"
 #include "transmission_graph.h"
 #include "tsn_configuration.h"
@@ -32,11 +32,13 @@ namespace tsndgm
 
         transmission_graph_t transmission_graph;
         std::shared_ptr<NetworkTopology> network;
+        std::vector<tsndgm::StreamSchedule> scheduled_streams;
         CriticalPath crit_path;
 
         DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
-                              const std::vector<MessageStream> &streams) :
-            network(network), crit_path(transmission_graph)
+                              const std::vector<MessageStream> &streams,
+                              const std::vector<tsndgm::StreamSchedule> &scheduled_streams) :
+            network(network), crit_path(transmission_graph), scheduled_streams(scheduled_streams)
         {
             transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
@@ -59,7 +61,6 @@ namespace tsndgm
         void split_all();
 
         std::pair<Delay, Edge> compute_jitter_bound(MessageStreamHandle ms);
-        Delay compute_jitter(MessageStreamHandle ms, Edge listener);
         bool apriori_jitter_violation(E uv);
 
         inline void print() { tsndgm::print(transmission_graph, *network); }
@@ -109,7 +110,7 @@ namespace tsndgm
         bool valid_crit_path = false;
 
         void build();
-        void build_stream(MessageStreamHandle handle);
+        void add_frame_to_graph(const FrameSchedule &current_frame_schedule, unsigned int frame_number);
         void resize_properties();
         void update_rti(MessageStreamHandle ms, RTIMap rti_map);
 
@@ -123,5 +124,3 @@ namespace tsndgm
         void renew_descriptors();
     };
 } // namespace tsndgm
-
-#endif // TSN_DGM_DGM_H
