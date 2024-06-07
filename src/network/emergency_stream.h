@@ -2,14 +2,17 @@
 
 #include <nlohmann/json.hpp>
 #include <string>
-#include "route.h"
 #include "../util/typedefs.h"
+#include "route.h"
 
 namespace tsndgm
 {
     struct EmergencyStream
     {
+        StreamID id;
         std::string name;
+        DeviceId source;
+        DeviceId destination;
         BurstSize burst_size_byte;
         DataRate refill_rate_mbps;
 
@@ -18,8 +21,13 @@ namespace tsndgm
 
         [[nodiscard]] auto dump() const -> nlohmann::json
         {
-            nlohmann::json j = {
-                {"id", name}, {"burst size", burst_size_byte}, {"data rate", refill_rate_mbps}, {"route", {}}};
+            nlohmann::json j = {{"id", id},
+                                {"name", name},
+                                {"source", source},
+                                {"destination", destination},
+                                {"burst size", burst_size_byte},
+                                {"refill rate", refill_rate_mbps},
+                                {"route", {}}};
 
             for (const auto &hop : route->route)
             {

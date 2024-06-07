@@ -10,4 +10,5 @@ namespace tsndgm
     typedef Tick Delay;
     typedef unsigned long DataRate;
 
+    typedef std::pair<DeviceId, DeviceId> Edge;
 } // namespace tsndgm

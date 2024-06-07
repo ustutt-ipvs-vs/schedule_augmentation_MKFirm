@@ -14,17 +14,18 @@ auto io::load_emergency_traffic(const FilePath &in, const tsndgm::NetworkTopolog
         streams.reserve(j.size());
         for (const auto &js : j)
         {
-            auto temp_stream =
-                tsndgm::EmergencyStream{.name = js["id"], .burst_size_byte = js["burst size"], .refill_rate_mbps = js["data rate"]};
+            auto temp_stream = tsndgm::EmergencyStream{.id = js["id"],
+                                                       .name = js["name"],
+                                                       .source = js["source"],
+                                                       .destination = js["destination"],
+                                                       .burst_size_byte = js["burst size"],
+                                                       .refill_rate_mbps = js["refill rate"]};
 
-            // TODO we need a way to map the network link name to an Edge here
-            /*
-            for (const auto& hop : js["route"])
+            temp_stream.route->route.reserve(js["route"].size());
+            for (const auto &hop : js["route"])
             {
-                tsndgm::Edge edge = topology. ;
-                temp_stream.route->route.emplace_back(edge);
+                temp_stream.route->route.emplace_back(hop["source"], hop["destination"]);
             }
-            */
             streams.emplace_back(temp_stream);
         }
 

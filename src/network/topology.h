@@ -61,7 +61,6 @@ namespace tsndgm
                                   DataLinkProperty>
         network_topology_t;
 
-    typedef std::pair<DeviceId, DeviceId> Edge;
     typedef std::pair<Edge, DataLinkProperty> DataLink;
 
     class NetworkTopology
