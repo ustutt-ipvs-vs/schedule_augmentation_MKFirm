@@ -66,4 +66,24 @@ namespace tsndgm
             std::exit(3);
         }
     }
+
+    void set_routes(const std::vector<StreamSchedule> &schedules, std::vector<MessageStream> &streams){
+        std::unordered_map<StreamID,PathRoute> route_map;
+
+        for(const StreamSchedule &current_stream : schedules){
+            PathRoute current_route;
+            const FrameSchedule &current_frame = current_stream.frames.front();
+
+            for(const FrameTransmission &current_transmission : current_frame.transmissions){
+                current_route.emplace_back(current_transmission.source,current_transmission.target);
+            }
+
+            route_map[current_stream.stream_id] = current_route;
+        }
+
+        for(MessageStream &current_stream : streams){
+            current_stream.route->route = route_map.at(current_stream.id);
+        }
+
+    }
 } // namespace tsndgm

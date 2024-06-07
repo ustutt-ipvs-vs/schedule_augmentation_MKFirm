@@ -37,7 +37,7 @@ auto main(const int argc, char *argv[]) -> int
     network->print_topology();
     std::cout << "Loaded network topology!\n";
 
-    const auto streams = load_streams(network, options.getTimeTriggeredStreamsPath());
+    auto streams = load_streams(network, options.getTimeTriggeredStreamsPath());
     std::cout << "Loaded TT-streams!\n";
 
     const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
@@ -53,6 +53,8 @@ auto main(const int argc, char *argv[]) -> int
     {
         std::cout << i.toString() << "\n";
     }
+
+    set_routes(scheduled_streams,streams);
 
     tsndgm::DisjunctiveGraphModel dgm(network, streams);
     dgm.print();

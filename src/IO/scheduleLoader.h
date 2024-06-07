@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "../network/message_stream.h"
 
 
 namespace tsndgm
@@ -75,5 +76,7 @@ namespace tsndgm
     };
 
     std::vector<StreamSchedule> load_schedule(const std::filesystem::path &in);
+
+    void set_routes(const std::vector<StreamSchedule> &schedule, std::vector<MessageStream> &streams);
 
 } // namespace tsndgm
