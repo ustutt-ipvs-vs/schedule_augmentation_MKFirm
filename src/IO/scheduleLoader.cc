@@ -41,7 +41,7 @@ namespace tsndgm
     }
 
     std::string FrameTransmission::toString() const {
-        return "\n|--EgressPort: " + egress_port + ", start: " + std::to_string(start) + ", end: " + std::to_string(end);
+        return "\n|--link_id: " + std::to_string(link_id) + ", link_name: " + link_name + ", source: " + std::to_string(source) + ", target: " + std::to_string(target) + ", start: " + std::to_string(start) + ", end: " + std::to_string(end);
     }
 
     std::vector<StreamSchedule> load_schedule(const std::filesystem::path &in)

@@ -11,17 +11,20 @@ namespace tsndgm
     class FrameTransmission
     {
     public:
-        std::string egress_port;
+        unsigned int link_id;
+        std::string link_name;
+        unsigned int source;
+        unsigned int target;
         unsigned int start;
         unsigned int end;
 
 
-        FrameTransmission(std::string egress_port, unsigned int start, unsigned int end):
-            egress_port(egress_port), start(start), end(end) {}
+        FrameTransmission(unsigned int link_id, std::string link_name, unsigned int source, unsigned int target, unsigned int start, unsigned int end):
+            link_id(link_id), link_name(link_name), source(source), target(target), start(start), end(end) {}
 
 
         FrameTransmission(nlohmann::json j) {
-            *this = FrameTransmission(j["egress_port"], j["start"], j["end"]);
+            *this = FrameTransmission(j["link_id"], j["link_name"], j["source"], j["target"], j["start"], j["end"]);
         };
 
         std::string toString() const;
