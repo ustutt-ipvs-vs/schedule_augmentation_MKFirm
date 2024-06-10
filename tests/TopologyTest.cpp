@@ -15,8 +15,16 @@ TEST(TopologyTest, loadSimpleTopologyTest)
 
         failure = std::max(failure, not result);
     }
-
     ASSERT_FALSE(failure);
 
-    // TODO check if edges exist
+    EXPECT_FALSE(topology.exists(4)) << "Device " << 4 << " should not exist";
+
+
+    const std::vector<tsndgm::Edge> edges = {{0, 1}, {1, 0}, {0, 2}, {2, 0}, {1, 3}, {3, 1}};
+    for (const auto &edge : edges)
+    {
+        EXPECT_TRUE(topology.exists(edge)) << "Edge " << edge.first << " -> " << edge.second << " does not exist";
+    }
+
+    EXPECT_FALSE(topology.exists({0, 3})) << "Edge " << 0 << " -> " << 3 << " should not exist";
 }
