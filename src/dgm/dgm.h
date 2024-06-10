@@ -63,17 +63,14 @@ namespace tsndgm
 
         CriticalPath::Result critical_path(CriticalPath::Objective type, bool reverse = true);
 
-        inline void print() { tsndgm::print(transmission_graph, *network); }
+        void print() const { tsndgm::print(transmission_graph, *network); }
 
-        inline void print(V v) { tsndgm::print(transmission_graph, *network, v); }
-        inline void print(E e) { tsndgm::print(transmission_graph, *network, e); }
+        void print(const V v) const { tsndgm::print(transmission_graph, *network, v); }
+        void print(const E &e) const { tsndgm::print(transmission_graph, *network, e); }
 
-        inline void print_critical_path(CriticalPath::Objective type)
-        {
-            crit_path.print(critical_path(type), *network);
-        }
+        void print_critical_path(CriticalPath::Objective type) { crit_path.print(critical_path(type), *network); }
 
-        inline void print_fixed_lateness()
+        void print_fixed_lateness()
         {
             TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
             for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++)
@@ -92,17 +89,17 @@ namespace tsndgm
             }
         }
 
-        inline E edge(V u, V v)
+        [[nodiscard]] E edge(const V u, const V v) const
         {
-            auto e = boost::edge(u, v, transmission_graph);
-            if (!e.second)
+            auto [e, found] = boost::edge(u, v, transmission_graph);
+            if (not found)
                 throw std::runtime_error("edge (" + std::to_string(u) + ", " + std::to_string(v) + ") does not exist");
-            return e.first;
+            return e;
         }
 
-        inline E edge(E uv)
+        [[nodiscard]] E edge(const E &uv) const
         {
-            V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
+            const V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
             return edge(u, v);
         }
 
