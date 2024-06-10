@@ -1,5 +1,8 @@
 #pragma once
 
+#include "schedule.h"
+
+
 #include <iostream>
 #include "topology.h"
 
@@ -15,9 +18,17 @@ namespace tsndgm
 
         PathRoute route;
 
-        explicit Route(DeviceId source, DeviceId destination){
-            source = source;
-            destination = destination;
+        Route()
+        {
+            // this constructor is needed so that Route is default constructable. Required to create a proper StreamMap.
+            source = -1;
+            destination = -1;
+        }
+
+        Route(const DeviceId source, const DeviceId destination)
+        {
+            this->source = source;
+            this->destination = destination;
         }
 
         explicit Route(PathRoute &&input_route)
@@ -37,10 +48,25 @@ namespace tsndgm
             std::cout << std::endl;
         }
 
-        auto get_talker() -> Edge { return route.front(); }
+        [[nodiscard]] auto get_talker() const -> Edge { return route.front(); }
 
-        auto get_listeners() -> std::vector<Edge> { return {route.back()}; }
+        [[nodiscard]] auto get_listeners() const -> std::vector<Edge> { return {route.back()}; }
     };
 
-} // namespace tsndgm
+    /**
+     * Create the PathRoute of the given stream
+     * @param stream in StreamSchedule format
+     * @return
+     */
+    inline auto build_route(const StreamSchedule &stream) -> PathRoute
+    {
+        const auto &frame = stream.frames.front();
+        PathRoute route;
+        for (const auto &frame_transmission : frame.transmissions)
+        {
+            route.emplace_back(frame_transmission.source, frame_transmission.target);
+        }
+        return route;
+    }
 
+} // namespace tsndgm

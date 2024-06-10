@@ -27,6 +27,8 @@ namespace tsndgm
         V src;
         V sink;
         std::vector<MessageStream> streams;
+        std::map<unsigned int,MessageStream> stream_id_map;
+
         std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
         std::map<Operation, V> operation_to_vertex;
 

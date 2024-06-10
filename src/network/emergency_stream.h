@@ -55,7 +55,7 @@ namespace tsndgm
                                       .source = j["source"],
                                       .destination = j["target"],
                                       .bucket_size_byte = j["bucket_size_byte"],
-                                      .refill_rate = tsndgm::mbps_to_DataRate(j["rate_mbps"])};
+                                      .refill_rate = mbps_to_DataRate(j["rate_mbps"])};
         PathRoute route;
         route.reserve(j["route"].size());
         for (const auto &hop : j["route"])

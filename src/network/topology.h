@@ -9,8 +9,6 @@
 namespace tsndgm
 {
 
-#define SECONDS_TO_TICKS(seconds) (Tick) seconds * 1000000000UL // 1 Tick = 1ns
-
     static DeviceId unique_id = 0;
 
     struct NetworkDeviceProperty
@@ -73,7 +71,7 @@ namespace tsndgm
             NetworkTopology(std::initializer_list<NetworkDeviceProperty>{}, std::initializer_list<DataLink>{});
         }
 
-        NetworkTopology(const std::filesystem::path &in)
+        explicit NetworkTopology(const std::filesystem::path &in)
         {
             // NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
             //                 std::initializer_list<DataLink>{});
@@ -88,8 +86,8 @@ namespace tsndgm
         void add_data_link(const DataLink &data_link);
         void add_data_links(const std::vector<DataLink> &data_links);
 
-        const NetworkDeviceProperty &get_device_property(DeviceId id) const;
-        const DataLinkProperty &get_data_link_property(Edge edge) const;
+        [[nodiscard]] const NetworkDeviceProperty &get_device_property(DeviceId id) const;
+        [[nodiscard]] const DataLinkProperty &get_data_link_property(const Edge &edge) const;
 
         void remove_device(const DeviceId &device);
         void remove_devices(const std::vector<DeviceId> &devices);
@@ -97,25 +95,26 @@ namespace tsndgm
         void remove_data_link(const DataLink &data_link);
         void remove_data_links(const std::vector<DataLink> &data_links);
 
-        bool exists(DeviceId id) const;
-        bool exists(Edge edge) const;
+        [[nodiscard]] bool exists(DeviceId id) const;
+        [[nodiscard]] bool exists(const Edge &edge) const;
 
         void clear();
 
         void print_topology() const;
 
-        void dump_topology(std::filesystem::path out);
+        void dump_topology(const std::filesystem::path &out);
         void load_topology(const std::filesystem::path &in);
 
-        inline const NetworkDeviceProperty &operator[](DeviceId v) const { return g[v]; }
+        const NetworkDeviceProperty &operator[](DeviceId v) const { return g[v]; }
 
     private:
         template <bool throw_error>
-        V get_vertex_by_id(DeviceId id) const;
-        E get_edge_by_ids(Edge edge) const;
+        [[nodiscard]] V get_vertex_by_id(DeviceId id) const;
+        [[nodiscard]] E get_edge_by_ids(const Edge &edge) const;
 
         V get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, DeviceId id);
-        std::pair<V, V> get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, Edge edge);
+        auto get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
+            -> std::pair<V, V>;
 
         network_topology_t g;
     };

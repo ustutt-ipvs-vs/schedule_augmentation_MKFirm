@@ -1,8 +1,6 @@
 #include "dgm.h"
-#include <algorithm>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
-#include <numeric>
 
 namespace tsndgm
 {
@@ -17,32 +15,14 @@ namespace tsndgm
         return crit_path.path(type);
     }
 
-    // not working anymore
-    std::pair<Delay, Edge> DisjunctiveGraphModel::compute_jitter_bound(MessageStreamHandle ms)
-    {
-        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-
-        Delay max_jitter = 0;
-        Edge edge;
-        for (auto &listener : prop.streams[ms].route->get_listeners())
-        {
-            Delay jitter = 0;
-            if (jitter > max_jitter)
-            {
-                edge = listener;
-                max_jitter = jitter;
-            }
-        }
-
-        return {max_jitter, edge};
-    }
-
     void DisjunctiveGraphModel::build()
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
-        for(const StreamSchedule &current_stream : scheduled_streams){
-            for(const FrameSchedule &current_frame_schedule : current_stream.frames){
+        for (const StreamSchedule &current_stream : scheduled_streams)
+        {
+            for (const FrameSchedule &current_frame_schedule : current_stream.frames)
+            {
                 add_frame_to_graph(current_frame_schedule, current_stream.stream_id);
             }
         }
@@ -60,8 +40,8 @@ namespace tsndgm
          * returns the last edge in case the given edge is not in the path
          */
         const auto &stream = prop.streams[other];
-        Edge predecessor = stream.route->get_talker();
-        for (const auto &current_edge : stream.route->route)
+        Edge predecessor = stream.route.get_talker();
+        for (const auto &current_edge : stream.route.route)
         {
             if (current_edge.first == edge.first && current_edge.second == edge.second)
             {
@@ -77,17 +57,40 @@ namespace tsndgm
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         V previous_vertex = prop.src;
 
-        for(const FrameTransmission &current_transmission : current_frame_schedule.transmissions)
+        for (const FrameTransmission &current_transmission : current_frame_schedule.transmissions)
         {
             // add vertex to disjunctive graph
-            Edge transmission_edge = Edge(current_transmission.source, current_transmission.target);
-            V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number}, transmission_graph);
+            auto transmission_edge = Edge(current_transmission.source, current_transmission.target);
+            const V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number},
+                                                   transmission_graph);
             // TODO
-            //prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
+            // prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
 
             // add conjunctive edge from parent
-            // TODO edge weight
-            boost::add_edge(previous_vertex, new_vertex, {0, conjunctive}, transmission_graph);
+            unsigned int weight;
+            if (previous_vertex == prop.src)
+            {
+                // Weight of first conjunctive edge = dRelease (start time / gate open)
+                weight = current_transmission.start;
+            }
+            else
+            {
+                // Weight of inner conjunctive edge = dPropagation + dTransmission + dProcessing (in ns)
+
+                const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
+
+                const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
+                const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
+                const auto factor = frame_size / data_rate;
+                const auto dtrans = static_cast<Delay>(factor * 1e9L);
+
+                // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
+                const Delay dproc = network->get_device_property(current_transmission.target).processing_delay;
+
+                weight = dprop + dtrans + dproc;
+            }
+
+            boost::add_edge(previous_vertex, new_vertex, {weight, conjunctive}, transmission_graph);
 
             previous_vertex = new_vertex;
         }

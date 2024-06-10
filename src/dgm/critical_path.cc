@@ -52,7 +52,7 @@ namespace tsndgm
         for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++)
         {
             auto &stream = prop.streams[ms];
-            const auto listeners = stream.route->get_listeners();
+            const auto listeners = stream.route.get_listeners();
 
             // compute lateness of stream's end-to-end latency
             for (Edge listener : listeners)
@@ -75,8 +75,7 @@ namespace tsndgm
         auto &stream = prop.streams[ms];
         V v_listener = prop.operation_to_vertex[{listener, ms}];
         Delay lateness = prop.crit_cost[v_listener] +
-            transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight -
-            stream.e2e_latency;
+            transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight - stream.deadline;
         return lateness;
     }
 
@@ -92,17 +91,17 @@ namespace tsndgm
         for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++)
         {
             auto &stream = prop.streams[ms];
-            Edge talker = stream.route->get_talker();
+            Edge talker = stream.route.get_talker();
             V v_talker = prop.operation_to_vertex[{talker, ms}];
 
             // compute lateness of stream's end-to-end latency
-            const auto listeners = stream.route->get_listeners();
+            const auto listeners = stream.route.get_listeners();
             for (Edge listener : listeners)
             {
                 V v_listener = prop.operation_to_vertex[{listener, ms}];
                 Delay recv = prop.crit_cost[v_listener] +
                     transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight;
-                Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.e2e_latency;
+                Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.deadline;
                 if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
                     lateness = recv - stream.phase - stream.period;
                 if (lateness > max_lateness.objective)
@@ -117,13 +116,13 @@ namespace tsndgm
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         auto &stream = prop.streams[ms];
-        Edge talker = stream.route->get_talker();
+        Edge talker = stream.route.get_talker();
         V v_talker = prop.operation_to_vertex[{talker, ms}];
 
         V v_listener = prop.operation_to_vertex[{listener, ms}];
         Delay recv = prop.crit_cost[v_listener] +
             transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight;
-        Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.e2e_latency;
+        Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.deadline;
         if (recv - stream.phase - stream.period > std::max(lateness, (Delay)0))
             lateness = recv - stream.phase - stream.period;
 
