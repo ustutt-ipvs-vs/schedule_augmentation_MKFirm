@@ -37,3 +37,12 @@ target_link_libraries(DgmExec
         dgm
         io
 )
+
+if (BUILD_TESTS)
+    message("-- building unit tests: Yes")
+    enable_testing()
+    add_subdirectory(tests)
+else()
+    message("-- building unit tests: NO!")
+endif (BUILD_TESTS)
+
