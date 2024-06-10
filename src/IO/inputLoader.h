@@ -3,11 +3,8 @@
 #include <filesystem>
 #include <vector>
 #include "../network/emergency_stream.h"
+#include "../network/message_stream.h"
 
-namespace tsndgm
-{
-    class MessageStream;
-}
 /**
  * collects functions to load the input files (json), extracts their content and
  * calls the appropriate constructors to create the objects
@@ -19,8 +16,7 @@ namespace io
 
     auto load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::EmergencyStream>;
 
-    auto load_time_triggered_traffic(const FilePath &in, const tsndgm::NetworkTopology &network)
-        -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>;
+    auto load_time_triggered_traffic(const FilePath &in) -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>;
 
     auto load_schedule(const FilePath &in) -> std::vector<tsndgm::StreamSchedule>;
 

@@ -35,7 +35,7 @@ auto main(const int argc, char *argv[]) -> int
     network.print_topology();
     std::cout << "Loaded network topology!\n";
 
-    auto streams = io::load_time_triggered_traffic(options.getTimeTriggeredStreamsPath(), network);
+    auto streams = io::load_time_triggered_traffic(options.getTimeTriggeredStreamsPath());
     std::cout << "Loaded TT-streams!\n";
 
     const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());

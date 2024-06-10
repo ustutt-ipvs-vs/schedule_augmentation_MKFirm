@@ -1,0 +1,38 @@
+[
+    {
+        "id": 0,
+        "name": "stream_0",
+        "source": 3,
+        "target": 2,
+        "frame_size_byte": 847,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 82250
+    },
+    {
+        "id": 1,
+        "name": "stream_1",
+        "source": 3,
+        "target": 2,
+        "frame_size_byte": 1328,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 100000
+    },
+    {
+        "id": 2,
+        "name": "stream_2",
+        "source": 3,
+        "target": 2,
+        "frame_size_byte": 1350,
+        "cycle_time_ns": 200000,
+        "deadline_ns": 160250
+    },
+    {
+        "id": 3,
+        "name": "stream_3",
+        "source": 3,
+        "target": 2,
+        "frame_size_byte": 1063,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 67500
+    }
+]

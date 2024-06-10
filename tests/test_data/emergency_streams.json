@@ -1,0 +1,114 @@
+[
+    {
+        "streamID": 0,
+        "name": "emergency_stream_0",
+        "source": 3,
+        "target": 2,
+        "rate_mbps": 0.1,
+        "bucket_size_byte": 9000,
+        "route": [
+            {
+                "id": 5,
+                "name": "3-1",
+                "from": 3,
+                "to": 1
+            },
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 2,
+                "name": "0-2",
+                "from": 0,
+                "to": 2
+            }
+        ]
+    },
+    {
+        "streamID": 1,
+        "name": "emergency_stream_1",
+        "source": 3,
+        "target": 2,
+        "rate_mbps": 0.6,
+        "bucket_size_byte": 3000,
+        "route": [
+            {
+                "id": 5,
+                "name": "3-1",
+                "from": 3,
+                "to": 1
+            },
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 2,
+                "name": "0-2",
+                "from": 0,
+                "to": 2
+            }
+        ]
+    },
+    {
+        "streamID": 2,
+        "name": "emergency_stream_2",
+        "source": 3,
+        "target": 2,
+        "rate_mbps": 1.7,
+        "bucket_size_byte": 5000,
+        "route": [
+            {
+                "id": 5,
+                "name": "3-1",
+                "from": 3,
+                "to": 1
+            },
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 2,
+                "name": "0-2",
+                "from": 0,
+                "to": 2
+            }
+        ]
+    },
+    {
+        "streamID": 3,
+        "name": "emergency_stream_3",
+        "source": 2,
+        "target": 3,
+        "rate_mbps": 1.4,
+        "bucket_size_byte": 5000,
+        "route": [
+            {
+                "id": 3,
+                "name": "2-0",
+                "from": 2,
+                "to": 0
+            },
+            {
+                "id": 0,
+                "name": "0-1",
+                "from": 0,
+                "to": 1
+            },
+            {
+                "id": 4,
+                "name": "1-3",
+                "from": 1,
+                "to": 3
+            }
+        ]
+    }
+]
