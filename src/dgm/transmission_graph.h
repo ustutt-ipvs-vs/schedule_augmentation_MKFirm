@@ -1,5 +1,4 @@
-#ifndef TSN_DGM_transmission_graph_H
-#define TSN_DGM_transmission_graph_H
+#pragma once
 
 #include <boost/graph/adjacency_list.hpp>
 #include <iomanip>
@@ -28,6 +27,8 @@ namespace tsndgm
         V src;
         V sink;
         std::vector<MessageStream> streams;
+        std::map<unsigned int,MessageStream> stream_id_map;
+
         std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
         std::map<Operation, V> operation_to_vertex;
 
@@ -44,9 +45,8 @@ namespace tsndgm
         typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
         Edge edge;
-        std::list<MessageStreamHandle> ms_handle;
-        // std::list<const TreeRouteHop *> hop;
-        std::vector<Edge> hop;
+        unsigned int stream_id;
+        unsigned int frame_number;
 
         TransmissionGraphVertexProperty &operator=(const TransmissionGraphVertexProperty &other) = default;
     };
@@ -85,25 +85,23 @@ namespace tsndgm
         else
         {
             std::cout << "([" << network[transmission_graph[v].edge.first] << ", "
-                      << network[transmission_graph[v].edge.second] << "], {";
-            if (transmission_graph[v].ms_handle.size() == 0)
-                std::cout << "})";
-            for (auto handle : transmission_graph[v].ms_handle)
-                std::cout << prop.streams[handle].name
-                          << (handle == transmission_graph[v].ms_handle.back() ? "})" : ", ");
+                      << network[transmission_graph[v].edge.second] << "], {"
+                      << transmission_graph[v].stream_id << ", "
+                      << transmission_graph[v].frame_number << "})";
         }
     }
 
     static void print(const transmission_graph_t &transmission_graph, const NetworkTopology &network,
                       boost::graph_traits<transmission_graph_t>::edge_descriptor e)
     {
-        int n = log10(boost::num_vertices(transmission_graph)) + 1;
-        std::cout << "(" << std::setfill('0') << std::setw(n) << source(e, transmission_graph) << ", "
-                  << std::setfill('0') << std::setw(n) << target(e, transmission_graph) << "): ";
+        // for dubugging?
+        //int n = log10(boost::num_vertices(transmission_graph)) + 1;
+        //std::cout << "(" << std::setfill('0') << std::setw(n) << source(e, transmission_graph) << ", "
+        //          << std::setfill('0') << std::setw(n) << target(e, transmission_graph) << "): ";
         print(transmission_graph, network, source(e, transmission_graph));
         std::cout << " -> ";
         print(transmission_graph, network, target(e, transmission_graph));
-        std::cout << ": " << transmission_graph[e].weight << ", " << transmission_graph[e].edge_type;
+        std::cout << ": " << transmission_graph[e].weight;
     }
 
     static void print(const transmission_graph_t &transmission_graph, const NetworkTopology &network)
@@ -143,5 +141,3 @@ namespace tsndgm
         }
     }
 } // namespace tsndgm
-
-#endif // TSN_DGM_transmission_graph_H

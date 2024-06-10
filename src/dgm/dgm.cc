@@ -1,13 +1,9 @@
 #include "dgm.h"
-#include <algorithm>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
-#include <numeric>
 
 namespace tsndgm
 {
-
-
     TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration()
     {
         return TSNConfiguration(transmission_graph, *network);
@@ -22,25 +18,14 @@ namespace tsndgm
     void DisjunctiveGraphModel::build()
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-        std::ranges::sort(prop.streams,
-                          [&](const MessageStream &s1, const MessageStream &s2) { return s1.phase > s2.phase; });
 
-        prop.hyperperiod = 1;
-        for (MessageStreamHandle i = 0; i < prop.streams.size(); i++)
+        for (const StreamSchedule &current_stream : scheduled_streams)
         {
-            build_stream(i);
-            prop.hyperperiod = std::lcm(prop.hyperperiod, prop.streams[i].period);
+            for (const FrameSchedule &current_frame_schedule : current_stream.frames)
+            {
+                add_frame_to_graph(current_frame_schedule, current_stream.stream_id);
+            }
         }
-        resize_properties();
-        // TODO update this method by using the given schedule to build the graph
-    }
-
-    void DisjunctiveGraphModel::resize_properties()
-    {
-        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-        prop.crit_cost.resize(boost::num_vertices(transmission_graph));
-        prop.crit_pred.resize(boost::num_vertices(transmission_graph));
-        prop.slack.resize(boost::num_vertices(transmission_graph));
     }
 
     auto get_predecessor_edge(const TransmissionGraphProperty &prop, const MessageStreamHandle other, const Edge &edge)
@@ -67,66 +52,51 @@ namespace tsndgm
         return predecessor;
     }
 
-    void DisjunctiveGraphModel::build_stream(MessageStreamHandle handle)
+    void DisjunctiveGraphModel::add_frame_to_graph(const FrameSchedule &current_frame_schedule, unsigned int stream_id)
     {
-        constexpr auto dummy_weight = 90000; // TODO remove this. This is just to make the code compile
-
-        // TODO rewrite this function with the given schedule from the CP
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-        auto &routeWrapper = prop.streams[handle].route;
-        Edge &previous_hop = routeWrapper.route.front();
-        for (const auto &edge : routeWrapper.route)
-        // for (const TreeRouteHop& hop : *prop.streams[handle].route)
+        V previous_vertex = prop.src;
+
+        for (const FrameTransmission &current_transmission : current_frame_schedule.transmissions)
         {
             // add vertex to disjunctive graph
-            V v = boost::add_vertex({edge, {handle}, {edge}}, transmission_graph);
-            prop.operation_to_vertex[{edge, handle}] = v;
+            auto transmission_edge = Edge(current_transmission.source, current_transmission.target);
+            const V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number},
+                                                   transmission_graph);
+            // TODO
+            // prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
 
             // add conjunctive edge from parent
-            if (edge.first != routeWrapper.source)
+            unsigned int weight;
+            if (previous_vertex == prop.src)
             {
-                V v_parent = prop.operation_to_vertex[{previous_hop, handle}];
-                boost::add_edge(v_parent, v, {dummy_weight, conjunctive}, transmission_graph);
+                // Weight of first conjunctive edge = dRelease (start time / gate open)
+                weight = current_transmission.start;
             }
             else
             {
-                boost::add_edge(prop.src, v, {prop.streams[handle].phase, conjunctive}, transmission_graph);
+                // Weight of inner conjunctive edge = dPropagation + dTransmission + dProcessing (in ns)
+
+                const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
+
+                const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
+                const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
+                const auto factor = frame_size / data_rate;
+                const auto dtrans = static_cast<Delay>(factor * 1e9L);
+
+                // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
+                const Delay dproc = network->get_device_property(current_transmission.target).processing_delay;
+
+                weight = dprop + dtrans + dproc;
             }
 
-            // add edge to sink
-            if (edge.second == routeWrapper.destination)
-            {
-                boost::add_edge(v, prop.sink, {dummy_weight, conjunctive}, transmission_graph);
-            }
+            boost::add_edge(previous_vertex, new_vertex, {weight, conjunctive}, transmission_graph);
 
-            // add disjunctive edge for every transmission on the same data link
-            auto edge_search = prop.edge_to_streams.find(edge);
-            if (edge_search == prop.edge_to_streams.end())
-            {
-                prop.edge_to_streams[edge] = {handle};
-            }
-            else
-            {
-                // contesting message streams exist
-                for (MessageStreamHandle other : edge_search->second)
-                {
-                    V u = prop.operation_to_vertex[{edge, other}];
-                    const auto otherRouteWrapper = prop.streams[other].route;
-                    Edge other_predecessor_edge = get_predecessor_edge(prop, other, edge);
+            previous_vertex = new_vertex;
+        }
 
-                    // add FIFO edges v -> u
-                    if (other_predecessor_edge.first != otherRouteWrapper.source) //
-                    {
-                        V u_parent = prop.operation_to_vertex[{other_predecessor_edge, other}];
-                        boost::add_edge(v, u_parent, {dummy_weight, fifo}, transmission_graph);
-                    }
-
-                    // add disjunctive edge v -> u
-                    boost::add_edge(v, u, {dummy_weight, disjunctive}, transmission_graph);
-                }
-                edge_search->second.insert(handle);
-            }
-            previous_hop = edge;
-        } // end of route loop
+        // add edge to sink
+        // TODO edge weight
+        boost::add_edge(previous_vertex, prop.sink, {0, conjunctive}, transmission_graph);
     }
 } // namespace tsndgm

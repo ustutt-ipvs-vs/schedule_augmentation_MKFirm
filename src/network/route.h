@@ -18,6 +18,13 @@ namespace tsndgm
 
         PathRoute route;
 
+        Route()
+        {
+            // this constructor is needed so that Route is default constructable. Required to create a proper StreamMap.
+            source = -1;
+            destination = -1;
+        }
+
         Route(const DeviceId source, const DeviceId destination)
         {
             this->source = source;

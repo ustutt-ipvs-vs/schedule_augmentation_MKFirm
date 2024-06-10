@@ -1,7 +1,7 @@
-#ifndef TSN_DGM_DGM_H
-#define TSN_DGM_DGM_H
+#pragma once
 
 #include <boost/graph/adjacency_list.hpp>
+#include "../IO/inputLoader.h"
 #include "../network/message_stream.h"
 #include "../network/topology.h"
 #include "critical_path.h"
@@ -32,15 +32,24 @@ namespace tsndgm
 
         transmission_graph_t transmission_graph;
         std::shared_ptr<NetworkTopology> network;
+        std::vector<tsndgm::StreamSchedule> scheduled_streams;
         CriticalPath crit_path;
 
         DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
-                              const std::vector<MessageStream> &streams) :
-            network(network), crit_path(transmission_graph)
+                              const std::vector<MessageStream> &streams,
+                              const std::vector<tsndgm::StreamSchedule> &scheduled_streams) :
+            network(network), crit_path(transmission_graph), scheduled_streams(scheduled_streams)
         {
             transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].streams = streams;
+
+            std::map<StreamID, MessageStream> stream_id_map;
+            for (const MessageStream &current_stream : streams)
+            {
+                stream_id_map[current_stream.id] = current_stream;
+            }
+            transmission_graph[boost::graph_bundle].stream_id_map = stream_id_map;
 
             build();
         }
@@ -53,10 +62,6 @@ namespace tsndgm
         TSNConfiguration derive_tsn_configuration();
 
         CriticalPath::Result critical_path(CriticalPath::Objective type, bool reverse = true);
-
-        void split_all();
-
-        bool apriori_jitter_violation(E uv);
 
         inline void print() { tsndgm::print(transmission_graph, *network); }
 
@@ -105,7 +110,7 @@ namespace tsndgm
         bool valid_crit_path = false;
 
         void build();
-        void build_stream(MessageStreamHandle handle);
+        void add_frame_to_graph(const FrameSchedule &current_frame_schedule, unsigned int frame_number);
         void resize_properties();
 
         void internal_commit_all(size_t index);
@@ -118,5 +123,3 @@ namespace tsndgm
         void renew_descriptors();
     };
 } // namespace tsndgm
-
-#endif // TSN_DGM_DGM_H

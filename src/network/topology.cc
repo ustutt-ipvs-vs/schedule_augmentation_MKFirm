@@ -124,7 +124,7 @@ namespace tsndgm
         const V v1 = get_vertex_by_id<false>(edge.first);
         const V v2 = get_vertex_by_id<false>(edge.second);
 
-        auto [edge, found] = boost::edge(v1, v2, g);
+        auto [e, found] = boost::edge(v1, v2, g);
 
         return found;
     }

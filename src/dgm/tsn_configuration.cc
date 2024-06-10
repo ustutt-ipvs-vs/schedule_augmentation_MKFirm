@@ -96,10 +96,11 @@ namespace tsndgm
         o << std::setw(4) << j << std::endl;
     }
 
-    void tsn_configuration_visitor::finish_vertex(V v, const transmission_graph_t &transmission_graph)
-    {
-        if (v == prop.src || v == prop.sink)
-            return;
+// not working anymore
+void tsn_configuration_visitor::finish_vertex(
+    V v, const transmission_graph_t &transmission_graph) {
+  if (v == prop.src || v == prop.sink)
+    return;
 
         // add entry to GCL config
         Edge egress_port = transmission_graph[v].edge;
@@ -107,16 +108,21 @@ namespace tsndgm
         Delay prop_delay = topology.get_data_link_property(egress_port).propagation_delay;
         PeriodicGate &gate = gcl_config[egress_port];
 
-        Delay open_duration = 0;
-        Delay d_trans_min = std::numeric_limits<Delay>::max();
-        Delay d_trans_total = 0;
-        for (MessageStreamHandle ms : transmission_graph[v].ms_handle)
-        {
-            // GCL only covers wireline portion
-            // If link is wireless, it only covers the wireless portion between switch
-            // and the radio link
-            open_duration += 9000; // TODO fix this dummy value
-        }
+  Delay open_duration = 0;
+  Delay d_trans_min = std::numeric_limits<Delay>::max();
+  Delay d_trans_total = 0;
+  /*
+  for (MessageStreamHandle ms : transmission_graph[v].ms_handle) {
+    // GCL only covers wireline portion
+    // If link is wireless, it only covers the wireless portion between switch
+    // and the radio link
+    open_duration +=
+        RTI(prop.streams[ms].frame_size, rate, prop_delay).d_trans_max();
+    d_trans_total += prop.streams[ms].rti_map[egress_port].d_trans_max();
+    if (prop.streams[ms].rti_map[egress_port].d_trans_min() < d_trans_min)
+      d_trans_min = prop.streams[ms].rti_map[egress_port].d_trans_min();
+  }
+  */
 
         if (!last_op.contains(egress_port))
             last_op[egress_port] = 0;
@@ -131,10 +137,15 @@ namespace tsndgm
         }
         last_op[egress_port] = prop.crit_cost[v] + open_duration;
 
-        // add entry to PSFP config
-        std::list<PSFPGate> &psfp_gates = psfp_config[egress_port.second];
-        Delay proc_delay = topology.get_device_property(egress_port.second).processing_delay;
-        psfp_gates.push_back(PSFPGate(transmission_graph[v].ms_handle, prop.crit_cost[v] + d_trans_min + proc_delay,
-                                      prop.crit_cost[v] + d_trans_total + proc_delay));
-    }
+  // add entry to PSFP config
+  std::list<PSFPGate> &psfp_gates = psfp_config[egress_port.second];
+  Delay proc_delay =
+      topology.get_device_property(egress_port.second).processing_delay;
+  /*
+  psfp_gates.push_back(
+      PSFPGate(transmission_graph[v].ms_handle,
+              prop.crit_cost[v] + d_trans_min + proc_delay,
+              prop.crit_cost[v] + d_trans_total + proc_delay));
+  */
+  }
 } // namespace tsndgm
