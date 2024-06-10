@@ -17,7 +17,7 @@ namespace tsndgm
         DataRate refill_rate;
 
 
-        std::shared_ptr<Route> route;
+        RouteWrapper route;
 
 
         [[nodiscard]] auto dump() const -> nlohmann::json
@@ -30,7 +30,7 @@ namespace tsndgm
                                 {"refill rate", refill_rate},
                                 {"route", {}}};
 
-            for (const auto &hop : route->route)
+            for (const auto &hop : route.route)
             {
                 j["route"].push_back(hop);
             }
@@ -62,7 +62,7 @@ namespace tsndgm
         {
             route.emplace_back(hop["from"], hop["to"]);
         }
-        stream.route = std::make_shared<Route>(std::move(route));
+        stream.route = RouteWrapper{std::move(route)};
         return stream;
     }
 

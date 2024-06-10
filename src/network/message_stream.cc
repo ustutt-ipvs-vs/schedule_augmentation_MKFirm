@@ -24,7 +24,7 @@ namespace tsndgm
             .period = j["cycle_time_ns"],
             .frame_size = j["frame_size_byte"],
             .deadline = j["deadline_ns"],
-            .route = Route(j["source"], j["target"]),
+            .route = RouteWrapper(j["source"], j["target"]),
         };
     }
 
