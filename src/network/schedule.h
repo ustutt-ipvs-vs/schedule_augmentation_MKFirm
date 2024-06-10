@@ -41,7 +41,7 @@ namespace tsndgm
 
     struct StreamSchedule
     {
-        int stream_id;
+        StreamID stream_id;
         int pcp;
         std::vector<FrameSchedule> frames;
 

@@ -26,8 +26,8 @@ namespace tsndgm
 
         V src;
         V sink;
-        std::vector<MessageStream> streams;
-        std::map<unsigned int,MessageStream> stream_id_map;
+        std::unordered_map<StreamID, MessageStream> streams;
+        std::map<unsigned int, MessageStream> stream_id_map;
         std::map<Edge,std::vector<V>> topology_edge_to_dgm_vertices;
 
         std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
@@ -87,8 +87,7 @@ namespace tsndgm
         else
         {
             std::cout << "([" << network[transmission_graph[v].edge.first] << ", "
-                      << network[transmission_graph[v].edge.second] << "], {"
-                      << transmission_graph[v].stream_id << ", "
+                      << network[transmission_graph[v].edge.second] << "], {" << transmission_graph[v].stream_id << ", "
                       << transmission_graph[v].frame_number << "})";
         }
     }
@@ -97,8 +96,8 @@ namespace tsndgm
                       boost::graph_traits<transmission_graph_t>::edge_descriptor e)
     {
         // for dubugging?
-        //int n = log10(boost::num_vertices(transmission_graph)) + 1;
-        //std::cout << "(" << std::setfill('0') << std::setw(n) << source(e, transmission_graph) << ", "
+        // int n = log10(boost::num_vertices(transmission_graph)) + 1;
+        // std::cout << "(" << std::setfill('0') << std::setw(n) << source(e, transmission_graph) << ", "
         //          << std::setfill('0') << std::setw(n) << target(e, transmission_graph) << "): ";
         print(transmission_graph, network, source(e, transmission_graph));
         std::cout << " -> ";

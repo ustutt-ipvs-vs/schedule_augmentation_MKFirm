@@ -25,7 +25,7 @@ namespace tsndgm
         Delay deadline;
         Delay jitter = 0; // TODO discuss if jitter and phase are needed and if they should be here.
         Delay phase = 0;
-        Route route;
+        RouteWrapper route;
 
         [[nodiscard]] auto dump() const -> nlohmann::json;
     };

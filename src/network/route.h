@@ -11,27 +11,27 @@ namespace tsndgm
 
     typedef std::vector<Edge> PathRoute;
 
-    struct Route
+    struct RouteWrapper
     {
         DeviceId source;
         DeviceId destination;
 
         PathRoute route;
 
-        Route()
+        RouteWrapper()
         {
             // this constructor is needed so that Route is default constructable. Required to create a proper StreamMap.
             source = -1;
             destination = -1;
         }
 
-        Route(const DeviceId source, const DeviceId destination)
+        RouteWrapper(const DeviceId source, const DeviceId destination)
         {
             this->source = source;
             this->destination = destination;
         }
 
-        explicit Route(PathRoute &&input_route)
+        explicit RouteWrapper(PathRoute &&input_route)
         {
             route = std::move(input_route);
             source = route.front().first;

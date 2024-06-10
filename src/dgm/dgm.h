@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/graph/adjacency_list.hpp>
+#include <utility>
 #include "../IO/inputLoader.h"
 #include "../network/message_stream.h"
 #include "../network/topology.h"
@@ -12,10 +13,13 @@ namespace tsndgm
 {
     typedef std::map<Edge, size_t> OffsetMap;
 
-    class JitterBoundViolation : public std::exception
+    class JitterBoundViolation final : public std::exception
     {
     public:
-        JitterBoundViolation(MessageStreamHandle ms, Edge edge, Delay bound) : ms(ms), edge(edge), bound(bound) {}
+        JitterBoundViolation(const MessageStreamHandle ms, Edge edge, const Delay bound) :
+            ms(ms), edge(std::move(edge)), bound(bound)
+        {
+        }
 
         const char *what() { return "jitter exceeds the allowed bound"; }
 
@@ -31,21 +35,21 @@ namespace tsndgm
         typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
         transmission_graph_t transmission_graph;
-        std::shared_ptr<NetworkTopology> network;
-        std::vector<tsndgm::StreamSchedule> scheduled_streams;
+        const NetworkTopology &network;
+        std::vector<StreamSchedule> scheduled_streams;
         CriticalPath crit_path;
 
-        DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
-                              const std::vector<MessageStream> &streams,
-                              const std::vector<tsndgm::StreamSchedule> &scheduled_streams) :
-            network(network), crit_path(transmission_graph), scheduled_streams(scheduled_streams)
+        DisjunctiveGraphModel(const NetworkTopology &network,
+                              const std::unordered_map<StreamID, MessageStream> &streams,
+                              const std::vector<StreamSchedule> &scheduled_streams) :
+            network(network), scheduled_streams(scheduled_streams), crit_path(transmission_graph)
         {
             transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].streams = streams;
 
             std::map<StreamID, MessageStream> stream_id_map;
-            for (const MessageStream &current_stream : streams)
+            for (const auto &current_stream : streams | std::views::values)
             {
                 stream_id_map[current_stream.id] = current_stream;
             }
@@ -63,17 +67,14 @@ namespace tsndgm
 
         CriticalPath::Result critical_path(CriticalPath::Objective type, bool reverse = true);
 
-        inline void print() { tsndgm::print(transmission_graph, *network); }
+        void print() const { tsndgm::print(transmission_graph, network); }
 
-        inline void print(V v) { tsndgm::print(transmission_graph, *network, v); }
-        inline void print(E e) { tsndgm::print(transmission_graph, *network, e); }
+        void print(const V v) const { tsndgm::print(transmission_graph, network, v); }
+        void print(const E &e) const { tsndgm::print(transmission_graph, network, e); }
 
-        inline void print_critical_path(CriticalPath::Objective type)
-        {
-            crit_path.print(critical_path(type), *network);
-        }
+        void print_critical_path(CriticalPath::Objective type) { crit_path.print(critical_path(type), network); }
 
-        inline void print_fixed_lateness()
+        void print_fixed_lateness()
         {
             TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
             for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++)
@@ -92,17 +93,17 @@ namespace tsndgm
             }
         }
 
-        inline E edge(V u, V v)
+        [[nodiscard]] E edge(const V u, const V v) const
         {
-            auto e = boost::edge(u, v, transmission_graph);
-            if (!e.second)
+            auto [e, found] = boost::edge(u, v, transmission_graph);
+            if (not found)
                 throw std::runtime_error("edge (" + std::to_string(u) + ", " + std::to_string(v) + ") does not exist");
-            return e.first;
+            return e;
         }
 
-        inline E edge(E uv)
+        [[nodiscard]] E edge(const E &uv) const
         {
-            V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
+            const V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
             return edge(u, v);
         }
 
