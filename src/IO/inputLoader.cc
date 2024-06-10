@@ -38,18 +38,19 @@ auto io::load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::Emerg
 
 
 auto io::load_time_triggered_traffic(const FilePath &in, const std::shared_ptr<tsndgm::NetworkTopology> &network)
-    -> std::vector<tsndgm::MessageStream>
+    -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>
 {
     try
     {
         std::ifstream i(in);
         nlohmann::json j = nlohmann::json::parse(i);
 
-        std::vector<tsndgm::MessageStream> streams;
+        std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
         streams.reserve(j.size());
         for (const auto &js : j)
         {
-            streams.emplace_back(tsndgm::createMessageStream(js));
+            auto stream = tsndgm::createMessageStream(js);
+            streams[stream.id] = std::move(stream);
         }
 
         return streams;
@@ -90,17 +91,11 @@ auto io::load_schedule(const std::filesystem::path &in) -> std::vector<tsndgm::S
     }
 }
 
-auto io::set_routes(const std::vector<tsndgm::StreamSchedule> &schedules, std::vector<tsndgm::MessageStream> &streams)
-    -> void
+auto io::set_routes(const std::vector<tsndgm::StreamSchedule> &schedules,
+                    std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> &streams) -> void
 {
-    std::unordered_map<tsndgm::StreamID, tsndgm::PathRoute> route_map;
-
     for (const auto &current_stream : schedules)
     {
-        route_map[current_stream.stream_id] = tsndgm::build_route(current_stream);
-    }
-    for (tsndgm::MessageStream &current_stream : streams)
-    {
-        current_stream.route.route = route_map.at(current_stream.id);
+        streams.at(current_stream.stream_id).route.route = build_route(current_stream);
     }
 }

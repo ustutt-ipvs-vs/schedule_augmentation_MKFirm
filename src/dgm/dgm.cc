@@ -4,10 +4,7 @@
 
 namespace tsndgm
 {
-    TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration()
-    {
-        return TSNConfiguration(transmission_graph, *network);
-    }
+    TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration() { return {transmission_graph, *network}; }
 
     CriticalPath::Result DisjunctiveGraphModel::critical_path(CriticalPath::Objective type, bool reverse)
     {
@@ -28,29 +25,6 @@ namespace tsndgm
         }
     }
 
-    auto get_predecessor_edge(const TransmissionGraphProperty &prop, const MessageStreamHandle other, const Edge &edge)
-        -> Edge
-    {
-        // TODO this function needs to be replaced.
-        /* Current issues:
-         * the returned value is incorrect if edge = route->get_talker() (if we insert the first edge)
-         *
-         * the complexity is liniear
-         *
-         * returns the last edge in case the given edge is not in the path
-         */
-        const auto &stream = prop.streams[other];
-        Edge predecessor = stream.route.get_talker();
-        for (const auto &current_edge : stream.route.route)
-        {
-            if (current_edge.first == edge.first && current_edge.second == edge.second)
-            {
-                return predecessor;
-            }
-            predecessor = current_edge;
-        }
-        return predecessor;
-    }
 
     void DisjunctiveGraphModel::add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID stream_id)
     {

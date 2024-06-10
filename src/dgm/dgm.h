@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/graph/adjacency_list.hpp>
+#include <utility>
 #include "../IO/inputLoader.h"
 #include "../network/message_stream.h"
 #include "../network/topology.h"
@@ -12,10 +13,13 @@ namespace tsndgm
 {
     typedef std::map<Edge, size_t> OffsetMap;
 
-    class JitterBoundViolation : public std::exception
+    class JitterBoundViolation final : public std::exception
     {
     public:
-        JitterBoundViolation(MessageStreamHandle ms, Edge edge, Delay bound) : ms(ms), edge(edge), bound(bound) {}
+        JitterBoundViolation(const MessageStreamHandle ms, Edge edge, const Delay bound) :
+            ms(ms), edge(std::move(edge)), bound(bound)
+        {
+        }
 
         const char *what() { return "jitter exceeds the allowed bound"; }
 
@@ -36,7 +40,7 @@ namespace tsndgm
         CriticalPath crit_path;
 
         DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
-                              const std::vector<MessageStream> &streams,
+                              const std::unordered_map<StreamID, MessageStream> &streams,
                               const std::vector<tsndgm::StreamSchedule> &scheduled_streams) :
             network(network), crit_path(transmission_graph), scheduled_streams(scheduled_streams)
         {
@@ -45,7 +49,7 @@ namespace tsndgm
             transmission_graph[boost::graph_bundle].streams = streams;
 
             std::map<StreamID, MessageStream> stream_id_map;
-            for (const MessageStream &current_stream : streams)
+            for (const auto &current_stream : streams | std::views::values)
             {
                 stream_id_map[current_stream.id] = current_stream;
             }
