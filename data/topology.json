@@ -17,7 +17,7 @@
         {
             "id": 2,
             "name": "n2",
-            "processing_delay_ns": 2000,
+            "processing_delay_ns": 0,
             "is_switch": false,
             "queues_per_port": 8
         },

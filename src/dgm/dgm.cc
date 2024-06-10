@@ -57,6 +57,7 @@ namespace tsndgm
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         V previous_vertex = prop.src;
 
+        unsigned int weight_previous_iteration;
         for (const FrameTransmission &current_transmission : current_frame_schedule.transmissions)
         {
             // add vertex to disjunctive graph
@@ -65,38 +66,37 @@ namespace tsndgm
                                                    transmission_graph);
             // TODO
             // prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
-
-            // add conjunctive edge from parent
             unsigned int weight;
+
+            // Special case first iteration: add conjunctive edge from parent
             if (previous_vertex == prop.src)
             {
                 // Weight of first conjunctive edge = dRelease (start time / gate open)
-                weight = current_transmission.start;
-            }
-            else
-            {
-                // Weight of inner conjunctive edge = dPropagation + dTransmission + dProcessing (in ns)
-
-                const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
-
-                const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
-                const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
-                const auto factor = frame_size / data_rate;
-                const auto dtrans = static_cast<Delay>(factor * 1e9L);
-
-                // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
-                const Delay dproc = network->get_device_property(current_transmission.target).processing_delay;
-
-                weight = dprop + dtrans + dproc;
+                weight_previous_iteration = current_transmission.start;
+                
             }
 
-            boost::add_edge(previous_vertex, new_vertex, {weight, conjunctive}, transmission_graph);
+            // Add edge, use weight calculated in previous iteration
+            boost::add_edge(previous_vertex, new_vertex, {weight_previous_iteration, conjunctive}, transmission_graph);
+                        
+            
+            // Calculate weight for next iteration = dPropagation + dTransmission + dProcessing (in ns)
+            const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
 
+            const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
+            const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
+                
+            const double factor = frame_size * 1.0e9L;
+            const Delay dtrans = static_cast<Delay>(factor / data_rate);
+
+            // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
+            const Delay dproc = network->get_device_property(current_transmission.target).processing_delay;
+
+            weight_previous_iteration = dprop + dtrans + dproc;
             previous_vertex = new_vertex;
         }
 
-        // add edge to sink
-        // TODO edge weight
-        boost::add_edge(previous_vertex, prop.sink, {0, conjunctive}, transmission_graph);
+        // add edge to sink using last weight calculated in loop
+        boost::add_edge(previous_vertex, prop.sink, {weight_previous_iteration, conjunctive}, transmission_graph);
     }
 } // namespace tsndgm
