@@ -86,8 +86,29 @@ namespace tsndgm
             //prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
 
             // add conjunctive edge from parent
-            // TODO edge weight
-            boost::add_edge(previous_vertex, new_vertex, {0, conjunctive}, transmission_graph);
+            unsigned int weight;
+            if(previous_vertex == prop.src){
+                // Weight of first conjunctive edge = dRelease (start time / gate open)
+                weight = current_transmission.start;
+                   
+            } 
+            else{
+                // Weight of inner conjunctive edge = dPropagation + dTransmission + dProcessing (in ns)
+                
+                Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
+
+                DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
+                FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
+                auto factor = frame_size / data_rate;               
+                Delay dtrans = static_cast<Delay>(factor * 1e9);
+
+                // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
+                Delay dproc = network->get_device_property(current_transmission.target).processing_delay;
+                
+                weight = dprop + dtrans + dproc;
+            }
+            
+            boost::add_edge(previous_vertex, new_vertex, {weight, conjunctive}, transmission_graph); 
 
             previous_vertex = new_vertex;
         }
