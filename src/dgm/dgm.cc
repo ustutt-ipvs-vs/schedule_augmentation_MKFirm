@@ -1,6 +1,7 @@
 #include "dgm.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
+#include <ranges>
 
 namespace tsndgm
 {
@@ -19,12 +20,19 @@ namespace tsndgm
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
+        // add conjunctive Edges
         for (const StreamSchedule &current_stream : scheduled_streams)
         {
             for (const FrameSchedule &current_frame_schedule : current_stream.frames)
             {
                 add_conjunctive_edge_for_frame(current_frame_schedule, current_stream.stream_id);
             }
+        }
+
+        // add disjunctive Edges
+        for (auto it = prop.topology_edge_to_dgm_vertices.begin(); it != prop.topology_edge_to_dgm_vertices.end(); ++it)
+        {
+            add_disjunctive_edge_for_edge(it->first, it->second);
         }
     }
 
@@ -62,10 +70,11 @@ namespace tsndgm
         {
             // add vertex to disjunctive graph
             auto transmission_edge = Edge(current_transmission.source, current_transmission.target);
-            const V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number},
+            const V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number, current_transmission.start},
                                                    transmission_graph);
-            // TODO
-            // prop.operation_to_vertex[{transmission_edge, handle}] = new_vertex;
+
+            prop.topology_edge_to_dgm_vertices[transmission_edge].push_back(new_vertex);
+
             unsigned int weight;
 
             // Special case first iteration: add conjunctive edge from parent
@@ -78,14 +87,13 @@ namespace tsndgm
 
             // Add edge, use weight calculated in previous iteration
             boost::add_edge(previous_vertex, new_vertex, {weight_previous_iteration, conjunctive}, transmission_graph);
-                        
-            
+
             // Calculate weight for next iteration = dPropagation + dTransmission + dProcessing (in ns)
             const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
 
             const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
             const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
-                
+
             const double factor = frame_size * 1.0e9L;
             const Delay dtrans = static_cast<Delay>(factor / data_rate);
 
@@ -99,4 +107,34 @@ namespace tsndgm
         // add edge to sink using last weight calculated in loop
         boost::add_edge(previous_vertex, prop.sink, {weight_previous_iteration, conjunctive}, transmission_graph);
     }
+
+    void DisjunctiveGraphModel::add_disjunctive_edge_for_edge(Edge edge, std::vector<V> vertices)
+    {
+        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+
+        // here we create a function (lambda) stored in "sorting_function", which we will pass to the actual sorting algorithm.
+        auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
+            const auto &lhs_elem = transmission_graph[lhs_id];
+            const auto &rhs_elem = transmission_graph[rhs_id];
+
+            return lhs_elem.start_old_schedule < rhs_elem.start_old_schedule;
+        };
+
+        // actual sorting, using our ordering
+        std::ranges::sort(vertices, ordering_function);
+
+        for (int it = 1; it < vertices.size(); it++)
+        {
+            // Calculate weight = dTransmission (in ns)
+            const DataRate data_rate = network->get_data_link_property(edge).data_rate;
+            const FrameSize frame_size = prop.stream_id_map.at(transmission_graph[vertices.at(it-1)].stream_id).frame_size;
+
+            const double factor = frame_size * 1.0e9L;
+            const Delay dtrans = static_cast<Delay>(factor / data_rate);
+
+            // Add edge, use weight calculated in previous iteration
+            boost::add_edge(vertices.at(it - 1), vertices.at(it), {dtrans, disjunctive}, transmission_graph);
+        }
+    }
+
 } // namespace tsndgm

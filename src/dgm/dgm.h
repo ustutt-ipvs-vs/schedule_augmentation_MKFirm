@@ -111,6 +111,7 @@ namespace tsndgm
 
         void build();
         void add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number);
+        void add_disjunctive_edge_for_edge(Edge edge, std::vector<V> vertices);
         void resize_properties();
 
         void internal_commit_all(size_t index);

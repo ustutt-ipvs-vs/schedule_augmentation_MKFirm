@@ -28,6 +28,7 @@ namespace tsndgm
         V sink;
         std::vector<MessageStream> streams;
         std::map<unsigned int,MessageStream> stream_id_map;
+        std::map<Edge,std::vector<V>> topology_edge_to_dgm_vertices;
 
         std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
         std::map<Operation, V> operation_to_vertex;
@@ -45,8 +46,9 @@ namespace tsndgm
         typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
         Edge edge;
-        unsigned int stream_id;
+        StreamID stream_id;
         unsigned int frame_number;
+        Tick start_old_schedule;
 
         TransmissionGraphVertexProperty &operator=(const TransmissionGraphVertexProperty &other) = default;
     };
