@@ -31,8 +31,8 @@ auto main(const int argc, char *argv[]) -> int
         }
     }();
 
-    const auto network = std::make_shared<tsndgm::NetworkTopology>(options.getTopologyPath());
-    network->print_topology();
+    const auto network = tsndgm::NetworkTopology(options.getTopologyPath());
+    network.print_topology();
     std::cout << "Loaded network topology!\n";
 
     auto streams = io::load_time_triggered_traffic(options.getTimeTriggeredStreamsPath(), network);

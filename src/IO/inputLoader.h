@@ -19,7 +19,7 @@ namespace io
 
     auto load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::EmergencyStream>;
 
-    auto load_time_triggered_traffic(const FilePath &in, const std::shared_ptr<tsndgm::NetworkTopology> &network)
+    auto load_time_triggered_traffic(const FilePath &in, const tsndgm::NetworkTopology &network)
         -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>;
 
     auto load_schedule(const FilePath &in) -> std::vector<tsndgm::StreamSchedule>;

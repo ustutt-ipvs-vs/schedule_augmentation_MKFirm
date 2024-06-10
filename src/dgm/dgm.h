@@ -35,14 +35,14 @@ namespace tsndgm
         typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
         transmission_graph_t transmission_graph;
-        std::shared_ptr<NetworkTopology> network;
-        std::vector<tsndgm::StreamSchedule> scheduled_streams;
+        const NetworkTopology &network;
+        std::vector<StreamSchedule> scheduled_streams;
         CriticalPath crit_path;
 
-        DisjunctiveGraphModel(const std::shared_ptr<NetworkTopology> &network,
+        DisjunctiveGraphModel(const NetworkTopology &network,
                               const std::unordered_map<StreamID, MessageStream> &streams,
-                              const std::vector<tsndgm::StreamSchedule> &scheduled_streams) :
-            network(network), crit_path(transmission_graph), scheduled_streams(scheduled_streams)
+                              const std::vector<StreamSchedule> &scheduled_streams) :
+            network(network), scheduled_streams(scheduled_streams), crit_path(transmission_graph)
         {
             transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
             transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
@@ -67,12 +67,12 @@ namespace tsndgm
 
         CriticalPath::Result critical_path(CriticalPath::Objective type, bool reverse = true);
 
-        void print() const { tsndgm::print(transmission_graph, *network); }
+        void print() const { tsndgm::print(transmission_graph, network); }
 
-        void print(const V v) const { tsndgm::print(transmission_graph, *network, v); }
-        void print(const E &e) const { tsndgm::print(transmission_graph, *network, e); }
+        void print(const V v) const { tsndgm::print(transmission_graph, network, v); }
+        void print(const E &e) const { tsndgm::print(transmission_graph, network, e); }
 
-        void print_critical_path(CriticalPath::Objective type) { crit_path.print(critical_path(type), *network); }
+        void print_critical_path(CriticalPath::Objective type) { crit_path.print(critical_path(type), network); }
 
         void print_fixed_lateness()
         {

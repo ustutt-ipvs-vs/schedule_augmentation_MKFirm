@@ -4,7 +4,7 @@
 
 namespace tsndgm
 {
-    TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration() { return {transmission_graph, *network}; }
+    TSNConfiguration DisjunctiveGraphModel::derive_tsn_configuration() { return {transmission_graph, network}; }
 
     CriticalPath::Result DisjunctiveGraphModel::critical_path(CriticalPath::Objective type, bool reverse)
     {
@@ -47,19 +47,19 @@ namespace tsndgm
             {
                 // Weight of first conjunctive edge = dRelease (start time / gate open)
                 weight_previous_iteration = current_transmission.start;
-                
+
             }
 
             // Add edge, use weight calculated in previous iteration
             boost::add_edge(previous_vertex, new_vertex, {weight_previous_iteration, conjunctive}, transmission_graph);
-                        
-            
+
+
             // Calculate weight for next iteration = dPropagation + dTransmission + dProcessing (in ns)
             const Delay dprop = network->get_data_link_property(transmission_edge).propagation_delay;
 
             const DataRate data_rate = network->get_data_link_property(transmission_edge).data_rate;
             const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
-                
+
             const double factor = frame_size * 1.0e9L;
             const Delay dtrans = static_cast<Delay>(factor / data_rate);
 
