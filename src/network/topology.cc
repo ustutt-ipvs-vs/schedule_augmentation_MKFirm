@@ -116,7 +116,7 @@ namespace tsndgm
     bool NetworkTopology::exists(const DeviceId id) const
     {
         const V v = get_vertex_by_id<false>(id);
-        return v == network_topology_t::null_vertex();
+        return v != network_topology_t::null_vertex();
     }
 
     bool NetworkTopology::exists(const Edge &edge) const
