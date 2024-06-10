@@ -24,7 +24,7 @@ namespace tsndgm
 
         g = network_topology_t(edges.begin(), edges.end(), data_link_properties.data(), device_properties.size());
 
-        for (const auto vd : boost::make_iterator_range(boost::vertices(g)))
+        for (const auto vd : boost::make_iterator_range(vertices(g)))
         {
             g[vd].id = device_properties[vd].id;
             g[vd].processing_delay = device_properties[vd].processing_delay;
@@ -35,7 +35,7 @@ namespace tsndgm
 
     void NetworkTopology::add_device(const NetworkDeviceProperty &device_property)
     {
-        auto [begin, end] = boost::vertices(g);
+        auto [begin, end] = vertices(g);
         if (std::find_if(begin, end, [&](auto v) { return g[v].id == device_property.id; }) == end)
         {
             const V device = boost::add_vertex(g);
@@ -75,20 +75,20 @@ namespace tsndgm
     const NetworkDeviceProperty &NetworkTopology::get_device_property(const DeviceId id) const
     {
         const V v = get_vertex_by_id<true>(id);
-        return boost::get(boost::vertex_bundle, g)[v];
+        return get(boost::vertex_bundle, g)[v];
     }
 
     const DataLinkProperty &NetworkTopology::get_data_link_property(const Edge &edge) const
     {
         const E e = get_edge_by_ids(edge);
-        return boost::get(boost::edge_bundle, g)[e];
+        return get(boost::edge_bundle, g)[e];
     }
 
     void NetworkTopology::remove_device(const DeviceId &device)
     {
         const V v = get_vertex_by_id<true>(device);
-        boost::clear_vertex(v, g);
-        boost::remove_vertex(v, g);
+        clear_vertex(v, g);
+        remove_vertex(v, g);
     }
 
     void NetworkTopology::remove_devices(const std::vector<DeviceId> &devices)
@@ -124,9 +124,7 @@ namespace tsndgm
         const V v1 = get_vertex_by_id<false>(edge.first);
         const V v2 = get_vertex_by_id<false>(edge.second);
 
-        E e;
-        bool found;
-        boost::tie(e, found) = boost::edge(v1, v2, g);
+        auto [edge, found] = boost::edge(v1, v2, g);
 
         return found;
     }
@@ -145,7 +143,7 @@ namespace tsndgm
     void NetworkTopology::print_topology() const
     {
         std::cout << "Topology" << std::endl;
-        for (const auto vd : boost::make_iterator_range(boost::vertices(g)))
+        for (const auto vd : boost::make_iterator_range(vertices(g)))
         {
             std::cout << g[vd].id << " --> ";
             auto [out_begin, out_end] = out_edges(vd, g);
@@ -159,13 +157,13 @@ namespace tsndgm
         }
 
         std::cout << "ID\tName\tProcessing Delay\tQueues per Port" << std::endl;
-        for (const auto vd : boost::make_iterator_range(boost::vertices(g)))
+        for (const auto vd : boost::make_iterator_range(vertices(g)))
         {
             std::cout << g[vd].id << "\t" << g[vd].name << "\t" << g[vd].processing_delay << "\t\t\t"
                       << g[vd].queues_per_port << std::endl;
         }
         std::cout << "Edge\tData Rate\tPropagation Delay" << std::endl;
-        for (auto ed : boost::make_iterator_range(boost::edges(g)))
+        for (auto ed : make_iterator_range(edges(g)))
         {
             std::cout << "(" << g[source(ed, g)].id << ", " << g[target(ed, g)].id << ")\t" << g[ed].data_rate << "\t"
                       << g[ed].propagation_delay << std::endl;
@@ -176,16 +174,16 @@ namespace tsndgm
     {
         nlohmann::json j = {{"nodes", nlohmann::json::array()}, {"links", nlohmann::json::array()}};
 
-        for (auto vd : boost::make_iterator_range(boost::vertices(g)))
+        for (auto vd : boost::make_iterator_range(vertices(g)))
         {
             j["nodes"].push_back(
                 {{"id", g[vd].id}, {"processing_delay_ns", g[vd].processing_delay}, {"name", g[vd].name}});
         }
 
-        for (auto ed : boost::make_iterator_range(boost::edges(g)))
+        for (auto ed : make_iterator_range(edges(g)))
         {
-            j["links"].push_back({{"source", boost::source(ed, g)},
-                                  {"target", boost::target(ed, g)},
+            j["links"].push_back({{"source", source(ed, g)},
+                                  {"target", target(ed, g)},
                                   {"data_rate", g[ed].data_rate},
                                   {"propagation_delay", g[ed].propagation_delay}});
         }
@@ -222,9 +220,9 @@ namespace tsndgm
     }
 
     template <bool throw_error>
-    V NetworkTopology::get_vertex_by_id(DeviceId id) const
+    V NetworkTopology::get_vertex_by_id(const DeviceId id) const
     {
-        for (const auto vd : boost::make_iterator_range(boost::vertices(g)))
+        for (const auto vd : boost::make_iterator_range(vertices(g)))
         {
             if (g[vd].id == id)
                 return vd;
@@ -251,10 +249,7 @@ namespace tsndgm
         const V v1 = get_vertex_by_id<true>(edge.first);
         const V v2 = get_vertex_by_id<true>(edge.second);
 
-        E e;
-        bool found;
-        boost::tie(e, found) = boost::edge(v1, v2, g);
-        if (found)
+        if (auto [e, found] = boost::edge(v1, v2, g); found)
             return e;
 
         throw std::runtime_error{"edge not found: (" + std::to_string(v1) + ", " + std::to_string(v2) + ")"};
