@@ -110,7 +110,7 @@ namespace tsndgm
         bool valid_crit_path = false;
 
         void build();
-        void add_frame_to_graph(const FrameSchedule &current_frame_schedule, unsigned int frame_number);
+        void add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number);
         void resize_properties();
 
         void internal_commit_all(size_t index);

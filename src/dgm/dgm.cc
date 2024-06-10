@@ -23,7 +23,7 @@ namespace tsndgm
         {
             for (const FrameSchedule &current_frame_schedule : current_stream.frames)
             {
-                add_frame_to_graph(current_frame_schedule, current_stream.stream_id);
+                add_conjunctive_edge_for_frame(current_frame_schedule, current_stream.stream_id);
             }
         }
     }
@@ -52,7 +52,7 @@ namespace tsndgm
         return predecessor;
     }
 
-    void DisjunctiveGraphModel::add_frame_to_graph(const FrameSchedule &current_frame_schedule, unsigned int stream_id)
+    void DisjunctiveGraphModel::add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID stream_id)
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         V previous_vertex = prop.src;
