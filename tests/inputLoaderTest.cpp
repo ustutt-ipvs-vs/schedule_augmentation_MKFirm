@@ -97,6 +97,34 @@ TEST(InputLoaderTest, loadSimpleTopologyTest)
     EXPECT_FALSE(topology.exists({0, 3})) << "Edge " << 0 << " -> " << 3 << " should not exist";
 }
 
+TEST(InputLoaderTest, loadScheduleTest)
+{
+    const std::filesystem::path file_path = "../../tests/test_data/schedule.json";
+
+    const auto schedule = io::load_schedule(file_path);
+    ASSERT_EQ(schedule.size(), 4);
+
+    // stream 0
+    const auto &stream_0 = schedule.at(0);
+    EXPECT_EQ(stream_0.stream_id, 0);
+    EXPECT_EQ(stream_0.pcp, 1);
+    EXPECT_EQ(stream_0.frames.size(), 2);
+
+    // stream 0 frame 0
+    const auto &frame_0 = stream_0.frames.at(0);
+    EXPECT_EQ(frame_0.frame_number, 0);
+    EXPECT_EQ(frame_0.transmissions.size(), 3);
+
+    // stream 0 frame 0 transmission 0
+    const auto &transmission_0 = frame_0.transmissions.at(0);
+    EXPECT_EQ(transmission_0.link_id, 5);
+    EXPECT_EQ(transmission_0.link_name, "3-1");
+    EXPECT_EQ(transmission_0.source, 3);
+    EXPECT_EQ(transmission_0.target, 1);
+    EXPECT_EQ(transmission_0.start, 200);
+    EXPECT_EQ(transmission_0.end, 6976);
+}
+
 TEST(InputLoaderTest, filesDoNotExist)
 {
     const std::filesystem::path non_existing_file_path = "../../tests/test_data/does_not_exist.json";

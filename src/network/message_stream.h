@@ -32,6 +32,6 @@ namespace tsndgm
 
     auto createMessageStream(const nlohmann::json &j) -> MessageStream;
 
-    void dump_streams(const std::vector<MessageStream> &streams, std::filesystem::path out);
+    void dump_streams(const std::vector<MessageStream> &streams, const std::filesystem::path& out);
 
 } // namespace tsndgm

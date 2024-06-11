@@ -28,7 +28,7 @@ namespace tsndgm
         };
     }
 
-    void dump_streams(const std::vector<MessageStream> &streams, std::filesystem::path out)
+    void dump_streams(const std::vector<MessageStream> &streams, const std::filesystem::path &out)
     {
         nlohmann::json j = {};
         for (const MessageStream &stream : streams)
