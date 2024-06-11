@@ -8,6 +8,7 @@
 #include "critical_path.h"
 #include "transmission_graph.h"
 #include "tsn_configuration.h"
+#include <ranges>
 
 namespace tsndgm
 {

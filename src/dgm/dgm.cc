@@ -2,6 +2,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
 #include <ranges>
+#include <algorithm>
 
 namespace tsndgm
 {
@@ -97,9 +98,36 @@ namespace tsndgm
 
     void DisjunctiveGraphModel::add_fifo_edges_for_edge(Edge edge, std::vector<V> vertices)
     {
-        // TODO group vertices by pcp and sort each group by start time
-        
-        // TODO add FIFO edge between every pair with same pcp, pointing from vertex with lower start time to predecessor of vertex with higher start time
+        // here we create a function (lambda) stored in "sorting_function", which we will pass to the actual sorting algorithm.
+        auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
+            const auto &lhs_elem = transmission_graph[lhs_id];
+            const auto &rhs_elem = transmission_graph[rhs_id];
+
+            if (lhs_elem.pcp == rhs_elem.pcp) {
+                // sort by start time as secondary ordering
+                return lhs_elem.start_old_schedule < rhs_elem.start_old_schedule;
+            }
+            return lhs_elem.pcp < rhs_elem.pcp;
+        };
+
+        auto grouping_function = [&](const auto lhs_id, const auto rhs_id) {
+            const auto &lhs_elem = transmission_graph[lhs_id];
+            const auto &rhs_elem = transmission_graph[rhs_id];
+            return lhs_elem.pcp == rhs_elem.pcp;
+        };
+
+        // Group vertices by pcp and sort each group by start time
+        std::ranges::sort(vertices, ordering_function);
+
+        // We create a view object first, that "modifies" the order in which we access the elements.
+        std::ranges::for_each(vertices | std::views::chunk_by(grouping_function),
+            [&](const auto chunk) {
+                // For one group (chunk) same pcp
+                // add FIFO edge from vertex with lower start time to predecessor of vertex with higher start time
+                for (int it = 1; it < vertices.size(); it++) {
+                    boost::add_edge(vertices.at(it - 1), vertices.at(it), {0, fifo}, transmission_graph);
+                }
+        });
 
         // Example and test (printed before the conjunctive/disjunctive edges):
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
@@ -116,9 +144,6 @@ namespace tsndgm
                 std::cout << transmission_graph[example_how_to_get_predecessor].start_old_schedule << "\n";
             }
         }
-        
-       
-
     }
 
     Delay DisjunctiveGraphModel::getTransmissionDelay(Edge edge, StreamID stream_id)
