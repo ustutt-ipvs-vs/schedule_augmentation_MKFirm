@@ -37,12 +37,16 @@ auto io::load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::Emerg
 }
 
 
-auto io::load_time_triggered_traffic(const FilePath &in)
-    -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>
+auto io::load_time_triggered_traffic(const FilePath &in) -> std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream>
 {
     try
     {
         std::ifstream i(in);
+        if (not i.good())
+        {
+            std::cout << "Error opening file: " << in.string() << "\n";
+            std::exit(error_codes::FILE_NOT_FOUND);
+        }
         nlohmann::json j = nlohmann::json::parse(i);
 
         std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;

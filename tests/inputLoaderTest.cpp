@@ -65,10 +65,25 @@ TEST(InputLoaderTest, loadTimeTriggeredTraffic)
 
 TEST(InputLoaderTest, filesDoNotExist)
 {
-    // emergency streams
-    const std::filesystem::path file_path = "../../tests/test_data/does_not_exist.json";
+    const std::filesystem::path non_existing_file_path = "../../tests/test_data/does_not_exist.json";
+    EXPECT_EXIT(io::load_emergency_traffic(non_existing_file_path),
+                testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 
-    EXPECT_EXIT(io::load_emergency_traffic(file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+    EXPECT_EXIT(io::load_time_triggered_traffic(non_existing_file_path),
+                testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 
-    // TODO implement the others
+    EXPECT_EXIT(io::load_schedule(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+}
+
+TEST(InputLoaderTest, NotAValidJsonFile)
+{
+    const std::filesystem::path invalid_json_file_path = "../../tests/test_data/invalid_json.json";
+    EXPECT_EXIT(io::load_emergency_traffic(invalid_json_file_path),
+                testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
+
+    EXPECT_EXIT(io::load_time_triggered_traffic(invalid_json_file_path),
+                testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
+
+    EXPECT_EXIT(io::load_schedule(invalid_json_file_path), testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED),
+                ".*");
 }
