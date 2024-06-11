@@ -98,6 +98,8 @@ namespace tsndgm
 
     void DisjunctiveGraphModel::add_fifo_edges_for_edge(Edge edge, std::vector<V> vertices)
     {
+        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+
         // here we create a function (lambda) stored in "sorting_function", which we will pass to the actual sorting algorithm.
         auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
             const auto &lhs_elem = transmission_graph[lhs_id];
@@ -124,13 +126,16 @@ namespace tsndgm
             [&](const auto chunk) {
                 // For one group (chunk) same pcp
                 // add FIFO edge from vertex with lower start time to predecessor of vertex with higher start time
-                for (int it = 1; it < vertices.size(); it++) {
-                    boost::add_edge(vertices.at(it - 1), vertices.at(it), {0, fifo}, transmission_graph);
+                for (int it = 0; it < chunk.size() - 1; it++) {
+                    if(transmission_graph[vertices.at(it)].dgm_predecessor_vertex == prop.src) {
+                        continue;
+                    }
+
+                    boost::add_edge(vertices.at(it), transmission_graph[vertices.at(it+1)].dgm_predecessor_vertex, {0, fifo}, transmission_graph);
                 }
         });
 
         // Example and test (printed before the conjunctive/disjunctive edges):
-        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
         for(V current_V : vertices){
             int example_how_to_get_pcp = transmission_graph[current_V].pcp; // used "int" because pcp is int in schedule.h. Maybe introduce own datatype again?
