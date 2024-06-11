@@ -111,8 +111,9 @@ namespace tsndgm
         bool valid_crit_path = false;
 
         void build();
-        void add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number);
-        void add_disjunctive_edge_for_edge(Edge edge, std::vector<V> vertices);
+        void add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number, int pcp);
+        void add_disjunctive_edges_for_edge(Edge edge, std::vector<V> vertices);
+        void add_fifo_edges_for_edge(Edge edge, std::vector<V> vertices);
         Delay getTransmissionDelay(Edge edge, StreamID stream_id);
         void resize_properties();
 

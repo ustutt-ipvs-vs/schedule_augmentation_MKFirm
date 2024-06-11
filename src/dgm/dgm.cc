@@ -22,18 +22,19 @@ namespace tsndgm
         {
             for (const FrameSchedule &current_frame_schedule : current_stream.frames)
             {
-                add_conjunctive_edge_for_frame(current_frame_schedule, current_stream.stream_id);
+                add_conjunctive_edges_for_frame(current_frame_schedule, current_stream.stream_id, current_stream.pcp);
             }
         }
 
-        // add disjunctive Edges
+        // add disjunctive and FIFO Edges
         for (auto it = prop.topology_edge_to_dgm_vertices.begin(); it != prop.topology_edge_to_dgm_vertices.end(); ++it)
         {
-            add_disjunctive_edge_for_edge(it->first, it->second);
+            add_disjunctive_edges_for_edge(it->first, it->second);
+            add_fifo_edges_for_edge(it->first, it->second);
         }
     }
 
-    void DisjunctiveGraphModel::add_conjunctive_edge_for_frame(const FrameSchedule &current_frame_schedule, StreamID stream_id)
+    void DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID stream_id, int pcp)
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
         V previous_vertex = prop.src;
@@ -44,12 +45,11 @@ namespace tsndgm
         {
             // add vertex to disjunctive graph
             auto transmission_edge = Edge(current_transmission.source, current_transmission.target);
-            const V new_vertex = boost::add_vertex({transmission_edge, stream_id, current_frame_schedule.frame_number, current_transmission.start},
+            const V new_vertex = boost::add_vertex({transmission_edge, previous_vertex, stream_id, current_frame_schedule.frame_number, current_transmission.start, pcp},
                                                    transmission_graph);
 
             prop.topology_edge_to_dgm_vertices[transmission_edge].push_back(new_vertex);
 
-            unsigned int weight;
 
             // Add edge, use weight calculated in previous iteration
             boost::add_edge(previous_vertex, new_vertex, {weight_previous_iteration, conjunctive}, transmission_graph);
@@ -72,7 +72,7 @@ namespace tsndgm
         boost::add_edge(previous_vertex, prop.sink, {weight_previous_iteration, conjunctive}, transmission_graph);
     }
 
-    void DisjunctiveGraphModel::add_disjunctive_edge_for_edge(Edge edge, std::vector<V> vertices)
+    void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(Edge edge, std::vector<V> vertices)
     {
         // here we create a function (lambda) stored in "sorting_function", which we will pass to the actual sorting algorithm.
         auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -93,6 +93,32 @@ namespace tsndgm
             // Add edge, use weight calculated in previous iteration
             boost::add_edge(vertices.at(it - 1), vertices.at(it), {dtrans, disjunctive}, transmission_graph);
         }
+    }
+
+    void DisjunctiveGraphModel::add_fifo_edges_for_edge(Edge edge, std::vector<V> vertices)
+    {
+        // TODO group vertices by pcp and sort each group by start time
+        
+        // TODO add FIFO edge between every pair with same pcp, pointing from vertex with lower start time to predecessor of vertex with higher start time
+
+        // Example and test (printed before the conjunctive/disjunctive edges):
+        TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+        std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
+        for(V current_V : vertices){
+            int example_how_to_get_pcp = transmission_graph[current_V].pcp; // used "int" because pcp is int in schedule.h. Maybe introduce own datatype again?
+            V example_how_to_get_predecessor = transmission_graph[current_V].dgm_predecessor_vertex;
+            std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << example_how_to_get_pcp
+                << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
+            if(example_how_to_get_predecessor == prop.src){
+                std::cout << "SRC!\n";
+            }
+            else{
+                std::cout << transmission_graph[example_how_to_get_predecessor].start_old_schedule << "\n";
+            }
+        }
+        
+       
+
     }
 
     Delay DisjunctiveGraphModel::getTransmissionDelay(Edge edge, StreamID stream_id)

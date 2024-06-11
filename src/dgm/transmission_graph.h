@@ -46,9 +46,11 @@ namespace tsndgm
         typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
         Edge edge;
+        V dgm_predecessor_vertex;
         StreamID stream_id;
         unsigned int frame_number;
         Tick start_old_schedule;
+        int pcp;
 
         TransmissionGraphVertexProperty &operator=(const TransmissionGraphVertexProperty &other) = default;
     };
