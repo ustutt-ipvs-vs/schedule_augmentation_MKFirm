@@ -23,4 +23,8 @@ namespace io
     auto set_routes(const std::vector<tsndgm::StreamSchedule> &schedules,
                     std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> &streams) -> void;
 
+    auto load_topology(const FilePath &in) -> tsndgm::NetworkTopology;
+
+    auto check_file_loading(const std::ifstream &i, const FilePath &in) -> void;
+
 } // namespace io

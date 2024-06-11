@@ -63,6 +63,40 @@ TEST(InputLoaderTest, loadTimeTriggeredTraffic)
     EXPECT_EQ(stream_3.route.destination, 2);
 }
 
+TEST(InputLoaderTest, loadSimpleTopologyTest)
+{
+    const std::filesystem::path file_path = "../../tests/test_data/simple_topology.json";
+
+    const auto topology = io::load_topology(file_path);
+
+    bool failure = false;
+    for (tsndgm::DeviceId i = 0; i < 4; i++)
+    {
+        const auto result = topology.exists(i);
+        EXPECT_TRUE(result) << "Device " << i << " does not exist";
+
+        failure = std::max(failure, not result);
+    }
+    ASSERT_FALSE(failure);
+    EXPECT_FALSE(topology.exists(4)) << "Device " << 4 << " should not exist";
+
+    // Check devices
+    const auto &device_0 = topology[0];
+    ASSERT_EQ(device_0.id, 0);
+    ASSERT_EQ(device_0.name, "n0");
+    ASSERT_EQ(device_0.processing_delay, 2000);
+    ASSERT_EQ(device_0.queues_per_port, 8);
+    // TODO add a check for is_switch as soon as it is implemented
+
+
+    const std::vector<tsndgm::Edge> edges = {{0, 1}, {1, 0}, {0, 2}, {2, 0}, {1, 3}, {3, 1}};
+    for (const auto &edge : edges)
+    {
+        EXPECT_TRUE(topology.exists(edge)) << "Edge " << edge.first << " -> " << edge.second << " does not exist";
+    }
+    EXPECT_FALSE(topology.exists({0, 3})) << "Edge " << 0 << " -> " << 3 << " should not exist";
+}
+
 TEST(InputLoaderTest, filesDoNotExist)
 {
     const std::filesystem::path non_existing_file_path = "../../tests/test_data/does_not_exist.json";
@@ -73,6 +107,8 @@ TEST(InputLoaderTest, filesDoNotExist)
                 testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 
     EXPECT_EXIT(io::load_schedule(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+
+    EXPECT_EXIT(io::load_topology(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 }
 
 TEST(InputLoaderTest, NotAValidJsonFile)
@@ -85,5 +121,8 @@ TEST(InputLoaderTest, NotAValidJsonFile)
                 testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
 
     EXPECT_EXIT(io::load_schedule(invalid_json_file_path), testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED),
+                ".*");
+
+    EXPECT_EXIT(io::load_topology(invalid_json_file_path), testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED),
                 ".*");
 }

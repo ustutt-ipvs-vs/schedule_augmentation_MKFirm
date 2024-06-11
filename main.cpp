@@ -31,7 +31,7 @@ auto main(const int argc, char *argv[]) -> int
         }
     }();
 
-    const auto network = tsndgm::NetworkTopology(options.getTopologyPath());
+    const auto network = io::load_topology(options.getTopologyPath());
     network.print_topology();
     std::cout << "Loaded network topology!\n";
 

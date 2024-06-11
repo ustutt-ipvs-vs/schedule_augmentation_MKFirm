@@ -192,33 +192,6 @@ namespace tsndgm
         o << std::setw(4) << j << std::endl;
     }
 
-    void NetworkTopology::load_topology(const std::filesystem::path &in)
-    {
-        try
-        {
-            std::ifstream i(in);
-            nlohmann::json j = nlohmann::json::parse(i);
-            for (auto n : j["nodes"])
-            {
-                NetworkDeviceProperty device(n["id"], n["processing_delay_ns"], n["name"], n["queues_per_port"]);
-                add_device(device);
-            }
-
-            for (auto l : j["links"])
-            {
-                Edge edge(l["source"], l["target"]);
-                const auto link = DataLinkProperty{mbps_to_DataRate(l["link_speed_mbps"]), l["propagation_delay_ns"]};
-                add_data_link({edge, link});
-            }
-        }
-        catch (nlohmann::json::parse_error &e)
-        {
-            std::cout << "Error parsing json file: " << in.string() << "\n";
-            std::cout << e.what() << std::endl;
-            std::exit(2);
-        }
-    }
-
     template <bool throw_error>
     V NetworkTopology::get_vertex_by_id(const DeviceId id) const
     {

@@ -66,17 +66,10 @@ namespace tsndgm
         typedef boost::graph_traits<network_topology_t>::vertex_descriptor V;
         typedef boost::graph_traits<network_topology_t>::edge_descriptor E;
 
-        NetworkTopology()
-        {
-            NetworkTopology(std::initializer_list<NetworkDeviceProperty>{}, std::initializer_list<DataLink>{});
-        }
-
-        explicit NetworkTopology(const std::filesystem::path &in)
-        {
-            // NetworkTopology(std::initializer_list<NetworkDeviceProperty>{},
-            //                 std::initializer_list<DataLink>{});
-            load_topology(in);
-        }
+        NetworkTopology() = default;
+        //{
+        //    NetworkTopology(std::initializer_list<NetworkDeviceProperty>{}, std::initializer_list<DataLink>{});
+        //}
 
         NetworkTopology(const std::vector<NetworkDeviceProperty> &device_properties,
                         const std::vector<DataLink> &data_links);
@@ -103,7 +96,6 @@ namespace tsndgm
         void print_topology() const;
 
         void dump_topology(const std::filesystem::path &out);
-        void load_topology(const std::filesystem::path &in);
 
         const NetworkDeviceProperty &operator[](DeviceId v) const { return g[v]; }
 
