@@ -1,5 +1,6 @@
 #include <IO/inputLoader.h>
 #include <gtest/gtest.h>
+#include <util/constants.h>
 
 TEST(InputLoaderTest, loadEmergencyStreamTest)
 {
@@ -60,5 +61,14 @@ TEST(InputLoaderTest, loadTimeTriggeredTraffic)
     EXPECT_EQ(stream_3.phase, 0);
     EXPECT_EQ(stream_3.route.source, 3);
     EXPECT_EQ(stream_3.route.destination, 2);
+}
 
+TEST(InputLoaderTest, filesDoNotExist)
+{
+    // emergency streams
+    const std::filesystem::path file_path = "../../tests/test_data/does_not_exist.json";
+
+    EXPECT_EXIT(io::load_emergency_traffic(file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+
+    // TODO implement the others
 }
