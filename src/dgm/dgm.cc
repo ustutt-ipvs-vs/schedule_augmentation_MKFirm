@@ -59,7 +59,7 @@ namespace tsndgm
             // Calculate weight for next iteration = dPropagation + dTransmission + dProcessing (in ns)
             const Delay dprop = network.get_data_link_property(transmission_edge).propagation_delay;
 
-            const auto dtrans = getTransmissionDealy(transmission_edge, stream_id);
+            const auto dtrans = getTransmissionDelay(transmission_edge, stream_id);
 
             // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is used
             const Delay dproc = network.get_device_property(current_transmission.target).processing_delay;
@@ -88,14 +88,14 @@ namespace tsndgm
         for (int it = 1; it < vertices.size(); it++)
         {
             // Calculate weight = dTransmission (in ns)
-            const auto dtrans = getTransmissionDealy(edge, transmission_graph[vertices.at(it -1 )].stream_id);
+            const auto dtrans = getTransmissionDelay(edge, transmission_graph[vertices.at(it -1 )].stream_id);
 
             // Add edge, use weight calculated in previous iteration
             boost::add_edge(vertices.at(it - 1), vertices.at(it), {dtrans, disjunctive}, transmission_graph);
         }
     }
 
-    Delay DisjunctiveGraphModel::getTransmissionDealy(Edge edge, StreamID stream_id)
+    Delay DisjunctiveGraphModel::getTransmissionDelay(Edge edge, StreamID stream_id)
     {
         TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
