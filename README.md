@@ -152,3 +152,20 @@ tabu_search.run<InitialHeuristic, TerminationCriterion, Intensification,
 tabu_search.dgm.print_critical_path(objective);
 ```
 
+## Building with Unit tests
+
+To build the unit tests the `BUILD_TESTS` property needs to be set in cmake. 
+
+```
+mkdir release
+cd release
+cmake -DBUILD_TESTS=1 ..
+cmake --build .
+```
+
+To run the tests, run the `unit_tests` executable in the `tests` directory from within the tests directory.
+
+```
+cd tests
+./unit_tests
+```
