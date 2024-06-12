@@ -93,6 +93,11 @@ TEST(InputLoaderTest, loadSimpleTopologyTest) {
   }
   EXPECT_FALSE(topology.exists({0, 3}))
       << "Edge " << 0 << " -> " << 3 << " should not exist";
+
+  // Check edge
+  const auto &edge = topology.get_data_link_property({0,1});
+  ASSERT_EQ(edge.data_rate, tsndgm::mbps_to_DataRate(1000));
+  ASSERT_EQ(edge.propagation_delay, 200);
 }
 
 TEST(InputLoaderTest, loadScheduleTest) {
