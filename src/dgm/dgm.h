@@ -12,23 +12,6 @@
 
 namespace tsndgm
 {
-    typedef std::map<Edge, size_t> OffsetMap;
-
-    class JitterBoundViolation final : public std::exception
-    {
-    public:
-        JitterBoundViolation(const MessageStreamHandle ms, Edge edge, const Delay bound) :
-            ms(ms), edge(std::move(edge)), bound(bound)
-        {
-        }
-
-        const char *what() { return "jitter exceeds the allowed bound"; }
-
-        MessageStreamHandle ms;
-        Edge edge;
-        Delay bound;
-    };
-
     class DisjunctiveGraphModel
     {
     public:
@@ -116,15 +99,5 @@ namespace tsndgm
         void add_disjunctive_edges_for_edge(Edge edge, std::vector<V> vertices);
         void add_fifo_edges_for_edge(Edge edge, std::vector<V> vertices);
         Delay getTransmissionDelay(Edge edge, StreamID stream_id);
-        void resize_properties();
-
-        void internal_commit_all(size_t index);
-        void internal_restore_commit(size_t index, bool swap);
-        void internal_copy_commit(size_t src_index, size_t dst_index);
-
-        void encode(std::vector<unsigned int> &buf, transmission_graph_t &g, OffsetMap &offset_map);
-
-        void remove_fifo_edges(V u, V v);
-        void renew_descriptors();
     };
 } // namespace tsndgm
