@@ -126,12 +126,26 @@ namespace tsndgm
             [&](const auto chunk) {
                 // For one group (chunk) same pcp
                 // add FIFO edge from vertex with lower start time to predecessor of vertex with higher start time
-                for (int it = 0; it < chunk.size() - 1; it++) {
-                    if(transmission_graph[vertices.at(it)].dgm_predecessor_vertex == prop.src) {
+
+                for (const auto [first, second]: chunk | std::views::pairwise) {
+                    if(transmission_graph[first].dgm_predecessor_vertex == prop.src) {
                         continue;
                     }
 
-                    boost::add_edge(vertices.at(it), transmission_graph[vertices.at(it+1)].dgm_predecessor_vertex, {0, fifo}, transmission_graph);
+                    MessageStream stream_first = prop.stream_id_map.at(transmission_graph[first].stream_id);
+                    MessageStream stream_second = prop.stream_id_map.at(transmission_graph[second].stream_id);
+                    if(transmission_graph[first].frame_number * stream_first.period + stream_first.deadline <= transmission_graph[second].frame_number * stream_second.period)
+                    {
+                        continue;
+                    }
+
+                    // Calculate weight = dTransmission (in ns)
+                    const auto dtrans = getTransmissionDelay(transmission_graph[first].edge, transmission_graph[first].stream_id);
+
+                    const auto transmission_edge = boost::edge(transmission_graph[second].dgm_predecessor_vertex,second,transmission_graph).first;
+                    const auto weight = dtrans - transmission_graph[transmission_edge].weight;
+
+                    boost::add_edge(first, transmission_graph[second].dgm_predecessor_vertex, {weight, fifo}, transmission_graph);
                 }
         });
 
