@@ -15,8 +15,7 @@ JSPLIB is a collection of JSP benchmarks with known makespan bounds, allowing us
 
 ## Requirements
 - Boost: used to build our shuffle graphs
-- OpenMPI: used to exchange elite solutions across multiple processes
-- nlohmann_json (optional): used to read JSP benchmark data. If you do not want this dependency, you cannot compile our JSP benchmarks and should disable the *BENCHMARKING* flag during compilation.
+- nlohmann_json: used to read input data.
 
 ## Install requirements
 Only tested with Linux / WSL.
