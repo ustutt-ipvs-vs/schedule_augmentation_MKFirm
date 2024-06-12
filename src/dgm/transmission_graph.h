@@ -89,7 +89,7 @@ namespace tsndgm
         else
         {
             std::cout << "([" << network[transmission_graph[v].edge.first] << ", "
-                      << network[transmission_graph[v].edge.second] << "], {" << transmission_graph[v].stream_id << ", "
+                      << network[transmission_graph[v].edge.second] << "], {s" << transmission_graph[v].stream_id << ", f"
                       << transmission_graph[v].frame_number << "})";
         }
     }
