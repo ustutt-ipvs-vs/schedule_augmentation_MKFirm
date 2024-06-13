@@ -1,6 +1,6 @@
 [
     {
-        "id": 1,
+        "id": 0,
         "name": "stream_1",
         "source": 3,
         "target": 2,
@@ -9,7 +9,7 @@
         "deadline_ns": 100000
     },
     {
-        "id": 2,
+        "id": 1,
         "name": "stream_2",
         "source": 3,
         "target": 2,
@@ -18,7 +18,7 @@
         "deadline_ns": 160250
     },
     {
-        "id": 3,
+        "id": 2,
         "name": "stream_3",
         "source": 3,
         "target": 2,
