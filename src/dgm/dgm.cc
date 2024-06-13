@@ -24,9 +24,9 @@ auto DisjunctiveGraphModel::build() -> void {
   }
 
   // add disjunctive and FIFO Edges
-  for (auto it = prop.topology_edge_to_dgm_vertices.begin(); it != prop.topology_edge_to_dgm_vertices.end(); ++it) {
-    add_disjunctive_edges_for_edge(it->first, it->second);
-    add_fifo_edges_for_edge(it->first, it->second);
+  for (const auto &[edge, vertex_list] : prop.topology_edge_to_dgm_vertices) {
+    add_disjunctive_edges_for_edge(edge, vertex_list);
+    add_fifo_edges_for_edge(edge, vertex_list);
   }
 
   prop.crit_cost.resize(boost::num_vertices(transmission_graph));
@@ -52,15 +52,10 @@ auto DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule 
     // Add edge, use weight calculated in previous iteration
     boost::add_edge(previous_vertex, new_vertex, {weight_previous_iteration, conjunctive}, transmission_graph);
 
-    // Calculate weight for next iteration = dPropagation + dTransmission +
-    // dProcessing (in ns)
-    const Delay dprop = network.get_data_link_property(transmission_edge).propagation_delay;
-
+    const auto dprop = network.get_data_link_property(transmission_edge).propagation_delay;
     const auto dtrans = getTransmissionDelay(transmission_edge, frame_number);
-
-    // Processing delay of next hop (v_f^{k+1} = current_transmission.target) is
-    // used
-    const Delay dproc = network.get_device_property(current_transmission.target).processing_delay;
+    // Processing delay of next bridge
+    const auto dproc = network.get_device_property(current_transmission.target).processing_delay;
 
     weight_previous_iteration = dprop + dtrans + dproc;
     previous_vertex = new_vertex;
@@ -70,7 +65,7 @@ auto DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule 
   boost::add_edge(previous_vertex, prop.sink, {weight_previous_iteration, conjunctive}, transmission_graph);
 }
 
-void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(Edge edge, std::vector<V> vertices) {
+void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(const Edge &edge, std::vector<V> vertices) {
   // here we create a function (lambda) stored in "sorting_function", which we
   // will pass to the actual sorting algorithm.
   auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -80,15 +75,11 @@ void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(Edge edge, std::vecto
     return lhs_elem.start_old_schedule < rhs_elem.start_old_schedule;
   };
 
-  // actual sorting, using our ordering
   std::ranges::sort(vertices, ordering_function);
 
-  for (int it = 1; it < vertices.size(); it++) {
-    // Calculate weight = dTransmission (in ns)
-    const auto dtrans = getTransmissionDelay(edge, transmission_graph[vertices.at(it - 1)].stream_id);
-
-    // Add edge, use weight calculated in previous iteration
-    boost::add_edge(vertices.at(it - 1), vertices.at(it), {dtrans, disjunctive}, transmission_graph);
+  for (const auto &[first_vertex, second_vertex] : vertices | std::views::pairwise) {
+    const auto dtrans = getTransmissionDelay(edge, transmission_graph[first_vertex].stream_id);
+    boost::add_edge(first_vertex, second_vertex, {dtrans, disjunctive}, transmission_graph);
   }
 }
 
@@ -118,47 +109,48 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
   std::ranges::for_each(vertices | std::views::chunk_by(grouping_function), [&](const auto pcp_group) {
     for (auto filtered =
              pcp_group | std::views::pairwise | std::views::filter([&](const auto &pair) {
+               // filter src -> transmission edges
                return transmission_graph[pair.first].dgm_predecessor_vertex != prop.src;
              }) |
              std::views::filter([&](const auto &pair) {
-               const MessageStream &stream_first = prop.stream_id_map.at(transmission_graph[pair.first].stream_id);
-               const MessageStream &stream_second = prop.stream_id_map.at(transmission_graph[pair.second].stream_id);
-               const bool overlap =
-                   transmission_graph[pair.first].frame_number * stream_first.period + stream_first.deadline <=
-                   transmission_graph[pair.second].frame_number * stream_second.period;
-               return not overlap;
+               // filter frames where the early frame is delivered before the later frame is released
+               const MessageStream &early_stream = prop.stream_id_map.at(transmission_graph[pair.first].stream_id);
+               const MessageStream &late_stream = prop.stream_id_map.at(transmission_graph[pair.second].stream_id);
+               const auto deadline_early_stream =
+                   early_stream.period * transmission_graph[pair.first].frame_number + early_stream.deadline;
+               const auto release_time_late_stream = late_stream.period * transmission_graph[pair.second].frame_number;
+               return deadline_early_stream <= release_time_late_stream;
              });
-         const auto [first, second] : filtered) {
-
-      // Calculate weight = dTransmission (in ns)
-      const auto dtrans = getTransmissionDelay(transmission_graph[first].edge, transmission_graph[first].stream_id);
-
+         const auto [first_vertex, second_vertex] : filtered) {
+      // add FIFO edge from vertex with lower start time to predecessor of vertex with higher start time
+      const auto dtrans =
+          getTransmissionDelay(transmission_graph[first_vertex].edge, transmission_graph[first_vertex].stream_id);
       const auto transmission_edge =
-          boost::edge(transmission_graph[second].dgm_predecessor_vertex, second, transmission_graph).first;
+          boost::edge(transmission_graph[second_vertex].dgm_predecessor_vertex, second_vertex, transmission_graph)
+              .first;
       const auto weight = dtrans - transmission_graph[transmission_edge].weight;
 
-      // add FIFO edge from vertex with lower start time to predecessor of
-      // vertex with higher start time
-      boost::add_edge(first, transmission_graph[second].dgm_predecessor_vertex, {weight, fifo}, transmission_graph);
+      boost::add_edge(first_vertex, transmission_graph[second_vertex].dgm_predecessor_vertex, {weight, fifo},
+                      transmission_graph);
     }
   });
 
   /*
-    // Example and test (printed before the conjunctive/disjunctive edges):
-    std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
-    for (const V current_V : vertices) {
-      const int pcp = transmission_graph[current_V].pcp; // TODO used "int" because pcp is int in schedule.h.
-                                                         //  Maybe introduce own datatype again?
-      const V predecessor_vertex = transmission_graph[current_V].dgm_predecessor_vertex;
-      std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << pcp
-                << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
-      if (predecessor_vertex == prop.src) {
-        std::cout << "SRC!\n";
-      } else {
-        std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
-      }
+  // Example and test (printed before the conjunctive/disjunctive edges):
+  std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
+  for (const V current_V : vertices) {
+    const int pcp = transmission_graph[current_V].pcp; // TODO used "int" because pcp is int in schedule.h.
+                                                       //  Maybe introduce own datatype again?
+    const V predecessor_vertex = transmission_graph[current_V].dgm_predecessor_vertex;
+    std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << pcp
+              << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
+    if (predecessor_vertex == prop.src) {
+      std::cout << "SRC!\n";
+    } else {
+      std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
     }
-    */
+  }
+  */
 }
 
 auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamID stream_id) -> Delay {
