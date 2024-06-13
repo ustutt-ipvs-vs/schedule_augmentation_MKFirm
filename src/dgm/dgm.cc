@@ -118,8 +118,6 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
                return transmission_graph[pair.first].dgm_predecessor_vertex != prop.src;
              }) |
              std::views::filter([&](const auto &pair) {
-               // add FIFO edge from vertex with lower start time to predecessor of
-               // vertex with higher start time
                const MessageStream &stream_first = prop.stream_id_map.at(transmission_graph[pair.first].stream_id);
                const MessageStream &stream_second = prop.stream_id_map.at(transmission_graph[pair.second].stream_id);
                const bool overlap =
@@ -136,10 +134,13 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
           boost::edge(transmission_graph[second].dgm_predecessor_vertex, second, transmission_graph).first;
       const auto weight = dtrans - transmission_graph[transmission_edge].weight;
 
+      // add FIFO edge from vertex with lower start time to predecessor of
+      // vertex with higher start time
       boost::add_edge(first, transmission_graph[second].dgm_predecessor_vertex, {weight, fifo}, transmission_graph);
     }
   });
 
+/*
   // Example and test (printed before the conjunctive/disjunctive edges):
   std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
   for (const V current_V : vertices) {
@@ -154,6 +155,7 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
       std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
     }
   }
+  */
 }
 
 auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamID stream_id) -> Delay {
