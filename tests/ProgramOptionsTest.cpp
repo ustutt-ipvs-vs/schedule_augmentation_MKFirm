@@ -39,3 +39,9 @@ TEST(ProgramOptionsTest, HelpArgument) {
   std::vector<std::string> arguments = {"-h"};
   ASSERT_THROW(io::ProgramOptions{arguments}, std::runtime_error);
 }
+
+TEST(ProgramOptionsTest, WrongArgument) {
+  std::vector<std::string> arguments = {"-t", "topology.txt",         "-s", "tt_streams.txt",
+               "-u", "emergency_streams.txt"};
+  ASSERT_THROW(io::ProgramOptions{arguments}, std::runtime_error);
+}

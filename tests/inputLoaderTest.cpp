@@ -78,7 +78,7 @@ TEST(InputLoaderTest, loadSimpleTopologyTest) {
   EXPECT_FALSE(topology.exists(4)) << "Device " << 4 << " should not exist";
 
   // Check devices
-  const auto &device_0 = topology[0];
+  const auto &device_0 = topology.get_device_property(0);
   ASSERT_EQ(device_0.id, 0);
   ASSERT_EQ(device_0.name, "n0");
   ASSERT_EQ(device_0.processing_delay, 2000);
