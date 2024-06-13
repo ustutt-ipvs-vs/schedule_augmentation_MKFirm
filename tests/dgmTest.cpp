@@ -3,54 +3,41 @@
 #include <gtest/gtest.h>
 #include <util/constants.h>
 
-
-
-
-
 // fixture class
 class dgmTest : public testing::Test {
-    protected:
-    dgmTest() {
-        // Code in this constructor will be executed before *each* test
-        
-        // For debugging, this should print the dgm before each test, if it is initialized correctly 
-        dgm.print();
+public:
+  static tsndgm::NetworkTopology network;
+  static std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
+  static std::vector<tsndgm::StreamSchedule> scheduled_streams;
 
-    }
+protected:
+  dgmTest() : dgm(network, streams, scheduled_streams) {
+    // Code in this constructor will be executed before *each* test
 
-    // Runs *once* before the tests to build the dgm transmission graph
-    static void SetUpTestSuite(){
-        auto network = io::load_topology("../../tests/test_data/small_topology.json");
-        std::cout << "Loaded network topology!\n";
+    // For debugging, this should print the dgm before each test, if it is initialized correctly
+    dgm.print();
+  }
 
-        auto streams = io::load_time_triggered_traffic("../../tests/test_data/small_streams.json");
-        std::cout << "Loaded TT-streams!\n";
+  // Runs *once* before the tests to build the dgm transmission graph
+  static void SetUpTestSuite() {
+    network = io::load_topology("../../tests/test_data/small_topology.json");
+    streams = io::load_time_triggered_traffic("../../tests/test_data/small_streams.json");
+    scheduled_streams = io::load_schedule("../../tests/test_data/small_transmission_output.json");
+  }
 
-        const std::vector<tsndgm::StreamSchedule> scheduled_streams = io::load_schedule("../../tests/test_data/small_transmission_output.json");
-        std::cout << "Loaded schedule!\n";
-
-        // Does not seem to intialize the public variable dgm...
-        tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
-        // Not working
-        //dgm = tsndgm::DisjunctiveGraphModel(network, streams, scheduled_streams);
-        //dgm = new tsndgm::DisjunctiveGraphModel(network, streams, scheduled_streams)
-
-    }
-
-    public:
-    // Shared dgm object between all tests
-    static tsndgm::DisjunctiveGraphModel dgm;
+public:
+  tsndgm::DisjunctiveGraphModel dgm;
 };
 
-// According to https://github.com/google/googletest/blob/main/docs/advanced.md this should make dgm available to the tests.
-// But it does not seem to work, maybe because it is not initialized above?
-//tsndgm::DisjunctiveGraphModel dgmTest::dgm;
+// Define static members
+tsndgm::NetworkTopology dgmTest::network;
+std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> dgmTest::streams;
+std::vector<tsndgm::StreamSchedule> dgmTest::scheduled_streams;
 
-TEST_F(dgmTest, operationVerticesTest) {
-    
-}
+// According to https://github.com/google/googletest/blob/main/docs/advanced.md this should make dgm available to the
+// tests. But it does not seem to work, maybe because it is not initialized above?
+// tsndgm::DisjunctiveGraphModel dgmTest::dgm;
 
-TEST_F(dgmTest, conjunctiveEdgesTest) {
+TEST_F(dgmTest, operationVerticesTest) {}
 
-}
-
+TEST_F(dgmTest, conjunctiveEdgesTest) {}

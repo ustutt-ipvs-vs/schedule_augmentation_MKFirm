@@ -52,7 +52,8 @@ public:
   }
 
   DisjunctiveGraphModel(const DisjunctiveGraphModel &other)
-      : transmission_graph(other.transmission_graph), network(other.network), crit_path(transmission_graph) {}
+      : transmission_graph(other.transmission_graph), network(other.network),
+        scheduled_streams(other.scheduled_streams), crit_path(transmission_graph) {}
 
   TSNConfiguration derive_tsn_configuration();
 
