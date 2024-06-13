@@ -128,6 +128,7 @@ TEST(InputLoaderTest, loadScheduleTest) {
 }
 
 TEST(InputLoaderTest, filesDoNotExist) {
+  testing::internal::CaptureStdout();
   const std::filesystem::path non_existing_file_path =
       "../../tests/test_data/does_not_exist.json";
   EXPECT_EXIT(io::load_emergency_traffic(non_existing_file_path),
@@ -141,9 +142,11 @@ TEST(InputLoaderTest, filesDoNotExist) {
 
   EXPECT_EXIT(io::load_topology(non_existing_file_path),
               testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+  std::string output = testing::internal::GetCapturedStdout();
 }
 
 TEST(InputLoaderTest, NotAValidJsonFile) {
+  testing::internal::CaptureStdout();
   const std::filesystem::path invalid_json_file_path =
       "../../tests/test_data/invalid_json.json";
   EXPECT_EXIT(io::load_emergency_traffic(invalid_json_file_path),
@@ -157,4 +160,5 @@ TEST(InputLoaderTest, NotAValidJsonFile) {
 
   EXPECT_EXIT(io::load_topology(invalid_json_file_path),
               testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
+  std::string output = testing::internal::GetCapturedStdout();
 }
