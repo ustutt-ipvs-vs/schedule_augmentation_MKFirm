@@ -119,7 +119,7 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
                const auto deadline_early_stream =
                    early_stream.period * transmission_graph[pair.first].frame_number + early_stream.deadline;
                const auto release_time_late_stream = late_stream.period * transmission_graph[pair.second].frame_number;
-               return deadline_early_stream <= release_time_late_stream;
+               return release_time_late_stream < deadline_early_stream;
              });
          const auto [first_vertex, second_vertex] : filtered) {
       // add FIFO edge from vertex with lower start time to predecessor of vertex with higher start time
