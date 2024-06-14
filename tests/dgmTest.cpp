@@ -68,6 +68,35 @@ TEST_F(dgmTest, numberFifoEdges) {
   ASSERT_EQ(numberEdges(dgm.transmission_graph, tsndgm::fifo), 4);
 }
 
+TEST_F(dgmTest, conjuctiveEdges) {
+  const auto e = tsndgm::Edge(0,2);
+  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
+  V current_v;
+  E current_e;
+
+  for(const auto v : vertices){
+    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
+      current_v = v;
+    }
+  }
+
+  // Edge 1
+  current_e = dgm.getOutgoingDisjunctiveEdge(current_v);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 8504);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+
+  // Edge 2
+  current_e = dgm.getOutgoingDisjunctiveEdge(current_v);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10624);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+}
+
 TEST_F(dgmTest, fifoEdges) {
   const auto e_source = tsndgm::Edge(0,2);
   const auto vertices_source = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_source];
@@ -89,25 +118,11 @@ TEST_F(dgmTest, fifoEdges) {
   ASSERT_EQ(dgm.transmission_graph[e_1.first].edge_type, tsndgm::fifo);
   ASSERT_EQ(dgm.transmission_graph[e_1.first].weight, 1096);
 
-  // Edge 1
+  // Edge 2
   const auto e_2 = boost::edge(source_2, target(dgm.getOutgoingFifoEdge(source_2), dgm.transmission_graph), dgm.transmission_graph);
   ASSERT_EQ(e_2.second, true);  
   ASSERT_EQ(dgm.transmission_graph[e_2.first].edge_type, tsndgm::fifo);
   ASSERT_EQ(dgm.transmission_graph[e_2.first].weight, -3496);
-}
-
-TEST_F(dgmTest, conjuctiveEdges) {
-  const auto e = tsndgm::Edge(0,2);
-  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
-  V start_v;
-
-  for(const auto v : vertices){
-    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
-      start_v = v;
-    }
-  }
-
-  dgm.getOutgoingDisjunctiveEdge(start_v)
 }
 
 TEST_F(dgmTest, weightEdgesFromSrc) {

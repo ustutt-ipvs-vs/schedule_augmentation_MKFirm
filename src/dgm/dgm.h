@@ -94,7 +94,7 @@ public:
     return edge(u, v);
   }
 
-  auto DisjunctiveGraphModel::getOutgoingConjunctivEdge(const V v) -> E {
+  auto getOutgoingConjunctivEdge(const V v) -> E {
     for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
       if (transmission_graph[current_edge].edge_type == conjunctive) {
         return current_edge;
@@ -102,7 +102,7 @@ public:
     }
   }
 
-  auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) -> E {
+  auto getOutgoingDisjunctiveEdge(const V v) -> E {
     for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
       if (transmission_graph[current_edge].edge_type == disjunctive) {
         return current_edge;
@@ -110,7 +110,7 @@ public:
     }
   }
 
-  auto DisjunctiveGraphModel::getOutgoingFifoEdge(const V v) -> E {
+  auto getOutgoingFifoEdge(const V v) -> E {
     for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
       if (transmission_graph[current_edge].edge_type == fifo) {
         return current_edge;
