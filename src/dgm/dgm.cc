@@ -7,8 +7,8 @@
 namespace tsndgm {
 auto DisjunctiveGraphModel::derive_tsn_configuration() -> TSNConfiguration { return {transmission_graph, network}; }
 
-auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type, const bool reverse)
-    -> CriticalPath::Result {
+auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type,
+                                          const bool reverse) -> CriticalPath::Result {
   crit_path.compute_longest_paths(reverse);
   return crit_path.path(type);
 }
@@ -140,22 +140,22 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
     }
   });
 
-/*
-  // Example and test (printed before the conjunctive/disjunctive edges):
-  std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
-  for (const V current_V : vertices) {
-    const int pcp = transmission_graph[current_V].pcp; // TODO used "int" because pcp is int in schedule.h.
-                                                       //  Maybe introduce own datatype again?
-    const V predecessor_vertex = transmission_graph[current_V].dgm_predecessor_vertex;
-    std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << pcp
-              << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
-    if (predecessor_vertex == prop.src) {
-      std::cout << "SRC!\n";
-    } else {
-      std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
+  /*
+    // Example and test (printed before the conjunctive/disjunctive edges):
+    std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
+    for (const V current_V : vertices) {
+      const int pcp = transmission_graph[current_V].pcp; // TODO used "int" because pcp is int in schedule.h.
+                                                         //  Maybe introduce own datatype again?
+      const V predecessor_vertex = transmission_graph[current_V].dgm_predecessor_vertex;
+      std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << pcp
+                << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
+      if (predecessor_vertex == prop.src) {
+        std::cout << "SRC!\n";
+      } else {
+        std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
+      }
     }
-  }
-  */
+    */
 }
 
 auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamID stream_id) -> Delay {

@@ -70,13 +70,9 @@ TEST_F(dgmTest, numberFifoEdges) {
 
 TEST_F(dgmTest, fifoEdges) {
   const auto e_source = tsndgm::Edge(0,2);
-  const auto e_target = tsndgm::Edge(1,0);
   const auto vertices_source = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_source];
-  const auto vertices_target = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_target];
   V source_1;
-  V target_1;
   V source_2;
-  V target_2;
 
   for(const auto v : vertices_source){
     if(dgm.transmission_graph[v].stream_id == 1){
@@ -87,36 +83,34 @@ TEST_F(dgmTest, fifoEdges) {
     }
   }
 
-  for(const auto v : vertices_target){
-    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 1) {
-      target_1 = v;
-    }
-    if(dgm.transmission_graph[v].stream_id == 1){
-      target_2 = v;
-    }
-  }
-
   // Edge 1
-  const auto e_1 = boost::edge(source_1, target_1, dgm.transmission_graph);
+  const auto e_1 = boost::edge(source_1, target(dgm.getOutgoingFifoEdge(source_1), dgm.transmission_graph), dgm.transmission_graph);
   ASSERT_EQ(e_1.second, true);  
   ASSERT_EQ(dgm.transmission_graph[e_1.first].edge_type, tsndgm::fifo);
   ASSERT_EQ(dgm.transmission_graph[e_1.first].weight, 1096);
 
   // Edge 1
-  const auto e_2 = boost::edge(source_2, target_2, dgm.transmission_graph);
+  const auto e_2 = boost::edge(source_2, target(dgm.getOutgoingFifoEdge(source_2), dgm.transmission_graph), dgm.transmission_graph);
   ASSERT_EQ(e_2.second, true);  
   ASSERT_EQ(dgm.transmission_graph[e_2.first].edge_type, tsndgm::fifo);
   ASSERT_EQ(dgm.transmission_graph[e_2.first].weight, -3496);
 }
 
-TEST_F(dgmTest, disjunctiveEdges) {
+TEST_F(dgmTest, conjuctiveEdges) {
   const auto e = tsndgm::Edge(0,2);
   const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
+  V start_v;
 
-  
+  for(const auto v : vertices){
+    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
+      start_v = v;
+    }
+  }
+
+  dgm.getOutgoingDisjunctiveEdge(start_v)
 }
 
-TEST_F(dgmTest, weightEdgesFromSrcTest) {
+TEST_F(dgmTest, weightEdgesFromSrc) {
     V src = dgm.transmission_graph[boost::graph_bundle].src;
     using boost::make_iterator_range;
 
@@ -144,7 +138,7 @@ TEST_F(dgmTest, weightEdgesFromSrcTest) {
     }
 }
 
-TEST_F(dgmTest, weightEdgesToSinkTest) {
+TEST_F(dgmTest, weightEdgesToSink) {
     V sink = dgm.transmission_graph[boost::graph_bundle].sink;
     using boost::make_iterator_range;
 

@@ -94,15 +94,40 @@ public:
     return edge(u, v);
   }
 
+  auto DisjunctiveGraphModel::getOutgoingConjunctivEdge(const V v) -> E {
+    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      if (transmission_graph[current_edge].edge_type == conjunctive) {
+        return current_edge;
+      }
+    }
+  }
+
+  auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) -> E {
+    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      if (transmission_graph[current_edge].edge_type == disjunctive) {
+        return current_edge;
+      }
+    }
+  }
+
+  auto DisjunctiveGraphModel::getOutgoingFifoEdge(const V v) -> E {
+    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      if (transmission_graph[current_edge].edge_type == fifo) {
+        return current_edge;
+      }
+    }
+  }
+
 private:
   bool valid_crit_path = false;
 
   auto build() -> void;
-  auto add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number, int pcp)
-      -> void;
+  auto add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number,
+                                       int pcp) -> void;
   void add_disjunctive_edges_for_edge(Edge edge, std::vector<V> vertices);
   void add_fifo_edges_for_edge(const Edge &edge, std::vector<V> vertices);
   Delay getTransmissionDelay(const Edge &edge, StreamID stream_id);
+
   void resize_properties();
 
   void internal_commit_all(size_t index);
