@@ -28,6 +28,9 @@ auto DisjunctiveGraphModel::build() -> void {
     add_disjunctive_edges_for_edge(it->first, it->second);
     add_fifo_edges_for_edge(it->first, it->second);
   }
+
+  prop.crit_cost.resize(boost::num_vertices(transmission_graph));
+  prop.crit_pred.resize(boost::num_vertices(transmission_graph));
 }
 
 auto DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule,

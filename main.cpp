@@ -58,5 +58,5 @@ auto main(const int argc, char *argv[]) -> int
 
     tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
     dgm.print();
-    // dgm.print_critical_path(tsndgm::CriticalPath::makespan);
+    dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }
