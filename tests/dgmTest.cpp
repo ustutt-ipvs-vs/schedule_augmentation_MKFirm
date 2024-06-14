@@ -10,6 +10,8 @@ public:
   static std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
   static std::vector<tsndgm::StreamSchedule> scheduled_streams;
 
+  typedef boost::graph_traits<tsndgm::transmission_graph_t>::vertex_descriptor V;
+  typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
 protected:
   dgmTest() : dgm(network, streams, scheduled_streams) {
     // Code in this constructor will be executed before *each* test
@@ -36,12 +38,86 @@ std::vector<tsndgm::StreamSchedule> dgmTest::scheduled_streams;
 // tests. But it does not seem to work, maybe because it is not initialized above?
 // tsndgm::DisjunctiveGraphModel dgmTest::dgm;
 
-TEST_F(dgmTest, operationVerticesTest) {}
+static unsigned int numberEdges(tsndgm::transmission_graph_t transmission_graph, tsndgm::TransmissionGraphEdgeType type) {
+  unsigned int count = 0;
+  for (auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
+    if (transmission_graph[e].edge_type == type) {
+      count++;
+    }
+  }
+  return count;
+}
 
-TEST_F(dgmTest, conjunctiveEdgesTest) {}
+TEST_F(dgmTest, numberVertices) {
+  ASSERT_EQ(boost::num_vertices(dgm.transmission_graph), 17);
+}
+
+TEST_F(dgmTest, numberTotalEdges) {
+  ASSERT_EQ(boost::num_edges(dgm.transmission_graph), 36);
+}
+
+TEST_F(dgmTest, numberConjunctiveEdges) {
+  ASSERT_EQ(numberEdges(dgm.transmission_graph, tsndgm::conjunctive), 20);
+}
+
+TEST_F(dgmTest, numberDisjunctiveEdges) {
+  ASSERT_EQ(numberEdges(dgm.transmission_graph, tsndgm::disjunctive), 12);
+}
+
+TEST_F(dgmTest, numberFifoEdges) {
+  ASSERT_EQ(numberEdges(dgm.transmission_graph, tsndgm::fifo), 4);
+}
+
+TEST_F(dgmTest, fifoEdges) {
+  const auto e_source = tsndgm::Edge(0,2);
+  const auto e_target = tsndgm::Edge(1,0);
+  const auto vertices_source = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_source];
+  const auto vertices_target = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_target];
+  V source_1;
+  V target_1;
+  V source_2;
+  V target_2;
+
+  for(const auto v : vertices_source){
+    if(dgm.transmission_graph[v].stream_id == 1){
+      source_1 = v;
+    }
+    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
+      source_2 = v;
+    }
+  }
+
+  for(const auto v : vertices_target){
+    if(dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 1) {
+      target_1 = v;
+    }
+    if(dgm.transmission_graph[v].stream_id == 1){
+      target_2 = v;
+    }
+  }
+
+  // Edge 1
+  const auto e_1 = boost::edge(source_1, target_1, dgm.transmission_graph);
+  ASSERT_EQ(e_1.second, true);  
+  ASSERT_EQ(dgm.transmission_graph[e_1.first].edge_type, tsndgm::fifo);
+  ASSERT_EQ(dgm.transmission_graph[e_1.first].weight, 1096);
+
+  // Edge 1
+  const auto e_2 = boost::edge(source_2, target_2, dgm.transmission_graph);
+  ASSERT_EQ(e_2.second, true);  
+  ASSERT_EQ(dgm.transmission_graph[e_2.first].edge_type, tsndgm::fifo);
+  ASSERT_EQ(dgm.transmission_graph[e_2.first].weight, -3496);
+}
+
+TEST_F(dgmTest, disjunctiveEdges) {
+  const auto e = tsndgm::Edge(0,2);
+  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
+
+  
+}
 
 TEST_F(dgmTest, weightEdgesFromSrcTest) {
-    auto src = dgm.transmission_graph[boost::graph_bundle].src;
+    V src = dgm.transmission_graph[boost::graph_bundle].src;
     using boost::make_iterator_range;
 
     for (auto current_edge : make_iterator_range(out_edges(src, dgm.transmission_graph))){
@@ -69,7 +145,7 @@ TEST_F(dgmTest, weightEdgesFromSrcTest) {
 }
 
 TEST_F(dgmTest, weightEdgesToSinkTest) {
-    auto sink = dgm.transmission_graph[boost::graph_bundle].sink;
+    V sink = dgm.transmission_graph[boost::graph_bundle].sink;
     using boost::make_iterator_range;
 
     for (auto current_edge : make_iterator_range(in_edges(sink, dgm.transmission_graph))){
