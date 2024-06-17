@@ -15,6 +15,14 @@ auto main(const int argc, char *argv[]) -> int
      * - update dgm edge weights
      * - check dgm graph for feasibility
      *
+     *  - generic Topological sort (depth first search from sink to source)
+     *  - Longest Path
+     *  - add opening/closing times
+     *  - update opening and closing values
+     *    * prolongation
+     *    * deferrment
+     *    * ...
+     *
      * - create output
      */
     std::vector<std::string> arguments(argv + 1, argv + argc);
