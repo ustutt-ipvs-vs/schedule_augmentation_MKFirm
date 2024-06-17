@@ -3,7 +3,6 @@
 #include "../IO/inputLoader.h"
 #include "../network/message_stream.h"
 #include "../network/topology.h"
-#include "critical_path.h"
 #include "transmission_graph.h"
 #include "tsn_configuration.h"
 #include <boost/graph/adjacency_list.hpp>

@@ -2,6 +2,7 @@
 
 #include "src/IO/inputLoader.h"
 #include "src/IO/programOptions.h"
+#include "src/dgm/critical_path.h"
 #include "src/dgm/dgm.h"
 #include "src/network/message_stream.h"
 #include "src/network/topology.h"
@@ -60,5 +61,7 @@ auto main(const int argc, char *argv[]) -> int {
   tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
   dgm.print();
   // TODO create and print critical path
+  tsndgm::critical_path::compute_longest_paths(dgm.transmission_graph);
+  tsndgm::critical_path::print(dgm, tsndgm::critical_path::Objective::makespan);
   // dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }

@@ -115,13 +115,14 @@ auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, Messag
   return lateness;
 }
 
-auto print(const transmission_graph_t &transmission_graph, const Result res, const NetworkTopology &network) -> void {
-  const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+auto print(const DisjunctiveGraphModel &dgm, const Objective objective) -> void {
+  const TransmissionGraphProperty &prop = dgm.transmission_graph[boost::graph_bundle];
+  const auto res = path(dgm.transmission_graph, objective);
   std::cout << "Critical Path: Objective = " << res.objective << std::endl << "[hop : weight (cost)]" << std::endl;
 
   V v = res.critical_vertex;
   while (v != prop.src) {
-    tsndgm::print(transmission_graph, network, boost::edge(prop.crit_pred[v], v, transmission_graph).first);
+    tsndgm::print(dgm.transmission_graph, dgm.network, edge(prop.crit_pred[v], v, dgm.transmission_graph).first);
     std::cout << " (" << prop.crit_cost[v] << ")" << std::endl;
     v = prop.crit_pred[v];
   }

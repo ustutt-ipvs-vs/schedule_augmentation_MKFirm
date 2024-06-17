@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dgm.h"
 #include "transmission_graph.h"
 
 namespace tsndgm::critical_path {
@@ -9,7 +10,7 @@ typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
 enum Objective {
   makespan,
-  deadline, // formerly fixed_lateness
+  deadline,    // formerly fixed_lateness
   e2e_latency, // formerly dynamic_lateness
   fixed_tardiness,
   dynamic_tardiness,
@@ -48,5 +49,5 @@ void compute_longest_paths(transmission_graph_t &transmission_graph, bool revers
 [[nodiscard]] auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms,
                                         Edge listener) -> Delay;
 
-auto print(Result res, const NetworkTopology &network) -> void;
+auto print(const DisjunctiveGraphModel &dgm, Objective objective) -> void;
 } // namespace tsndgm::critical_path
