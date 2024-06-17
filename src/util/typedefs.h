@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 namespace tsndgm {
 typedef unsigned int FrameSize;
 typedef unsigned int StreamID;
@@ -21,6 +23,6 @@ typedef std::pair<DeviceId, DeviceId> Edge;
 constexpr auto mbps_to_DataRate(const float mbps) -> DataRate {
   // 10^6: mega, 8: bit to byte
   constexpr auto factor = 1e6 / 8;
-  return static_cast<DataRate>(mbps * factor);
+  return static_cast<DataRate>(std::round(mbps * factor));
 }
 } // namespace tsndgm
