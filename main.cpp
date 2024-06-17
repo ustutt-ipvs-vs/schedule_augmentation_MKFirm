@@ -46,7 +46,7 @@ auto main(const int argc, char *argv[]) -> int
     auto streams = io::load_time_triggered_traffic(options.getTimeTriggeredStreamsPath());
     std::cout << "Loaded TT-streams!\n";
 
-    auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
+    const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
     std::cout << "Loaded ET-streams!\n";
     for (const tsndgm::EmergencyStream &es : emergency_streams)
     {

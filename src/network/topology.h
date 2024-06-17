@@ -94,8 +94,8 @@ namespace tsndgm
         [[nodiscard]] bool exists(DeviceId id) const;
         [[nodiscard]] bool exists(const Edge &edge) const;
 
-        void update_aggregated_emergency_usage_of_edge(Edge &edge, BurstSize new_aggregated_burst_size, DataRate new_aggregated_data_rate);
-        auto calculate_aggregated_emergency_usage(std::vector<EmergencyStream> &emergency_streams) -> void;
+        void update_aggregated_emergency_usage_of_edge(const Edge &edge, const BurstSize new_aggregated_burst_size, const DataRate new_aggregated_data_rate);
+        auto calculate_aggregated_emergency_usage(const std::vector<EmergencyStream> &emergency_streams) -> void;
         void clear();
 
         void print_topology() const;
