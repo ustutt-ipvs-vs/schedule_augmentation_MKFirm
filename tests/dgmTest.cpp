@@ -85,7 +85,36 @@ TEST_F(dgmTest, numberOutgoingEdgesSrc) {
   ASSERT_LE(count_e, count_sol);
 }
 
-TEST_F(dgmTest, conjuctiveEdges) {
+TEST_F(dgmTest, conjunctiveEdges) {
+  const auto e = tsndgm::Edge(3, 1);
+  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
+  V current_v;
+  E current_e;
+
+  for (const auto v : vertices) {
+    if (dgm.transmission_graph[v].stream_id == 0 && dgm.transmission_graph[v].frame_number == 0) {
+      current_v = v;
+    }
+  }
+
+  // Edge 1
+  current_e = dgm.getOutgoingConjunctivEdge(current_v);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 23448);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+
+  // Edge 2
+  current_e = dgm.getOutgoingConjunctivEdge(current_v);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 11824);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+}
+
+TEST_F(dgmTest, discjunctiveEdges) {
   const auto e = tsndgm::Edge(0, 2);
   const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
   V current_v;
