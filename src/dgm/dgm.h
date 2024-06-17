@@ -13,18 +13,6 @@
 namespace tsndgm {
 typedef std::map<Edge, size_t> OffsetMap;
 
-class JitterBoundViolation final : public std::exception {
-public:
-  JitterBoundViolation(const MessageStreamHandle ms, Edge edge, const Delay bound)
-      : ms(ms), edge(std::move(edge)), bound(bound) {}
-
-  const char *what() { return "jitter exceeds the allowed bound"; }
-
-  MessageStreamHandle ms;
-  Edge edge;
-  Delay bound;
-};
-
 class DisjunctiveGraphModel {
 public:
   typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
@@ -33,11 +21,10 @@ public:
   transmission_graph_t transmission_graph;
   const NetworkTopology &network;
   std::vector<StreamSchedule> scheduled_streams;
-  CriticalPath crit_path;
 
   DisjunctiveGraphModel(const NetworkTopology &network, const std::unordered_map<StreamID, MessageStream> &streams,
                         const std::vector<StreamSchedule> &scheduled_streams)
-      : network(network), scheduled_streams(scheduled_streams), crit_path(transmission_graph) {
+      : network(network), scheduled_streams(scheduled_streams) {
     transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].streams = streams;
@@ -51,20 +38,14 @@ public:
     build();
   }
 
-  DisjunctiveGraphModel(const DisjunctiveGraphModel &other)
-      : transmission_graph(other.transmission_graph), network(other.network),
-        scheduled_streams(other.scheduled_streams), crit_path(transmission_graph) {}
+  DisjunctiveGraphModel(const DisjunctiveGraphModel &other) = default;
 
   TSNConfiguration derive_tsn_configuration();
-
-  auto critical_path(CriticalPath::Objective type, bool reverse = true) -> CriticalPath::Result;
 
   void print() const { tsndgm::print(transmission_graph, network); }
 
   void print(const V v) const { tsndgm::print(transmission_graph, network, v); }
   void print(const E &e) const { tsndgm::print(transmission_graph, network, e); }
-
-  void print_critical_path(CriticalPath::Objective type) { crit_path.print(critical_path(type), network); }
 
   void print_fixed_lateness() {
     TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
@@ -74,10 +55,11 @@ public:
 
       // compute tardiness of stream's end-to-end latency
       for (Edge listener : listeners) {
-        V v_listener = prop.operation_to_vertex[{listener, ms}];
+        const V v_listener = prop.operation_to_vertex[{listener, ms}];
         std::cout << ms << ", (" << listener.first << ", " << listener.second << "): " << stream.phase << " "
-                  << stream.deadline << " " << prop.crit_cost[v_listener] << " "
-                  << crit_path.get_fixed_lateness(ms, listener) << std::endl;
+                  << stream.deadline << " " << prop.crit_cost[v_listener] << " " << std::endl;
+        //<< crit_path.get_fixed_lateness(ms, listener) << std::endl;
+        //// TODO insert critical path as parameter, or move the whole function elsewhere?
       }
     }
   }
@@ -94,33 +76,23 @@ public:
     return edge(u, v);
   }
 
-  auto getOutgoingConjunctivEdge(const V v) -> E {
-    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
-      if (transmission_graph[current_edge].edge_type == conjunctive) {
-        return current_edge;
-      }
-    }
-  }
+  auto getOutgoingConjunctiveEdge(V v) -> std::optional<E>;
 
-  auto getOutgoingDisjunctiveEdge(const V v) -> E {
-    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
-      if (transmission_graph[current_edge].edge_type == disjunctive) {
-        return current_edge;
-      }
-    }
-  }
+  auto getOutgoingDisjunctiveEdge(V v) -> std::optional<E>;
 
-  auto getOutgoingFifoEdge(const V v) -> E {
-    for (auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
-      if (transmission_graph[current_edge].edge_type == fifo) {
+  auto getOutgoingFifoEdge(V v) -> std::optional<E>;
+
+  template <TransmissionGraphEdgeType type>
+  auto getOutgoingEdge(const V v) -> std::optional<E> {
+    for (const auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      if (transmission_graph[current_edge].edge_type == type) {
         return current_edge;
       }
     }
+    return std::nullopt;
   }
 
 private:
-  bool valid_crit_path = false;
-
   auto build() -> void;
   auto add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number, int pcp)
       -> void;

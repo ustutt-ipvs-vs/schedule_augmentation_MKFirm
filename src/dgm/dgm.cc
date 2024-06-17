@@ -7,11 +7,23 @@
 namespace tsndgm {
 auto DisjunctiveGraphModel::derive_tsn_configuration() -> TSNConfiguration { return {transmission_graph, network}; }
 
-auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type,
-                                          const bool reverse) -> CriticalPath::Result {
+/*
+auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type, const bool reverse)
+    -> CriticalPath::Result {
   crit_path.compute_longest_paths(reverse);
   return crit_path.path(type);
 }
+// TODO move this capability elsewhere
+*/
+
+auto DisjunctiveGraphModel::getOutgoingConjunctiveEdge(const V v) -> std::optional<E> {
+  return getOutgoingEdge<conjunctive>(v);
+}
+
+auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) -> std::optional<E> {
+  return getOutgoingEdge<disjunctive>(v);
+}
+auto DisjunctiveGraphModel::getOutgoingFifoEdge(V v) -> std::optional<E> { return getOutgoingEdge<fifo>(v); }
 
 auto DisjunctiveGraphModel::build() -> void {
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];

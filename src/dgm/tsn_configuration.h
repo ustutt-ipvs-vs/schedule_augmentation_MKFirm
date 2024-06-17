@@ -3,8 +3,8 @@
 
 #include "../network/message_stream.h"
 #include "../network/topology.h"
-#include "critical_path.h"
 #include "transmission_graph.h"
+#include "graph_visitors.h"
 
 namespace tsndgm
 {
