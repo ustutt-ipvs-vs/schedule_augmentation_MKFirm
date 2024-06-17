@@ -138,20 +138,13 @@ namespace tsndgm
 
     void NetworkTopology::calculate_aggregated_emergency_usage(std::vector<EmergencyStream> &emergency_streams) {
         for(EmergencyStream& current_stream : emergency_streams) {
-            std::cout << "E-Stream: " << current_stream.id << "\n";
+
             for(Edge& current_edge : current_stream.route.route) {
                 const DataLinkProperty& current_edge_property = get_data_link_property(current_edge);
 
-                std::cout << "-- Edge [" << current_edge.first << "," << current_edge.second << "], aggRefillBefore: " <<
-                  current_edge_property.aggregated_emergency_burst_size;
-
-                BurstSize new_aggergated_burst_size = current_edge_property.aggregated_emergency_burst_size + current_stream.bucket_size_byte;
+                BurstSize new_aggregated_burst_size = current_edge_property.aggregated_emergency_burst_size + current_stream.bucket_size_byte;
                 DataRate new_aggregated_data_rate = current_edge_property.aggregated_emergency_refill_rate + current_stream.refill_rate;
-                update_aggregated_emergency_usage_of_edge(current_edge,new_aggergated_burst_size,new_aggregated_data_rate);
-
-                std::cout << ", aggBurst: " <<
-                  current_edge_property.aggregated_emergency_burst_size << ", aggRefill: " <<
-                  current_edge_property.aggregated_emergency_refill_rate << "\n";
+                update_aggregated_emergency_usage_of_edge(current_edge,new_aggregated_burst_size,new_aggregated_data_rate);
             }
         }
 
