@@ -34,7 +34,7 @@ TEST(TopologyTest, aggregatetEmergencySpezifikations) {
   ASSERT_EQ(edge_5.aggregated_emergency_refill_rate, 175000);
   ASSERT_EQ(edge_5.aggregated_emergency_burst_size, 5000);
 
-  const auto &edge_6 = topology.get_data_link_property({3,1});
+  const auto &edge_6 = topology.get_data_link_property({1,3});
   ASSERT_EQ(edge_6.aggregated_emergency_refill_rate, 175000);
   ASSERT_EQ(edge_6.aggregated_emergency_burst_size, 5000);
 }
