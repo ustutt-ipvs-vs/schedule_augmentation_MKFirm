@@ -14,7 +14,7 @@ auto compute_longest_paths(transmission_graph_t &transmission_graph, const bool 
   }
 }
 
-auto path(const transmission_graph_t &transmission_graph, const Objective type) -> Result {
+auto collect_critical_path_result(const transmission_graph_t &transmission_graph, const Objective type) -> Result {
   switch (type) {
   case makespan:
     return makespan_path(transmission_graph);
@@ -115,9 +115,8 @@ auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, Messag
   return lateness;
 }
 
-auto print(const DisjunctiveGraphModel &dgm, const Objective objective) -> void {
+auto print(const DisjunctiveGraphModel &dgm, const Result &res) -> void {
   const TransmissionGraphProperty &prop = dgm.transmission_graph[boost::graph_bundle];
-  const auto res = path(dgm.transmission_graph, objective);
   std::cout << "Critical Path: Objective = " << res.objective << std::endl << "[hop : weight (cost)]" << std::endl;
 
   V v = res.critical_vertex;
