@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <utility>
 #include "../util/typedefs.h"
+#include "emergency_stream.h"
 
 namespace tsndgm
 {
@@ -47,6 +48,8 @@ namespace tsndgm
     {
         DataRate data_rate;
         Delay propagation_delay;
+        BurstSize aggregated_emergency_burst_size = 0;
+        DataRate aggregated_emergency_refill_rate = 0;
 
         explicit DataLinkProperty(const DataRate data_rate = mbps_to_DataRate(100), const Delay propagation_delay = 0) :
             data_rate(data_rate), propagation_delay(propagation_delay)
@@ -91,6 +94,8 @@ namespace tsndgm
         [[nodiscard]] bool exists(DeviceId id) const;
         [[nodiscard]] bool exists(const Edge &edge) const;
 
+        void update_aggregated_emergency_usage_of_edge(Edge &edge, BurstSize new_aggregated_burst_size, DataRate new_aggregated_data_rate);
+        auto calculate_aggregated_emergency_usage(std::vector<EmergencyStream> &emergency_streams) -> void;
         void clear();
 
         void print_topology() const;

@@ -39,19 +39,22 @@ auto main(const int argc, char *argv[]) -> int
         }
     }();
 
-    const auto network = io::load_topology(options.getTopologyPath());
+    auto network = io::load_topology(options.getTopologyPath());
     network.print_topology();
     std::cout << "Loaded network topology!\n";
 
     auto streams = io::load_time_triggered_traffic(options.getTimeTriggeredStreamsPath());
     std::cout << "Loaded TT-streams!\n";
 
-    const auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
+    auto emergency_streams = io::load_emergency_traffic(options.getEmergencyStreams());
     std::cout << "Loaded ET-streams!\n";
     for (const tsndgm::EmergencyStream &es : emergency_streams)
     {
         std::cout << es.to_string() << "\n";
     }
+
+
+
 
     const std::vector<tsndgm::StreamSchedule> scheduled_streams = io::load_schedule(options.getSchedulePath());
     std::cout << "Loaded schedule!\n";
@@ -61,6 +64,7 @@ auto main(const int argc, char *argv[]) -> int
     }
 
     io::set_routes(scheduled_streams, streams);
+    network.calculate_aggregated_emergency_usage(emergency_streams);
 
     std::cout << "input loading and parsing done!\n";
 
