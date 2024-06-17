@@ -60,9 +60,7 @@ auto main(const int argc, char *argv[]) -> int {
 
   tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
   dgm.print();
-  // TODO create and print critical path
   tsndgm::critical_path::compute_longest_paths(dgm.transmission_graph);
   auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
   tsndgm::critical_path::print(dgm, path_result);
-  // dgm.print_critical_path(tsndgm::CriticalPath::makespan);
 }
