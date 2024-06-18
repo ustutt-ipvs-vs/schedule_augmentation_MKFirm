@@ -6,4 +6,5 @@ target_link_libraries(io PUBLIC
         CLI11
         nlohmann_json::nlohmann_json
         network
+        dgm
 )

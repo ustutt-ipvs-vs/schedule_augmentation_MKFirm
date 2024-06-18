@@ -1,10 +1,10 @@
 #include <memory>
 
 #include "src/IO/inputLoader.h"
+#include "src/IO/outputWriter.h"
 #include "src/IO/programOptions.h"
 #include "src/dgm/critical_path.h"
 #include "src/dgm/dgm.h"
-#include "src/network/message_stream.h"
 #include "src/network/topology.h"
 
 auto main(const int argc, char *argv[]) -> int {
@@ -60,10 +60,13 @@ auto main(const int argc, char *argv[]) -> int {
 
   tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
   dgm.print();
+
   tsndgm::critical_path::compute_longest_paths(dgm.transmission_graph);
   auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
   tsndgm::critical_path::print(dgm, path_result);
 
   dgm.computeGateOpeningAndCloseOperations();
-  std::cout << "done!\n";
+
+  io::write_output("./sample_output.json", network, dgm);
+  std::cout << "Writing output done!\n";
 }

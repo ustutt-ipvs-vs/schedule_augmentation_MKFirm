@@ -93,6 +93,7 @@ public:
   void dump_topology(const std::filesystem::path &out);
 
   const NetworkDeviceProperty &operator[](DeviceId v) const { return g[v]; }
+  [[nodiscard]] network_topology_t getNetworkTopology() const {return g;}
 
 private:
   template <bool throw_error>
