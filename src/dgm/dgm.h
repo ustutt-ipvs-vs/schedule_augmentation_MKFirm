@@ -27,18 +27,14 @@ public:
     transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].streams = streams;
 
-    std::map<StreamID, MessageStream> stream_id_map;
-    for (const auto &current_stream : streams | std::views::values) {
-      stream_id_map[current_stream.id] = current_stream;
-    }
-    transmission_graph[boost::graph_bundle].stream_id_map = stream_id_map;
-
     build();
   }
 
   DisjunctiveGraphModel(const DisjunctiveGraphModel &other) = default;
 
   TSNConfiguration derive_tsn_configuration();
+
+  auto get_operation_on_edge(const Edge &edge, StreamID stream_id, int frame_number) -> std::optional<V>;
 
   void print() const { tsndgm::print(transmission_graph, network); }
 

@@ -1,7 +1,6 @@
 #include <IO/inputLoader.h>
 #include <dgm/dgm.h>
 #include <gtest/gtest.h>
-#include <util/constants.h>
 
 // fixture class
 class dgmTest : public testing::Test {
@@ -39,13 +38,10 @@ std::vector<tsndgm::StreamSchedule> dgmTest::scheduled_streams;
 // tsndgm::DisjunctiveGraphModel dgmTest::dgm;
 
 static unsigned int numberEdges(tsndgm::transmission_graph_t transmission_graph,
-                                tsndgm::TransmissionGraphEdgeType type) {
-  unsigned int count = 0;
-  for (auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
-    if (transmission_graph[e].edge_type == type) {
-      count++;
-    }
-  }
+                                const tsndgm::TransmissionGraphEdgeType type) {
+  auto range = make_iterator_range(edges(transmission_graph));
+  const auto count =
+      std::ranges::count_if(range, [&](const auto e) { return transmission_graph[e].edge_type == type; });
   return count;
 }
 
@@ -60,24 +56,18 @@ TEST_F(dgmTest, numberDisjunctiveEdges) { ASSERT_EQ(numberEdges(dgm.transmission
 TEST_F(dgmTest, numberFifoEdges) { ASSERT_EQ(numberEdges(dgm.transmission_graph, tsndgm::fifo), 4); }
 
 TEST_F(dgmTest, numberOutgoingEdgesInnerVertices) {
-  for (auto v : boost::make_iterator_range(boost::vertices(dgm.transmission_graph))) {
+  for (const auto v : boost::make_iterator_range(vertices(dgm.transmission_graph))) {
     if (v == dgm.transmission_graph[boost::graph_bundle].src || v == dgm.transmission_graph[boost::graph_bundle].sink) {
       break;
     }
-    auto count = 0;
-    for (auto current_edge : make_iterator_range(out_edges(v, dgm.transmission_graph))) {
-      count++;
-    }
+    const auto count = make_iterator_range(out_edges(v, dgm.transmission_graph)).size();
     ASSERT_LE(count, 3);
   }
 }
 
 TEST_F(dgmTest, numberOutgoingEdgesSrc) {
-  auto count_e = 0;
-  for (auto current_edge :
-       make_iterator_range(out_edges(dgm.transmission_graph[boost::graph_bundle].src, dgm.transmission_graph))) {
-    count_e++;
-  }
+  const auto count_e =
+      make_iterator_range(out_edges(dgm.transmission_graph[boost::graph_bundle].src, dgm.transmission_graph)).size();
   unsigned long count_sol = 0;
   for (const auto &stream : dgm.scheduled_streams) {
     count_sol += stream.frames.size();
@@ -86,15 +76,10 @@ TEST_F(dgmTest, numberOutgoingEdgesSrc) {
 }
 
 TEST_F(dgmTest, conjunctiveEdges) {
-  const auto e = tsndgm::Edge(3, 1);
-  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
-  V current_v;
-
-  for (const auto v : vertices) {
-    if (dgm.transmission_graph[v].stream_id == 0 && dgm.transmission_graph[v].frame_number == 0) {
-      current_v = v;
-    }
-  }
+  constexpr auto e = tsndgm::Edge(3, 1);
+  const auto v_opt = dgm.get_operation_on_edge(e, 0, 0);
+  ASSERT_TRUE(v_opt.has_value());
+  auto current_v = v_opt.value();
 
   // Edge 1
   E current_e = dgm.getOutgoingConjunctiveEdge(current_v).value();
@@ -114,15 +99,10 @@ TEST_F(dgmTest, conjunctiveEdges) {
 }
 
 TEST_F(dgmTest, discjunctiveEdges) {
-  const auto e = tsndgm::Edge(0, 2);
-  const auto vertices = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e];
-  V current_v;
-
-  for (const auto v : vertices) {
-    if (dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
-      current_v = v;
-    }
-  }
+  constexpr auto e = tsndgm::Edge(0, 2);
+  const auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
+  ASSERT_TRUE(v_opt.has_value());
+  auto current_v = v_opt.value();
 
   // Edge 1
   E current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
@@ -142,19 +122,14 @@ TEST_F(dgmTest, discjunctiveEdges) {
 }
 
 TEST_F(dgmTest, fifoEdges) {
-  const auto e_source = tsndgm::Edge(0, 2);
-  const auto vertices_source = dgm.transmission_graph[boost::graph_bundle].topology_edge_to_dgm_vertices[e_source];
-  V source_1;
-  V source_2;
+  constexpr auto e_source = tsndgm::Edge(0, 2);
+  const auto v1_opt = dgm.get_operation_on_edge(e_source, 1, 0);
+  ASSERT_TRUE(v1_opt.has_value());
+  const auto v2_opt = dgm.get_operation_on_edge(e_source, 2, 0);
+  ASSERT_TRUE(v2_opt.has_value());
 
-  for (const auto v : vertices_source) {
-    if (dgm.transmission_graph[v].stream_id == 1) {
-      source_1 = v;
-    }
-    if (dgm.transmission_graph[v].stream_id == 2 && dgm.transmission_graph[v].frame_number == 0) {
-      source_2 = v;
-    }
-  }
+  const V source_1 = v1_opt.value();
+  const V source_2 = v2_opt.value();
 
   // Edge 1
   const auto e_1 =
@@ -172,13 +147,12 @@ TEST_F(dgmTest, fifoEdges) {
 }
 
 TEST_F(dgmTest, weightEdgesFromSrc) {
-  V src = dgm.transmission_graph[boost::graph_bundle].src;
+  const V src = dgm.transmission_graph[boost::graph_bundle].src;
   using boost::make_iterator_range;
 
   for (auto current_edge : make_iterator_range(out_edges(src, dgm.transmission_graph))) {
-    auto targetV = dgm.transmission_graph[boost::target(current_edge, dgm.transmission_graph)];
-
-    if (targetV.stream_id == 0 && targetV.frame_number == 0) {
+    if (const auto targetV = dgm.transmission_graph[target(current_edge, dgm.transmission_graph)];
+        targetV.stream_id == 0 && targetV.frame_number == 0) {
       ASSERT_EQ(dgm.transmission_graph[current_edge].weight, 17400);
     } else if (targetV.stream_id == 0 && targetV.frame_number == 1) {
       ASSERT_EQ(dgm.transmission_graph[current_edge].weight, 117400);
@@ -196,13 +170,12 @@ TEST_F(dgmTest, weightEdgesFromSrc) {
 }
 
 TEST_F(dgmTest, weightEdgesToSink) {
-  V sink = dgm.transmission_graph[boost::graph_bundle].sink;
+  const V sink = dgm.transmission_graph[boost::graph_bundle].sink;
   using boost::make_iterator_range;
 
   for (auto current_edge : make_iterator_range(in_edges(sink, dgm.transmission_graph))) {
-    auto sourceV = dgm.transmission_graph[boost::source(current_edge, dgm.transmission_graph)];
-
-    if (sourceV.stream_id == 0 && sourceV.frame_number == 0) {
+    if (const auto sourceV = dgm.transmission_graph[boost::source(current_edge, dgm.transmission_graph)];
+        sourceV.stream_id == 0 && sourceV.frame_number == 0) {
       ASSERT_EQ(dgm.transmission_graph[current_edge].weight, 10724);
     } else if (sourceV.stream_id == 0 && sourceV.frame_number == 1) {
       ASSERT_EQ(dgm.transmission_graph[current_edge].weight, 10724);
