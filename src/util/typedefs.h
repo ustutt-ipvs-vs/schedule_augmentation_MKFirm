@@ -3,6 +3,7 @@
 #include <cmath>
 
 namespace tsndgm {
+
 typedef unsigned int FrameSize;
 typedef unsigned int StreamID;
 typedef unsigned long BurstSize;
@@ -31,4 +32,5 @@ constexpr auto seconds_to_ticks(const double seconds) -> Tick {
   // 10^9: nano, 1: seconds to nano seconds
   return static_cast<Tick>(std::ceil(seconds * 1e9));
 }
+
 } // namespace tsndgm

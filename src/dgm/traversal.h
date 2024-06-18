@@ -1,5 +1,4 @@
-#ifndef TSN_DGM_TRAVERSAL_H
-#define TSN_DGM_TRAVERSAL_H
+#pragma once
 
 #include <boost/graph/depth_first_search.hpp>
 
@@ -225,5 +224,3 @@ BOOST_GRAPH_MAKE_OLD_STYLE_PARAMETER_FUNCTION(dgm_traversal, 1)
 BOOST_GRAPH_MAKE_OLD_STYLE_PARAMETER_FUNCTION(reversed_dgm_traversal, 1)
 
 } // namespace boost
-
-#endif // TSN_DGM_TRAVERSAL_H

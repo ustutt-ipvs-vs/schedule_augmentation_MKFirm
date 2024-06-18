@@ -1,10 +1,9 @@
-#include <boost/graph/graph_utility.hpp>
+#include "topology.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "topology.h"
-
 namespace tsndgm {
+
 typedef boost::graph_traits<network_topology_t>::vertex_descriptor V;
 typedef boost::graph_traits<network_topology_t>::edge_descriptor E;
 
@@ -71,8 +70,8 @@ const DataLinkProperty &NetworkTopology::get_data_link_property(const Edge &edge
   return get(boost::edge_bundle, g)[e];
 }
 
-auto NetworkTopology::add_et_stream_to_aggregated_et_usage_of_edge(const Edge &edge, const EmergencyStream &stream)
-    -> void {
+auto NetworkTopology::add_et_stream_to_aggregated_et_usage_of_edge(const Edge &edge,
+                                                                   const EmergencyStream &stream) -> void {
   const E e = get_edge_by_ids(edge);
   DataLinkProperty &edge_property = get(boost::edge_bundle, g)[e];
   edge_property.aggregated_emergency_burst_size += stream.bucket_size_byte;
@@ -207,10 +206,11 @@ E NetworkTopology::get_edge_by_ids(const Edge &edge) const {
   throw std::runtime_error{"edge not found: (" + std::to_string(v1) + ", " + std::to_string(v2) + ")"};
 }
 
-auto NetworkTopology::get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
-    -> std::pair<V, V> {
+auto NetworkTopology::get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties,
+                                      const Edge &edge) -> std::pair<V, V> {
   V v1 = get_vertex_by_id(device_properties, edge.first);
   V v2 = get_vertex_by_id(device_properties, edge.second);
   return std::make_pair(v1, v2);
 }
+
 } // namespace tsndgm

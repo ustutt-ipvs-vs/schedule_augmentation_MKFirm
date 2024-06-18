@@ -1,11 +1,12 @@
 #pragma once
 
 #include "../util/typedefs.h"
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>
 
 namespace tsndgm {
+
 struct FrameTransmission {
   LinkId link_id;
   std::string link_name;
@@ -82,4 +83,5 @@ inline auto createStreamSchedule(const nlohmann::json &j) -> StreamSchedule {
       .frames = std::move(frames),
   };
 }
+
 } // namespace tsndgm

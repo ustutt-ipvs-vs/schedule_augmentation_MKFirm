@@ -5,10 +5,11 @@
 #include <ranges>
 
 namespace tsndgm {
+
 auto DisjunctiveGraphModel::derive_tsn_configuration() -> TSNConfiguration { return {transmission_graph, network}; }
 
-auto DisjunctiveGraphModel::get_operation_on_edge(const Edge &edge, const StreamID stream_id, const int frame_number)
-    -> std::optional<V> {
+auto DisjunctiveGraphModel::get_operation_on_edge(const Edge &edge, const StreamID stream_id,
+                                                  const int frame_number) -> std::optional<V> {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   if (const auto iter = std::ranges::find_if(prop.topology_edge_to_dgm_vertices.at(edge),

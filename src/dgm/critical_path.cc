@@ -57,8 +57,8 @@ auto fixed_lateness_path(const transmission_graph_t &transmission_graph, const D
   return max_lateness;
 }
 
-auto get_fixed_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms, Edge listener)
-    -> Delay {
+auto get_fixed_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms,
+                        Edge listener) -> Delay {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
   const auto &stream = prop.streams.at(ms);
   const V v_listener = prop.operation_to_vertex.at({listener, ms});
@@ -98,8 +98,8 @@ auto dynamic_lateness_path(const transmission_graph_t &transmission_graph, const
   return max_lateness;
 }
 
-auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms, Edge listener)
-    -> Delay {
+auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms,
+                          Edge listener) -> Delay {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
   const auto &stream = prop.streams.at(ms);
   Edge talker = stream.route.get_talker();

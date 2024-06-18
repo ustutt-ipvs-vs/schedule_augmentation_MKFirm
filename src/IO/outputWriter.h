@@ -9,16 +9,18 @@
 /**
  * collects functions to write the output file (json)
  */
-namespace io
-{
-    typedef boost::graph_traits<tsndgm::transmission_graph_t>::vertex_descriptor V;
-    typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
-    typedef std::filesystem::path FilePath;
+namespace io {
 
-    auto write_output(const FilePath &out, const tsndgm::NetworkTopology &network, const tsndgm::DisjunctiveGraphModel &dgm) -> void;
+typedef boost::graph_traits<tsndgm::transmission_graph_t>::vertex_descriptor V;
+typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
+typedef std::filesystem::path FilePath;
 
-    auto createPorts(V v, const tsndgm::network_topology_t &networkGraph, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
+auto write_output(const FilePath &out, const tsndgm::NetworkTopology &network,
+                  const tsndgm::DisjunctiveGraphModel &dgm) -> void;
 
-    auto createGCL(E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
+auto createPorts(V v, const tsndgm::network_topology_t &networkGraph,
+                 const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
+
+auto createGCL(E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
 
 } // namespace io

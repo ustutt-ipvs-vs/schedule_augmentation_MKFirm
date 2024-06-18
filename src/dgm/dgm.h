@@ -96,8 +96,6 @@ private:
   void add_fifo_edges_for_edge(const Edge &edge, std::vector<V> vertices);
   Delay getTransmissionDelay(const Edge &edge, StreamID stream_id);
 
-  void resize_properties();
-
   void internal_commit_all(size_t index);
   void internal_restore_commit(size_t index, bool swap);
   void internal_copy_commit(size_t src_index, size_t dst_index);
@@ -107,4 +105,5 @@ private:
   void remove_fifo_edges(V u, V v);
   void renew_descriptors();
 };
+
 } // namespace tsndgm
