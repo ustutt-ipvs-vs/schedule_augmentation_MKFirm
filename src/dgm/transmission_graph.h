@@ -27,7 +27,6 @@ namespace tsndgm
         V src;
         V sink;
         std::unordered_map<StreamID, MessageStream> streams;
-        std::map<unsigned int, MessageStream> stream_id_map;
         std::map<Edge,std::vector<V>> topology_edge_to_dgm_vertices;
 
         std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;

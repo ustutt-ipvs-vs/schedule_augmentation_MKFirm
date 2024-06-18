@@ -54,7 +54,7 @@ auto main(const int argc, char *argv[]) -> int {
   }
 
   io::set_routes(scheduled_streams, streams);
-  network.calculate_aggregated_emergency_usage(emergency_streams);
+  network.update_all_edges_aggregated_et_usage(emergency_streams);
 
   std::cout << "input loading and parsing done!\n";
 
