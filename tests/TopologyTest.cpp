@@ -11,7 +11,7 @@ TEST(TopologyTest, aggregatetEmergencySpezifikations) {
   auto et_streams = io::load_emergency_traffic(file_path_emergency);
   auto topology = io::load_topology(file_path_network);
 
-  topology.calculate_aggregated_emergency_usage(et_streams);
+  topology.update_all_edges_aggregated_et_usage(et_streams);
 
   // Check edges
   const auto &edge_1 = topology.get_data_link_property({3,1});
