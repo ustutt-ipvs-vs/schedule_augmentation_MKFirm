@@ -63,4 +63,7 @@ auto main(const int argc, char *argv[]) -> int {
   tsndgm::critical_path::compute_longest_paths(dgm.transmission_graph);
   auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
   tsndgm::critical_path::print(dgm, path_result);
+
+  dgm.computeGateOpeningAndCloseOperations();
+  std::cout << "done!\n";
 }
