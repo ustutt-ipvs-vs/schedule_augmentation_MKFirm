@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../IO/inputLoader.h"
 #include "../network/message_stream.h"
 #include "../network/topology.h"
 #include "transmission_graph.h"
@@ -90,6 +89,8 @@ public:
     }
     return std::nullopt;
   }
+
+  auto computeGateOpeningAndCloseOperations() -> void;
 
 private:
   auto build() -> void;

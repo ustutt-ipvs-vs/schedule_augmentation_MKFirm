@@ -25,6 +25,23 @@ auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) -> std::option
 }
 auto DisjunctiveGraphModel::getOutgoingFifoEdge(V v) -> std::optional<E> { return getOutgoingEdge<fifo>(v); }
 
+auto DisjunctiveGraphModel::computeGateOpeningAndCloseOperations() -> void {
+  TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+
+  for (const auto &[network_link, operations] : prop.topology_edge_to_dgm_vertices) {
+
+    for (const auto &operation : operations) {
+      const auto stream_id = transmission_graph[operation].stream_id;
+      const auto dtrans = getTransmissionDelay(network_link, stream_id);
+      const auto vertex_prop = transmission_graph[operation];
+      // TODO should we adhere to the old schedule?
+      const auto open_time = std::max(vertex_prop.start_old_schedule, prop.crit_cost.at(operation));
+      const auto close_time = open_time + dtrans;
+      prop.gate_openings[operation] = std::make_pair(open_time, close_time);
+    }
+  }
+}
+
 auto DisjunctiveGraphModel::build() -> void {
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
@@ -41,8 +58,7 @@ auto DisjunctiveGraphModel::build() -> void {
     add_fifo_edges_for_edge(edge, vertex_list);
   }
 
-  prop.crit_cost.resize(boost::num_vertices(transmission_graph));
-  prop.crit_pred.resize(boost::num_vertices(transmission_graph));
+  prop.resize(num_vertices(transmission_graph));
 }
 
 auto DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule,
@@ -172,7 +188,7 @@ auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamI
   const FrameSize frame_size = prop.stream_id_map.at(stream_id).frame_size;
 
   const long double factor = frame_size * 1.0e9L;
-  const auto dtrans = static_cast<Delay>(factor / data_rate);
+  const auto dtrans = static_cast<Delay>(std::ceil(factor / data_rate));
 
   return dtrans;
 }

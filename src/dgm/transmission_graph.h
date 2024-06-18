@@ -36,8 +36,17 @@ namespace tsndgm
         std::vector<Delay> crit_cost;
         std::vector<Delay> slack;
         std::vector<V> crit_pred;
+        std::vector<std::pair<Tick, Tick>> gate_openings;
 
         Delay hyperperiod;
+
+        auto resize(std::size_t n) -> void
+        {
+            crit_cost.resize(n);
+            // slack.resize(n); // TODO consider adding this line
+            crit_pred.resize(n);
+            gate_openings.resize(n);
+        }
     };
 
     struct TransmissionGraphVertexProperty
