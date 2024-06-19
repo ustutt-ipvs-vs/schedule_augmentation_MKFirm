@@ -98,23 +98,20 @@ public:
       const auto destination = target(out_edge, transmission_graph);
       const auto &destination_property = transmission_graph[destination];
       switch (edge.edge_type) {
-      case conjunctive: {
-        if (destination == prop.sink) {
-          continue;
+      case conjunctive:
+        if (destination != prop.sink) {
+          // sequential
+          auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
+          const auto [b_2, b_2_rate] = getBranchingBurst(network_link, next_network_link);
+          const auto burst_part = static_cast<Delay>((b_2 + (mu_i - gate_opening) * b_2_rate) / network_link.data_rate);
+          dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
         }
-        // sequential
-
-        auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
-        mu_i - gate_opening;       // * b_2_rate + b_2
-        const auto burst_part = 0; // TODO
-        dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
-      } break;
+        break;
       case disjunctive:
         if (destination_property.pcp > operation.pcp) {
           // deferred
           // this access is necessary, since the transmission graph given in finish_vertex is const
-          dgm.transmission_graph[out_edge].weight =
-              std::max(static_cast<Delay>(mu_i + EPSILON - gate_opening), current_transmission_Delay);
+          dgm.transmission_graph[out_edge].weight = std::max(mu_i + EPSILON - gate_opening, current_transmission_Delay);
         }
         break;
       case fifo:
@@ -127,18 +124,22 @@ public:
   }
 
   [[nodiscard]] auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
-                                       const DataLinkProperty &post_branch_link) -> std::pair<BurstSize, DataRate> {
-    auto view = pre_branch_link.emergency_stream_ids | std::views::filter([&](const auto &stream_id) {
+                                       const DataLinkProperty &post_branch_link) const
+      -> std::pair<BurstSize, DataRate> {
+    auto view = pre_branch_link.emergency_streams | std::views::filter([&](const auto &stream) {
                   // keep only the ones not present in the post branch link
-                  return std::ranges::find(post_branch_link.emergency_stream_ids, stream_id) ==
-                         post_branch_link.emergency_stream_ids.end();
+                  return std::ranges::find_if(post_branch_link.emergency_streams, [&](const auto &post_stream) {
+                           return post_stream.get().id == stream.get().id;
+                         }) == post_branch_link.emergency_streams.end();
                 });
-    return std::reduce(view.begin(), view.end(), std::pair<BurstSize, DataRate>{0, 0},
-                       [&](const auto &acc, const auto stream_id) {
-                         // const auto &stream = prop.et_streams.at(stream_id); // TODO get emergency streams
-                         // return std::make_pair(acc.first + stream.burst_size, acc.second + stream.burst_rate);
-                         return std::make_pair(0, 0); // todo replace
-                       });
+    return std::transform_reduce(
+        view.begin(), view.end(), std::pair<BurstSize, DataRate>{0, 0},
+        [&](const auto &acc, const auto stream) {
+          return std::make_pair(acc.first + stream.first, acc.second + stream.second);
+        },
+        [&](const auto wrapped_stream) {
+          return std::make_pair(wrapped_stream.get().bucket_size_byte, wrapped_stream.get().refill_rate);
+        });
   }
 
   [[nodiscard]] auto getTotalDelay(const V operation, const transmission_graph_t &transmission_graph) const -> Delay {

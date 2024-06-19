@@ -45,12 +45,12 @@ struct DataLinkProperty {
   Delay propagation_delay;
   BurstSize aggregated_emergency_burst_size = 0;
   DataRate aggregated_emergency_refill_rate = 0;
-  std::vector<StreamID> emergency_stream_ids;
+  std::vector<std::reference_wrapper<const EmergencyStream>> emergency_streams;
 
   DataLinkProperty() = default;
 
-  explicit DataLinkProperty(const LinkId id, std::string name,
-                            const DataRate data_rate = mbps_to_DataRate(100), const Delay propagation_delay = 0)
+  explicit DataLinkProperty(const LinkId id, std::string name, const DataRate data_rate = mbps_to_DataRate(100),
+                            const Delay propagation_delay = 0)
       : id(id), name(std::move(name)), data_rate(data_rate), propagation_delay(propagation_delay) {}
 };
 

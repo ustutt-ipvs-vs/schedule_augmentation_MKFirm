@@ -74,7 +74,7 @@ auto NetworkTopology::add_et_stream_to_aggregated_et_usage_of_edge(const Edge &e
                                                                    const EmergencyStream &stream) -> void {
   const E e = get_edge_by_ids(edge);
   DataLinkProperty &edge_property = get(boost::edge_bundle, g)[e];
-  edge_property.emergency_stream_ids.emplace_back(stream.id);
+  edge_property.emergency_streams.emplace_back(stream);
   edge_property.aggregated_emergency_burst_size += stream.bucket_size_byte;
   edge_property.aggregated_emergency_refill_rate += stream.refill_rate;
 }
