@@ -1,0 +1,11 @@
+[
+    {
+        "id": 0,
+        "name": "stream_0",
+        "source": 2,
+        "target": 1,
+        "frame_size_byte": 1384,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 100000
+    }
+]

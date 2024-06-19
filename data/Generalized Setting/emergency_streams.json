@@ -1,0 +1,68 @@
+[
+    {
+        "streamID": 0,
+        "name": "emergency_stream_0",
+        "source": 2,
+        "target": 1,
+        "rate_mbps": 2.0,
+        "bucket_size_byte": 4000,
+        "route": [
+            {
+                "id": 3,
+                "name": "2-0",
+                "from": 2,
+                "to": 0
+            },
+            {
+                "id": 2,
+                "name": "0-1",
+                "from": 0,
+                "to": 1
+            }
+        ]
+    },
+    {
+        "streamID": 1,
+        "name": "emergency_stream_1",
+        "source": 2,
+        "target": 4,
+        "rate_mbps": 0.1,
+        "bucket_size_byte": 8000,
+        "route": [
+            {
+                "id": 6,
+                "name": "2-0",
+                "from": 2,
+                "to": 0
+            },
+            {
+                "id": 4,
+                "name": "0-4",
+                "from": 0,
+                "to": 4
+            }
+        ]
+    },
+    {
+        "streamID": 2,
+        "name": "emergency_stream_2",
+        "source": 3,
+        "target": 1,
+        "rate_mbps": 0.4,
+        "bucket_size_byte": 8000,
+        "route": [
+            {
+                "id": 5,
+                "name": "3-0",
+                "from": 3,
+                "to": 0
+            },
+            {
+                "id": 0,
+                "name": "0-1",
+                "from": 0,
+                "to": 1
+            }
+        ]
+    }
+]

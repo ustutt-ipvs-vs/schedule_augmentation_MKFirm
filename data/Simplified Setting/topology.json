@@ -1,0 +1,36 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "name": "n0",
+            "processing_delay_ns": 0,
+            "is_switch": false,
+            "queues_per_port": 8
+        },
+        {
+            "id": 1,
+            "name": "n1",
+            "processing_delay_ns": 0,
+            "is_switch": false,
+            "queues_per_port": 8
+        }
+    ],
+    "links": [
+        {
+            "id": 0,
+            "name": "0-1",
+            "source": 0,
+            "target": 1,
+            "link_speed_mbps": 1000,
+            "propagation_delay_ns": 200
+        },
+        {
+            "id": 1,
+            "name": "1-0",
+            "source": 1,
+            "target": 0,
+            "link_speed_mbps": 1000,
+            "propagation_delay_ns": 200
+        }
+    ]
+}
