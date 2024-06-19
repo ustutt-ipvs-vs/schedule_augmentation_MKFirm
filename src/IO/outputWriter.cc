@@ -1,7 +1,6 @@
 #include "outputWriter.h"
 
 #include <fstream>
-#include <iostream>
 #include <ranges>
 #include <src/dgm/dgm.h>
 #include <src/dgm/transmission_graph.h>
@@ -25,10 +24,10 @@ auto io::write_output(const FilePath &out, const tsndgm::NetworkTopology &networ
   o << std::setw(4) << j << std::endl;
 }
 
-auto io::createPorts(const V v, const tsndgm::NetworkTopology &network,
-                     const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
+auto io::createPorts(const V v, const tsndgm::NetworkTopology &network, const tsndgm::DisjunctiveGraphModel &dgm)
+    -> nlohmann::ordered_json {
   nlohmann::ordered_json ports = nlohmann::ordered_json::object();
-  auto networkGraph = network.getNetworkTopology();
+  const auto &networkGraph = network.getNetworkTopology();
 
   for (const auto edge : make_iterator_range(out_edges(v, networkGraph))) {
     const auto edgeProperty = network.get_data_link_property(tsndgm::Edge(edge.m_source, edge.m_target));
