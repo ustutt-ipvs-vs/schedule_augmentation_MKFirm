@@ -45,6 +45,7 @@ struct DataLinkProperty {
   Delay propagation_delay;
   BurstSize aggregated_emergency_burst_size = 0;
   DataRate aggregated_emergency_refill_rate = 0;
+  std::vector<StreamID> emergency_stream_ids;
 
   DataLinkProperty() = default;
 
