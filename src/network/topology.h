@@ -39,13 +39,18 @@ static NetworkDeviceProperty UniqueNetworkDeviceProperty(Delay processing_delay 
 }
 
 struct DataLinkProperty {
+  LinkId id;
+  std::string name;
   DataRate data_rate;
   Delay propagation_delay;
   BurstSize aggregated_emergency_burst_size = 0;
   DataRate aggregated_emergency_refill_rate = 0;
 
-  explicit DataLinkProperty(const DataRate data_rate = mbps_to_DataRate(100), const Delay propagation_delay = 0)
-      : data_rate(data_rate), propagation_delay(propagation_delay) {}
+  DataLinkProperty() = default;
+
+  explicit DataLinkProperty(const LinkId id, std::string name,
+                            const DataRate data_rate = mbps_to_DataRate(100), const Delay propagation_delay = 0)
+      : id(id), name(std::move(name)), data_rate(data_rate), propagation_delay(propagation_delay) {}
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, NetworkDeviceProperty, DataLinkProperty>

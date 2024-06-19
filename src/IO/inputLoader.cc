@@ -1,10 +1,9 @@
 #include "inputLoader.h"
 
+#include "../util/constants.h"
 #include <fstream>
 #include <iostream>
 #include <src/network/message_stream.h>
-
-#include "../util/constants.h"
 
 auto io::load_emergency_traffic(const FilePath &in) -> std::vector<tsndgm::EmergencyStream> {
   try {
@@ -89,8 +88,8 @@ auto io::load_topology(const FilePath &in) -> tsndgm::NetworkTopology {
 
     for (auto l : j["links"]) {
       tsndgm::Edge edge(l["source"], l["target"]);
-      const auto link =
-          tsndgm::DataLinkProperty{tsndgm::mbps_to_DataRate(l["link_speed_mbps"]), l["propagation_delay_ns"]};
+      const auto link = tsndgm::DataLinkProperty{l["id"], l["name"], tsndgm::mbps_to_DataRate(l["link_speed_mbps"]),
+                                                 l["propagation_delay_ns"]};
       topology.add_data_link({edge, link});
     }
 

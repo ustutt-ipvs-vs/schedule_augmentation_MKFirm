@@ -17,24 +17,27 @@ auto io::write_output(const FilePath &out, const tsndgm::NetworkTopology &networ
     auto device_id = networkGraph[vd].id;
     j[std::to_string(device_id)] = nlohmann::ordered_json::object();
     j[std::to_string(device_id)]["id"] = device_id;
-    j[std::to_string(device_id)]["ports"] = createPorts(vd, networkGraph, dgm);
+    j[std::to_string(device_id)]["name"] = networkGraph[vd].name;
+    j[std::to_string(device_id)]["ports"] = createPorts(vd, network, dgm);
   }
 
   std::ofstream o(out);
   o << std::setw(4) << j << std::endl;
 }
 
-auto io::createPorts(const V v, const tsndgm::network_topology_t &networkGraph,
+auto io::createPorts(const V v, const tsndgm::NetworkTopology &network,
                      const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
   nlohmann::ordered_json ports = nlohmann::ordered_json::object();
+  auto networkGraph = network.getNetworkTopology();
 
   for (const auto edge : make_iterator_range(out_edges(v, networkGraph))) {
-    // TODO Link ID
-    auto link_id = std::to_string(edge.m_source) + "-" + std::to_string(edge.m_target);
-    ports[link_id] = nlohmann::ordered_json::object();
-    ports[link_id]["id"] = link_id;
-    ports[link_id]["target"] = edge.m_target;
-    ports[link_id]["gcl_per_pcp"] = createGCL(edge, dgm);
+    const auto edgeProperty = network.get_data_link_property(tsndgm::Edge(edge.m_source, edge.m_target));
+    const auto link_key = std::to_string(edgeProperty.id);
+    ports[link_key] = nlohmann::ordered_json::object();
+    ports[link_key]["id"] = edgeProperty.id;
+    ports[link_key]["name"] = edgeProperty.name;
+    ports[link_key]["target"] = edge.m_target;
+    ports[link_key]["gcl_per_pcp"] = createGCL(edge, dgm);
   }
 
   return ports;

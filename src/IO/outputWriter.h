@@ -18,7 +18,7 @@ typedef std::filesystem::path FilePath;
 auto write_output(const FilePath &out, const tsndgm::NetworkTopology &network,
                   const tsndgm::DisjunctiveGraphModel &dgm) -> void;
 
-auto createPorts(V v, const tsndgm::network_topology_t &networkGraph,
+auto createPorts(V v, const tsndgm::NetworkTopology &network,
                  const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
 
 auto createGCL(E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
