@@ -4,13 +4,14 @@
 
 namespace tsndgm::critical_path {
 
-auto compute_longest_paths(transmission_graph_t &transmission_graph, const bool reverse) -> void {
-  const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+auto compute_longest_paths(DisjunctiveGraphModel &dgm, const bool reverse) -> void {
+  const TransmissionGraphProperty &prop = dgm.transmission_graph[boost::graph_bundle];
   if (reverse) {
-    reversed_dgm_traversal(transmission_graph,
-                           visitor(longest_path_visitor(transmission_graph)).root_vertex(prop.sink));
+    reversed_dgm_traversal(dgm.transmission_graph,
+                           visitor(longest_path_visitor(dgm)).root_vertex(prop.sink));
   } else {
-    dgm_traversal(transmission_graph, visitor(longest_path_visitor(transmission_graph)).root_vertex(prop.src));
+    dgm_traversal(dgm.transmission_graph,
+                  visitor(longest_path_visitor(dgm)).root_vertex(prop.src));
   }
 }
 
@@ -40,8 +41,8 @@ auto fixed_lateness_path(const transmission_graph_t &transmission_graph, const D
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
   Result max_lateness = {min, prop.src};
 
-  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
-    const auto &stream = prop.streams.at(ms);
+  for (MessageStreamHandle ms = 0; ms < prop.tt_streams.size(); ms++) {
+    const auto &stream = prop.tt_streams.at(ms);
     const auto listeners = stream.route.get_listeners();
 
     // compute lateness of stream's end-to-end latency
@@ -57,10 +58,10 @@ auto fixed_lateness_path(const transmission_graph_t &transmission_graph, const D
   return max_lateness;
 }
 
-auto get_fixed_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms,
-                        Edge listener) -> Delay {
+auto get_fixed_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms, Edge listener)
+    -> Delay {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-  const auto &stream = prop.streams.at(ms);
+  const auto &stream = prop.tt_streams.at(ms);
   const V v_listener = prop.operation_to_vertex.at({listener, ms});
   const Delay lateness = prop.crit_cost[v_listener] +
                          transmission_graph[edge(v_listener, prop.sink, transmission_graph).first].weight -
@@ -76,8 +77,8 @@ auto dynamic_lateness_path(const transmission_graph_t &transmission_graph, const
   // dgm_traversal(transmission_graph,
   //              visitor(slack_visitor(transmission_graph)).root_vertex(prop.src));
 
-  for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
-    auto &stream = prop.streams.at(ms);
+  for (MessageStreamHandle ms = 0; ms < prop.tt_streams.size(); ms++) {
+    auto &stream = prop.tt_streams.at(ms);
     Edge talker = stream.route.get_talker();
     const V v_talker = prop.operation_to_vertex.at({talker, ms});
 
@@ -98,10 +99,10 @@ auto dynamic_lateness_path(const transmission_graph_t &transmission_graph, const
   return max_lateness;
 }
 
-auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms,
-                          Edge listener) -> Delay {
+auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, MessageStreamHandle ms, Edge listener)
+    -> Delay {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-  const auto &stream = prop.streams.at(ms);
+  const auto &stream = prop.tt_streams.at(ms);
   Edge talker = stream.route.get_talker();
   const V v_talker = prop.operation_to_vertex.at({talker, ms});
 

@@ -3,9 +3,7 @@
 #include "../network/message_stream.h"
 #include "../network/topology.h"
 #include "transmission_graph.h"
-#include "tsn_configuration.h"
 #include <boost/graph/adjacency_list.hpp>
-#include <ranges>
 #include <utility>
 
 namespace tsndgm {
@@ -25,14 +23,12 @@ public:
       : network(network), scheduled_streams(scheduled_streams) {
     transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
-    transmission_graph[boost::graph_bundle].streams = streams;
+    transmission_graph[boost::graph_bundle].tt_streams = streams;
 
     build();
   }
 
   DisjunctiveGraphModel(const DisjunctiveGraphModel &other) = default;
-
-  TSNConfiguration derive_tsn_configuration();
 
   auto get_operation_on_edge(const Edge &edge, StreamID stream_id, int frame_number) -> std::optional<V>;
 
@@ -43,8 +39,8 @@ public:
 
   void print_fixed_lateness() {
     TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-    for (MessageStreamHandle ms = 0; ms < prop.streams.size(); ms++) {
-      auto &stream = prop.streams[ms];
+    for (MessageStreamHandle ms = 0; ms < prop.tt_streams.size(); ms++) {
+      auto &stream = prop.tt_streams[ms];
       const auto listeners = stream.route.get_listeners();
 
       // compute tardiness of stream's end-to-end latency
@@ -70,15 +66,17 @@ public:
     return edge(u, v);
   }
 
-  auto getOutgoingConjunctiveEdge(V v) -> std::optional<E>;
+  auto getOutgoingConjunctiveEdge(V v) const -> std::optional<E>;
 
-  auto getOutgoingDisjunctiveEdge(V v) -> std::optional<E>;
+  auto getOutgoingDisjunctiveEdge(V v) const -> std::optional<E>;
 
-  auto getOutgoingFifoEdge(V v) -> std::optional<E>;
+  auto getOutgoingFifoEdge(V v) const -> std::optional<E>;
+
+  auto getIncommingDisjunctiveEdge(V v) const -> std::optional<E>;
 
   template <TransmissionGraphEdgeType type>
-  auto getOutgoingEdge(const V v) -> std::optional<E> {
-    for (const auto current_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+  auto getEdge(auto edges) const -> std::optional<E> {
+    for (const auto current_edge : make_iterator_range(edges)) {
       if (transmission_graph[current_edge].edge_type == type) {
         return current_edge;
       }

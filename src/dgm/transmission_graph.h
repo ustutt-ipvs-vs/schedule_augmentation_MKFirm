@@ -25,13 +25,13 @@ struct TransmissionGraphProperty {
 
   V src;
   V sink;
-  std::unordered_map<StreamID, MessageStream> streams;
+  std::unordered_map<StreamID, MessageStream> tt_streams;
   std::map<Edge, std::vector<V>> topology_edge_to_dgm_vertices;
 
   std::map<Edge, std::set<MessageStreamHandle>> edge_to_streams;
   std::map<Operation, V> operation_to_vertex;
 
-  std::vector<Delay> crit_cost;
+  std::vector<Tick> crit_cost;
   std::vector<Delay> slack;
   std::vector<V> crit_pred;
   std::vector<std::pair<Tick, Tick>> gate_openings;

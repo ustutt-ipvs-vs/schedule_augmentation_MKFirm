@@ -6,10 +6,8 @@
 
 namespace tsndgm {
 
-auto DisjunctiveGraphModel::derive_tsn_configuration() -> TSNConfiguration { return {transmission_graph, network}; }
-
-auto DisjunctiveGraphModel::get_operation_on_edge(const Edge &edge, const StreamID stream_id,
-                                                  const int frame_number) -> std::optional<V> {
+auto DisjunctiveGraphModel::get_operation_on_edge(const Edge &edge, const StreamID stream_id, const int frame_number)
+    -> std::optional<V> {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   if (const auto iter = std::ranges::find_if(prop.topology_edge_to_dgm_vertices.at(edge),
@@ -32,14 +30,19 @@ auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type, co
 // TODO move this capability elsewhere
 */
 
-auto DisjunctiveGraphModel::getOutgoingConjunctiveEdge(const V v) -> std::optional<E> {
-  return getOutgoingEdge<conjunctive>(v);
+auto DisjunctiveGraphModel::getOutgoingConjunctiveEdge(const V v) const -> std::optional<E> {
+  return getEdge<conjunctive>(out_edges(v, transmission_graph));
 }
 
-auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) -> std::optional<E> {
-  return getOutgoingEdge<disjunctive>(v);
+auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) const -> std::optional<E> {
+  return getEdge<disjunctive>(out_edges(v, transmission_graph));
 }
-auto DisjunctiveGraphModel::getOutgoingFifoEdge(V v) -> std::optional<E> { return getOutgoingEdge<fifo>(v); }
+auto DisjunctiveGraphModel::getOutgoingFifoEdge(const V v) const -> std::optional<E> {
+  return getEdge<fifo>(out_edges(v, transmission_graph));
+}
+auto DisjunctiveGraphModel::getIncommingDisjunctiveEdge(const V v) const -> std::optional<E> {
+  return getEdge<disjunctive>(in_edges(v, transmission_graph));
+}
 
 auto DisjunctiveGraphModel::computeGateOpeningAndCloseOperations() -> void {
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
@@ -158,8 +161,8 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
              }) |
              std::views::filter([&](const auto &pair) {
                // filter frames where the early frame is delivered before the later frame is released
-               const MessageStream &early_stream = prop.streams.at(transmission_graph[pair.first].stream_id);
-               const MessageStream &late_stream = prop.streams.at(transmission_graph[pair.second].stream_id);
+               const MessageStream &early_stream = prop.tt_streams.at(transmission_graph[pair.first].stream_id);
+               const MessageStream &late_stream = prop.tt_streams.at(transmission_graph[pair.second].stream_id);
                const auto deadline_early_stream =
                    early_stream.period * transmission_graph[pair.first].frame_number + early_stream.deadline;
                const auto release_time_late_stream = late_stream.period * transmission_graph[pair.second].frame_number;
@@ -201,12 +204,9 @@ auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamI
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   const DataRate data_rate = network.get_data_link_property(edge).data_rate;
-  const FrameSize frame_size = prop.streams.at(stream_id).frame_size;
+  const FrameSize frame_size = prop.tt_streams.at(stream_id).frame_size;
 
-  const long double factor = frame_size * 1.0e9L;
-  const auto dtrans = static_cast<Delay>(std::ceil(factor / data_rate));
-
-  return dtrans;
+  return calculateTransmissionDelay(data_rate, frame_size);
 }
 
 } // namespace tsndgm

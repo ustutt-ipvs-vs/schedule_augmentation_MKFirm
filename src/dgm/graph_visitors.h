@@ -1,7 +1,10 @@
 #pragma once
 
+#include "dgm.h"
 #include "transmission_graph.h"
 #include "traversal.h"
+
+#include <src/util/constants.h>
 
 namespace tsndgm {
 
@@ -12,8 +15,8 @@ public:
   typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
   typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
-  explicit longest_path_visitor(transmission_graph_t &transmission_graph)
-      : prop(get_property(transmission_graph, boost::graph_bundle)) {
+  explicit longest_path_visitor(DisjunctiveGraphModel &dgm)
+      : prop(get_property(dgm.transmission_graph, boost::graph_bundle)), dgm(dgm), network_topology(network_topology) {
     total_traversals++;
   }
 
@@ -45,7 +48,112 @@ public:
     }
   }
 
+  void finish_vertex(V v, const transmission_graph_t &transmission_graph) const {
+    /*
+     * opening time = critical cost
+     * mu_i 1 und 2 berechnen
+     * compute closing time based on mu
+     * Ausgehende Kanten iterieren:
+     *  - update edge weights:
+     *  - disjunktive: deferred, compute only when specific pcp (consider adding the inter frame gape here, probably
+     * also in the initial graph creation)
+     *  - fifo: frame isolation
+     *  - conjunctive: sequential
+     */
+    // collect references to the required data
+    const auto &operation = transmission_graph[v];
+    const auto &stream = prop.tt_streams.at(operation.stream_id);
+    const auto &network_link = network_topology.get_data_link_property(operation.edge);
+
+    const auto gate_opening = prop.crit_cost[v];
+
+    // update gate operations
+    const auto mu_i_1 =
+        static_cast<Tick>(gate_opening + network_link.aggregated_emergency_burst_size /
+                                             (network_link.data_rate - network_link.aggregated_emergency_refill_rate));
+    const auto in_edge_opt = dgm.getIncommingDisjunctiveEdge(v);
+    const Tick mu_i_2 = [&] -> Tick {
+      if (in_edge_opt.has_value()) {
+        const auto predecessor = in_edge_opt.value().m_source;
+        const auto predecessor_closing = prop.gate_openings[predecessor].second;
+        const auto &predecessor_stream = prop.tt_streams.at(transmission_graph[predecessor].stream_id);
+        return static_cast<Tick>(predecessor_closing +
+                                 (calculateTransmissionDelay(network_link.data_rate, predecessor_stream.frame_size) *
+                                  network_link.aggregated_emergency_refill_rate) /
+                                     (network_link.data_rate - network_link.aggregated_emergency_refill_rate));
+      }
+      // no disjunctive predecessor
+      return 0UL;
+    }();
+
+    const auto mu_i = std::max(mu_i_1, mu_i_2);
+
+    const auto current_transmission_Delay = calculateTransmissionDelay(network_link.data_rate, stream.frame_size);
+    const Tick gate_closing = mu_i + current_transmission_Delay;
+    prop.gate_openings[v] = std::make_pair(gate_opening, gate_closing);
+
+    // update outgoing edges
+    for (const auto &out_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      const auto &edge = transmission_graph[out_edge];
+      const auto destination = target(out_edge, transmission_graph);
+      const auto &destination_property = transmission_graph[destination];
+      switch (edge.edge_type) {
+      case conjunctive: {
+        if (destination == prop.sink) {
+          continue;
+        }
+        // sequential
+
+        auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
+        mu_i - gate_opening;       // * b_2_rate + b_2
+        const auto burst_part = 0; // TODO
+        dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
+      } break;
+      case disjunctive:
+        if (destination_property.pcp > operation.pcp) {
+          // deferred
+          // this access is necessary, since the transmission graph given in finish_vertex is const
+          dgm.transmission_graph[out_edge].weight =
+              std::max(static_cast<Delay>(mu_i + EPSILON - gate_opening), current_transmission_Delay);
+        }
+        break;
+      case fifo:
+        // frame isolation
+        dgm.transmission_graph[out_edge].weight =
+            gate_closing - gate_opening - getTotalDelay(destination, transmission_graph);
+        break;
+      }
+    }
+  }
+
+  [[nodiscard]] auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
+                                       const DataLinkProperty &post_branch_link) -> std::pair<BurstSize, DataRate> {
+    auto view = pre_branch_link.emergency_stream_ids | std::views::filter([&](const auto &stream_id) {
+                  // keep only the ones not present in the post branch link
+                  return std::ranges::find(post_branch_link.emergency_stream_ids, stream_id) ==
+                         post_branch_link.emergency_stream_ids.end();
+                });
+    return std::reduce(view.begin(), view.end(), std::pair<BurstSize, DataRate>{0, 0},
+                       [&](const auto &acc, const auto stream_id) {
+                         // const auto &stream = prop.et_streams.at(stream_id); // TODO get emergency streams
+                         // return std::make_pair(acc.first + stream.burst_size, acc.second + stream.burst_rate);
+                         return std::make_pair(0, 0); // todo replace
+                       });
+  }
+
+  [[nodiscard]] auto getTotalDelay(const V operation, const transmission_graph_t &transmission_graph) const -> Delay {
+    const auto &operation_property = transmission_graph[operation];
+    const auto &network_link = network_topology.get_data_link_property(operation_property.edge);
+    const auto propagation_delay = network_topology.get_device_property(operation).processing_delay;
+    const auto transmission_delay =
+        calculateTransmissionDelay(network_link.data_rate, prop.tt_streams.at(operation_property.stream_id).frame_size);
+    const auto processing_delay = network_link.propagation_delay;
+    return propagation_delay + transmission_delay + processing_delay;
+  }
+
   TransmissionGraphProperty &prop;
+  DisjunctiveGraphModel &dgm;
+  const NetworkTopology &network_topology;
   bool reversed = true;
 };
 

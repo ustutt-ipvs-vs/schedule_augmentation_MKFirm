@@ -33,4 +33,11 @@ constexpr auto seconds_to_ticks(const double seconds) -> Tick {
   return static_cast<Tick>(std::ceil(seconds * 1e9));
 }
 
+[[nodiscard]] constexpr auto calculateTransmissionDelay(const DataRate data_rate, const FrameSize frame_size) -> Delay {
+  const long double factor = frame_size * 1.0e9L;
+  const auto dtrans = static_cast<Delay>(std::ceil(factor / data_rate));
+
+  return dtrans;
+}
+
 } // namespace tsndgm

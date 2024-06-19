@@ -37,10 +37,10 @@ inline auto get_termination_bound(const Objective type) -> Delay {
     throw std::logic_error("type does not exist: " + std::to_string(type));
   }
 }
-void compute_longest_paths(transmission_graph_t &transmission_graph, bool reverse = true);
+void compute_longest_paths(DisjunctiveGraphModel &dgm, bool reverse = true);
 
-[[nodiscard]] auto collect_critical_path_result(const transmission_graph_t &transmission_graph,
-                                                Objective type) -> Result;
+[[nodiscard]] auto collect_critical_path_result(const transmission_graph_t &transmission_graph, Objective type)
+    -> Result;
 [[nodiscard]] auto makespan_path(const transmission_graph_t &transmission_graph) -> Result;
 [[nodiscard]] auto fixed_lateness_path(const transmission_graph_t &transmission_graph, Delay min = 0) -> Result;
 [[nodiscard]] auto dynamic_lateness_path(const transmission_graph_t &transmission_graph, Delay min = 0) -> Result;
