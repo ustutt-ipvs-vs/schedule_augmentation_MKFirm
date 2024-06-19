@@ -96,7 +96,7 @@ public:
   void dump_topology(const std::filesystem::path &out);
 
   const NetworkDeviceProperty &operator[](DeviceId v) const { return g[v]; }
-  [[nodiscard]] network_topology_t getNetworkTopology() const { return g; }
+  [[nodiscard]] auto getNetworkTopology() const -> const network_topology_t & { return g; }
 
 private:
   template <bool throw_error>
@@ -104,8 +104,8 @@ private:
   [[nodiscard]] E get_edge_by_ids(const Edge &edge) const;
 
   V get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, DeviceId id);
-  auto get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties,
-                       const Edge &edge) -> std::pair<V, V>;
+  auto get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
+      -> std::pair<V, V>;
 
   network_topology_t g;
 };

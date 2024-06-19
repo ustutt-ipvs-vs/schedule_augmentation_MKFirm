@@ -21,6 +21,6 @@ auto write_output(const FilePath &out, const tsndgm::NetworkTopology &network,
 auto createPorts(V v, const tsndgm::NetworkTopology &network,
                  const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
 
-auto createGCL(E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
+auto createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json;
 
 } // namespace io

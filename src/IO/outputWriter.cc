@@ -11,7 +11,7 @@ auto io::write_output(const FilePath &out, const tsndgm::NetworkTopology &networ
                       const tsndgm::DisjunctiveGraphModel &dgm) -> void {
 
   nlohmann::ordered_json j = nlohmann::ordered_json::object();
-  auto networkGraph = network.getNetworkTopology();
+  const auto &networkGraph = network.getNetworkTopology();
 
   for (const auto vd : boost::make_iterator_range(vertices(networkGraph))) {
     auto device_id = networkGraph[vd].id;
@@ -42,10 +42,10 @@ auto io::createPorts(const V v, const tsndgm::NetworkTopology &network,
 
   return ports;
 }
-auto io::createGCL(const E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
-  tsndgm::TransmissionGraphProperty prop = dgm.transmission_graph[boost::graph_bundle];
+auto io::createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
+  const auto &prop = dgm.transmission_graph[boost::graph_bundle];
   const auto e = tsndgm::Edge(edge.m_source, edge.m_target);
-  auto vertices = prop.topology_edge_to_dgm_vertices[e];
+  const auto &vertices = prop.topology_edge_to_dgm_vertices.at(e);
   auto gcl = nlohmann::ordered_json::object();
 
   auto grouping_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -56,19 +56,19 @@ auto io::createGCL(const E edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nl
 
   std::ranges::for_each(vertices | std::views::chunk_by(grouping_function), [&](const auto pcp_group) {
     auto array = nlohmann::ordered_json::array();
-    for (V v : pcp_group) {
-      auto vertexProperty = dgm.transmission_graph[v];
+    for (const V v : pcp_group) {
+      const auto &vertexProperty = dgm.transmission_graph[v];
       auto entry_gcl = nlohmann::ordered_json::object();
       auto entry_stream = nlohmann::ordered_json::array();
 
       entry_stream.push_back(nlohmann::ordered_json::object(
           {{"stream_id", vertexProperty.stream_id}, {"frame_number", vertexProperty.frame_number}}));
       entry_gcl["streams"] = entry_stream;
-      entry_gcl["open_time_ns"] = prop.gate_openings[v].first;
-      entry_gcl["close_time_ns"] = prop.gate_openings[v].second;
+      entry_gcl["open_time_ns"] = prop.gate_openings.at(v).first;
+      entry_gcl["close_time_ns"] = prop.gate_openings.at(v).second;
       array.push_back(entry_gcl);
     }
-    gcl[std::to_string(dgm.transmission_graph[pcp_group[0]].pcp)] = array;
+    gcl[std::to_string(dgm.transmission_graph[pcp_group.front()].pcp)] = array;
   });
 
   return gcl;
