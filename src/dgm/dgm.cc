@@ -45,6 +45,7 @@ auto DisjunctiveGraphModel::getIncommingDisjunctiveEdge(const V v) const -> std:
 }
 
 auto DisjunctiveGraphModel::computeGateOpeningAndCloseOperations() -> void {
+  // TODO probably we can remove this function. Now the gate oerations are computed in the graph_visitor.
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   for (const auto &[network_link, operations] : prop.topology_edge_to_dgm_vertices) {

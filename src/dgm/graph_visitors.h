@@ -16,7 +16,7 @@ public:
   typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
 
   explicit longest_path_visitor(DisjunctiveGraphModel &dgm)
-      : prop(get_property(dgm.transmission_graph, boost::graph_bundle)), dgm(dgm), network_topology(network_topology) {
+      : prop(get_property(dgm.transmission_graph, boost::graph_bundle)), dgm(dgm), network_topology(dgm.network) {
     total_traversals++;
   }
 
@@ -49,6 +49,11 @@ public:
   }
 
   void finish_vertex(V v, const transmission_graph_t &transmission_graph) const {
+
+    if (v == prop.src or v == prop.sink) {
+      return;
+    }
+
     // collect references to the required data
     const auto &operation = transmission_graph[v];
     const auto &stream = prop.tt_streams.at(operation.stream_id);
@@ -142,7 +147,7 @@ public:
   [[nodiscard]] auto getTotalDelay(const V operation, const transmission_graph_t &transmission_graph) const -> Delay {
     const auto &operation_property = transmission_graph[operation];
     const auto &network_link = network_topology.get_data_link_property(operation_property.edge);
-    const auto propagation_delay = network_topology.get_device_property(operation).processing_delay;
+    const auto propagation_delay = network_topology.get_device_property(operation_property.edge.first).processing_delay;
     const auto transmission_delay =
         calculateTransmissionDelay(network_link.data_rate, prop.tt_streams.at(operation_property.stream_id).frame_size);
     const auto processing_delay = network_link.propagation_delay;
