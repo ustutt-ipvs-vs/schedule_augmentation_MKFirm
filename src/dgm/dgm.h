@@ -66,13 +66,13 @@ public:
     return edge(u, v);
   }
 
-  auto getOutgoingConjunctiveEdge(V v) const -> std::optional<E>;
+  [[nodiscard]] auto getOutgoingConjunctiveEdge(V v) const -> std::optional<E>;
 
-  auto getOutgoingDisjunctiveEdge(V v) const -> std::optional<E>;
+  [[nodiscard]] auto getOutgoingDisjunctiveEdge(V v) const -> std::optional<E>;
 
-  auto getOutgoingFifoEdge(V v) const -> std::optional<E>;
+  [[nodiscard]] auto getOutgoingFifoEdge(V v) const -> std::optional<E>;
 
-  auto getIncommingDisjunctiveEdge(V v) const -> std::optional<E>;
+  [[nodiscard]] auto getIncommingDisjunctiveEdge(V v) const -> std::optional<E>;
 
   template <TransmissionGraphEdgeType type>
   auto getEdge(auto edges) const -> std::optional<E> {
