@@ -61,6 +61,26 @@ auto DisjunctiveGraphModel::computeGateOpeningAndCloseOperations() -> void {
     }
   }
 }
+auto DisjunctiveGraphModel::checkDeadlineViolations() -> bool {
+  const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
+
+  const auto final_edges = make_iterator_range(in_edges(prop.sink, transmission_graph));
+  bool deadline_violation = false;
+
+  for (const auto edge : final_edges) {
+    const auto source_v = boost::source(edge, transmission_graph);
+    const auto &operation = transmission_graph[source_v];
+    const auto &stream = prop.tt_streams.at(operation.stream_id);
+    const auto &network_link = network.get_data_link_property(operation.edge);
+    const auto actual_arrival = prop.gate_openings[source_v].second + network_link.propagation_delay;
+    if (stream.deadline < actual_arrival) {
+      std::cout << "stream: " << operation.stream_id << " frame " << operation.frame_number
+                << " violates it's deadline: " << actual_arrival << " instead of " << stream.deadline << "\n";
+      deadline_violation = true;
+    }
+  }
+  return deadline_violation;
+}
 
 auto DisjunctiveGraphModel::build() -> void {
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];

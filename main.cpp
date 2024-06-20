@@ -65,6 +65,10 @@ auto main(const int argc, char *argv[]) -> int {
   auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
   tsndgm::critical_path::print(dgm, path_result);
 
-  io::write_output("./sample_output.json", network, dgm);
-  std::cout << "Writing output done!\n";
+  if (not dgm.checkDeadlineViolations()) {
+    io::write_output("./sample_output.json", network, dgm);
+    std::cout << "Writing output done!\n";
+  } else {
+    std::cout << "No valid schedule found!\n";
+  }
 }

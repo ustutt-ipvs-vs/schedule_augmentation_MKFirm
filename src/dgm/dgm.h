@@ -86,6 +86,8 @@ public:
 
   auto computeGateOpeningAndCloseOperations() -> void;
 
+  auto checkDeadlineViolations() -> bool;
+
 private:
   auto build() -> void;
   auto add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number, int pcp)
