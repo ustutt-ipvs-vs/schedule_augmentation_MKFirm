@@ -49,25 +49,56 @@ public:
   }
 
   void finish_vertex(V v, const transmission_graph_t &transmission_graph) const {
-    /*
-     * opening time = critical cost
-     * mu_i 1 und 2 berechnen
-     * compute closing time based on mu
-     * Ausgehende Kanten iterieren:
-     *  - update edge weights:
-     *  - disjunktive: deferred, compute only when specific pcp (consider adding the inter frame gape here, probably
-     * also in the initial graph creation)
-     *  - fifo: frame isolation
-     *  - conjunctive: sequential
-     */
     // collect references to the required data
     const auto &operation = transmission_graph[v];
     const auto &stream = prop.tt_streams.at(operation.stream_id);
     const auto &network_link = network_topology.get_data_link_property(operation.edge);
 
-    const auto gate_opening = prop.crit_cost[v];
-
     // update gate operations
+    const auto gate_opening = prop.crit_cost[v];
+    const auto mu_i = getLatestTransmissionStart(transmission_graph, v, network_link, gate_opening);
+    const auto current_transmission_Delay = calculateTransmissionDelay(network_link.data_rate, stream.frame_size);
+    const Tick gate_closing = mu_i + current_transmission_Delay;
+    prop.gate_openings[v] = std::make_pair(gate_opening, gate_closing);
+
+    // update outgoing edges
+    for (const auto &out_edge : make_iterator_range(out_edges(v, transmission_graph))) {
+      const auto &edge = transmission_graph[out_edge];
+      const auto destination = target(out_edge, transmission_graph);
+      const auto &destination_property = transmission_graph[destination];
+      switch (edge.edge_type) {
+      case conjunctive:
+        if (destination != prop.sink) {
+          // sequential
+          auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
+          const auto [b_2, b_2_rate] = getBranchingBurst(network_link, next_network_link);
+          const auto burst_part = static_cast<Delay>((b_2 + (mu_i - gate_opening) * b_2_rate) / network_link.data_rate);
+          // this access is necessary, since the transmission graph given in finish_vertex is const
+          dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
+        }
+        break;
+      case disjunctive:
+        if (destination_property.pcp > operation.pcp) {
+          // deferred
+          dgm.transmission_graph[out_edge].weight = std::max(mu_i + EPSILON - gate_opening, current_transmission_Delay);
+        }
+        break;
+      case fifo:
+        // frame isolation
+        dgm.transmission_graph[out_edge].weight =
+            gate_closing - gate_opening - getTotalDelay(destination, transmission_graph);
+        break;
+      }
+    }
+  }
+
+  /**
+   * computes mu_i_1 and mu_i_2, returns the max (mu_i)
+   * @return
+   */
+  [[nodiscard]] auto getLatestTransmissionStart(const transmission_graph_t &transmission_graph, const V v,
+                                                const DataLinkProperty &network_link, const Tick gate_opening) const
+      -> Tick {
     const auto mu_i_1 =
         static_cast<Tick>(gate_opening + network_link.aggregated_emergency_burst_size /
                                              (network_link.data_rate - network_link.aggregated_emergency_refill_rate));
@@ -86,45 +117,11 @@ public:
       return 0UL;
     }();
 
-    const auto mu_i = std::max(mu_i_1, mu_i_2);
-
-    const auto current_transmission_Delay = calculateTransmissionDelay(network_link.data_rate, stream.frame_size);
-    const Tick gate_closing = mu_i + current_transmission_Delay;
-    prop.gate_openings[v] = std::make_pair(gate_opening, gate_closing);
-
-    // update outgoing edges
-    for (const auto &out_edge : make_iterator_range(out_edges(v, transmission_graph))) {
-      const auto &edge = transmission_graph[out_edge];
-      const auto destination = target(out_edge, transmission_graph);
-      const auto &destination_property = transmission_graph[destination];
-      switch (edge.edge_type) {
-      case conjunctive:
-        if (destination != prop.sink) {
-          // sequential
-          auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
-          const auto [b_2, b_2_rate] = getBranchingBurst(network_link, next_network_link);
-          const auto burst_part = static_cast<Delay>((b_2 + (mu_i - gate_opening) * b_2_rate) / network_link.data_rate);
-          dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
-        }
-        break;
-      case disjunctive:
-        if (destination_property.pcp > operation.pcp) {
-          // deferred
-          // this access is necessary, since the transmission graph given in finish_vertex is const
-          dgm.transmission_graph[out_edge].weight = std::max(mu_i + EPSILON - gate_opening, current_transmission_Delay);
-        }
-        break;
-      case fifo:
-        // frame isolation
-        dgm.transmission_graph[out_edge].weight =
-            gate_closing - gate_opening - getTotalDelay(destination, transmission_graph);
-        break;
-      }
-    }
+    return std::max(mu_i_1, mu_i_2);
   }
 
-  [[nodiscard]] auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
-                                       const DataLinkProperty &post_branch_link) const
+  [[nodiscard]] static auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
+                                              const DataLinkProperty &post_branch_link)
       -> std::pair<BurstSize, DataRate> {
     auto view = pre_branch_link.emergency_streams | std::views::filter([&](const auto &stream) {
                   // keep only the ones not present in the post branch link
