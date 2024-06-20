@@ -5,8 +5,8 @@
 auto assert_ids_match(const std::vector<std::reference_wrapper<const tsndgm::EmergencyStream>> &lhs,
                       const std::vector<tsndgm::StreamID> &rhs) {
   ASSERT_EQ(lhs.size(), rhs.size());
-  for (size_t i = 0; i < lhs.size(); i++) {
-    ASSERT_EQ(lhs.at(i).get().id, rhs.at(i));
+  for (const auto &[lhs_elem, rhs_elem] : std::views::zip(lhs, rhs)) {
+    EXPECT_EQ(lhs_elem.get().id, rhs_elem);
   }
 }
 
