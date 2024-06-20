@@ -44,7 +44,6 @@ auto io::createPorts(const V v, const tsndgm::NetworkTopology &network, const ts
 auto io::createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
   const auto &prop = dgm.transmission_graph[boost::graph_bundle];
   const auto e = tsndgm::Edge(edge.m_source, edge.m_target);
-  const auto &vertices = prop.topology_edge_to_dgm_vertices.at(e);
   auto gcl = nlohmann::ordered_json::object();
 
   auto grouping_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -53,22 +52,25 @@ auto io::createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> n
     return lhs_elem.pcp == rhs_elem.pcp;
   };
 
-  std::ranges::for_each(vertices | std::views::chunk_by(grouping_function), [&](const auto pcp_group) {
-    auto array = nlohmann::ordered_json::array();
-    for (const V v : pcp_group) {
-      const auto &vertexProperty = dgm.transmission_graph[v];
-      auto entry_gcl = nlohmann::ordered_json::object();
-      auto entry_stream = nlohmann::ordered_json::array();
+  if (prop.topology_edge_to_dgm_vertices.contains(e)) {
+    const auto &vertices = prop.topology_edge_to_dgm_vertices.at(e);
+    std::ranges::for_each(vertices | std::views::chunk_by(grouping_function), [&](const auto pcp_group) {
+      auto array = nlohmann::ordered_json::array();
+      for (const V v : pcp_group) {
+        const auto &vertexProperty = dgm.transmission_graph[v];
+        auto entry_gcl = nlohmann::ordered_json::object();
+        auto entry_stream = nlohmann::ordered_json::array();
 
-      entry_stream.push_back(nlohmann::ordered_json::object(
-          {{"stream_id", vertexProperty.stream_id}, {"frame_number", vertexProperty.frame_number}}));
-      entry_gcl["streams"] = entry_stream;
-      entry_gcl["open_time_ns"] = prop.gate_openings.at(v).first;
-      entry_gcl["close_time_ns"] = prop.gate_openings.at(v).second;
-      array.push_back(entry_gcl);
-    }
-    gcl[std::to_string(dgm.transmission_graph[pcp_group.front()].pcp)] = array;
-  });
+        entry_stream.push_back(nlohmann::ordered_json::object(
+            {{"stream_id", vertexProperty.stream_id}, {"frame_number", vertexProperty.frame_number}}));
+        entry_gcl["streams"] = entry_stream;
+        entry_gcl["open_time_ns"] = prop.gate_openings.at(v).first;
+        entry_gcl["close_time_ns"] = prop.gate_openings.at(v).second;
+        array.push_back(entry_gcl);
+      }
+      gcl[std::to_string(dgm.transmission_graph[pcp_group.front()].pcp)] = array;
+    });
+  }
 
   return gcl;
 }
