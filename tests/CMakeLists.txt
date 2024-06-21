@@ -13,6 +13,7 @@ add_executable(unit_tests ${SOURCE_FILES})
 
 target_link_libraries(unit_tests LINK_PUBLIC
         gtest
+        gmock
         dgm
         io
 )
@@ -20,6 +21,7 @@ target_link_libraries(unit_tests LINK_PUBLIC
 target_include_directories(
         unit_tests PUBLIC
         gtest
+        gmock
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
 )
 
