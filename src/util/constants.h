@@ -11,4 +11,6 @@ constexpr unsigned int JSON_PARSING_FAILED = 3;
 
 namespace tsndgm {
 constexpr Tick EPSILON = 1;
-}
+
+constexpr FrameSize INTER_FRAME_GAP_BYTES = 12;
+} // namespace tsndgm

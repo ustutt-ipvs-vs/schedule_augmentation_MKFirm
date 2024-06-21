@@ -85,7 +85,9 @@ public:
       case disjunctive:
         if (destination_property.pcp > operation.pcp) {
           // deferred
-          dgm.transmission_graph[out_edge].weight = std::max(mu_i + EPSILON - gate_opening, current_transmission_Delay);
+          // add one IFG so that the next TT frame is not transmitted back-to-back
+          dgm.transmission_graph[out_edge].weight =
+              std::max(mu_i + EPSILON - gate_opening, current_transmission_Delay) + network_link.getInterFrameGap();
         }
         break;
       case fifo:
@@ -122,7 +124,8 @@ public:
       return 0UL;
     }();
 
-    return std::max(mu_i_1, mu_i_2);
+    // add one IFG in case ET traffic occurs (i.e., the IFG before the ET frame)
+    return std::max(mu_i_1, mu_i_2) + network_link.getInterFrameGap();
   }
 
   [[nodiscard]] static auto getBranchingBurst(const DataLinkProperty &pre_branch_link,

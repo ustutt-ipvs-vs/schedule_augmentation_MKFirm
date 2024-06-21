@@ -4,6 +4,7 @@
 #include "emergency_stream.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <filesystem>
+#include "../util/constants.h"
 #include <utility>
 
 namespace tsndgm {
@@ -52,6 +53,10 @@ struct DataLinkProperty {
   explicit DataLinkProperty(const LinkId id, std::string name, const DataRate data_rate = mbps_to_DataRate(100),
                             const Delay propagation_delay = 0)
       : id(id), name(std::move(name)), data_rate(data_rate), propagation_delay(propagation_delay) {}
+
+  [[nodiscard]] constexpr auto getInterFrameGap() const -> Delay {
+    return calculateTransmissionDelay(data_rate, INTER_FRAME_GAP_BYTES);
+  }
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, NetworkDeviceProperty, DataLinkProperty>
