@@ -4,6 +4,7 @@
 #include "route.h"
 #include <nlohmann/json.hpp>
 #include <string>
+#include "../util/constants.h"
 
 namespace tsndgm {
 
@@ -13,7 +14,10 @@ struct EmergencyStream {
   DeviceId source;
   DeviceId destination;
   BurstSize bucket_size_byte;
+  BurstSize bucket_size_byte_without_interframe_gap;
   DataRate refill_rate;
+  DataRate refill_rate_without_interframe_gap;
+
 
   RouteWrapper route;
 
@@ -43,12 +47,15 @@ struct EmergencyStream {
 };
 
 inline auto createEmergencyStream(const nlohmann::json &j) -> EmergencyStream {
+  // To incorporate the interframe gaps between emergency packets, we assume that every 64B packet actually requires a size of 76B (= 64B + 12B interframe gap).
   auto stream = EmergencyStream{.id = j["streamID"],
                                 .name = j["name"],
                                 .source = j["source"],
                                 .destination = j["target"],
-                                .bucket_size_byte = j["bucket_size_byte"],
-                                .refill_rate = mbps_to_DataRate(j["rate_mbps"])};
+                                .bucket_size_byte = (BurstSize) ceil((float) j["bucket_size_byte"] * INTER_FRAME_GAP_INCREASE_FACTOR),
+                                .bucket_size_byte_without_interframe_gap = j["bucket_size_byte"],
+                                .refill_rate = mbps_to_DataRate((float) j["rate_mbps"] * INTER_FRAME_GAP_INCREASE_FACTOR),
+                                .refill_rate_without_interframe_gap = mbps_to_DataRate(j["rate_mbps"])};
   PathRoute route;
   route.reserve(j["route"].size());
   for (const auto &hop : j["route"]) {

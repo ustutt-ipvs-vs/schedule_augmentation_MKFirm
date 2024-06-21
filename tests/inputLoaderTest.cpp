@@ -1,12 +1,19 @@
 #include <IO/inputLoader.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <util/constants.h>
+
+template <typename T>
+auto IsInRange(T value, int precision) {
+  return testing::AllOf(testing::Ge((value - precision)), testing::Le((value + precision)));
+}
 
 TEST(InputLoaderTest, loadEmergencyStreamTest) {
   const std::filesystem::path file_path =
       "../../tests/test_data/emergency_streams.json";
 
   const auto et_streams = io::load_emergency_traffic(file_path);
+
 
   ASSERT_EQ(et_streams.size(), 4);
 
@@ -16,8 +23,10 @@ TEST(InputLoaderTest, loadEmergencyStreamTest) {
   EXPECT_EQ(stream_0.name, "emergency_stream_0");
   EXPECT_EQ(stream_0.source, 3);
   EXPECT_EQ(stream_0.destination, 2);
-  EXPECT_EQ(stream_0.bucket_size_byte, 9000);
-  EXPECT_EQ(stream_0.refill_rate, tsndgm::mbps_to_DataRate(0.1));
+  EXPECT_EQ(stream_0.bucket_size_byte_without_interframe_gap, 9000);
+  ASSERT_THAT(stream_0.bucket_size_byte, IsInRange(9000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  EXPECT_EQ(stream_0.refill_rate_without_interframe_gap, tsndgm::mbps_to_DataRate(0.1));
+  ASSERT_THAT(stream_0.refill_rate, IsInRange(tsndgm::mbps_to_DataRate(0.1) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
 
   // stream 3
   const tsndgm::EmergencyStream &stream_3 = et_streams.at(3);
@@ -25,8 +34,10 @@ TEST(InputLoaderTest, loadEmergencyStreamTest) {
   EXPECT_EQ(stream_3.name, "emergency_stream_3");
   EXPECT_EQ(stream_3.source, 2);
   EXPECT_EQ(stream_3.destination, 3);
-  EXPECT_EQ(stream_3.bucket_size_byte, 5000);
-  EXPECT_EQ(stream_3.refill_rate, tsndgm::mbps_to_DataRate(1.4));
+  EXPECT_EQ(stream_3.bucket_size_byte_without_interframe_gap, 5000);
+  ASSERT_THAT(stream_3.bucket_size_byte, IsInRange(5000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  EXPECT_EQ(stream_3.refill_rate_without_interframe_gap, tsndgm::mbps_to_DataRate(1.4));
+  ASSERT_THAT(stream_3.refill_rate, IsInRange(tsndgm::mbps_to_DataRate(1.4) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
 }
 
 TEST(InputLoaderTest, loadTimeTriggeredTraffic) {
