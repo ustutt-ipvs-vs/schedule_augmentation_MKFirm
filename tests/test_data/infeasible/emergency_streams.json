@@ -1,0 +1,18 @@
+[
+    {
+        "streamID": 0,
+        "name": "emergency_stream_0",
+        "source": 0,
+        "target": 1,
+        "rate_mbps": 10,
+        "bucket_size_byte": 250,
+        "route": [
+            {
+                "id": 1,
+                "name": "0-1",
+                "from": 0,
+                "to": 1
+            }
+        ]
+    }
+]

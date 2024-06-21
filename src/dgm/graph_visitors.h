@@ -106,9 +106,9 @@ public:
   [[nodiscard]] auto getLatestTransmissionStart(const transmission_graph_t &transmission_graph, const V v,
                                                 const DataLinkProperty &network_link, const Tick gate_opening) const
       -> Tick {
-    const auto mu_i_1 =
-        static_cast<Tick>(gate_opening + network_link.aggregated_emergency_burst_size /
-                                             (network_link.data_rate - network_link.aggregated_emergency_refill_rate));
+    const auto mu_i_1 = gate_opening + calculateTransmissionDelay(network_link.data_rate -
+                                                                      network_link.aggregated_emergency_refill_rate,
+                                                                  network_link.aggregated_emergency_burst_size);
     const auto in_edge_opt = dgm.getIncommingDisjunctiveEdge(v);
     const Tick mu_i_2 = [&] -> Tick {
       if (in_edge_opt.has_value()) {
@@ -124,8 +124,9 @@ public:
       return 0UL;
     }();
 
-    // add one IFG in case ET traffic occurs (i.e., the IFG before the ET frame)
-    return std::max(mu_i_1, mu_i_2) + network_link.getInterFrameGap();
+    const auto mu_i_max = std::max(mu_i_1, mu_i_2);
+    // add one IFG if there is (possibly) ET frames on the link (i.e., the IFG before the ET frame)
+    return network_link.aggregated_emergency_burst_size == 0 ? mu_i_max : mu_i_max + network_link.getInterFrameGap();
   }
 
   [[nodiscard]] static auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
