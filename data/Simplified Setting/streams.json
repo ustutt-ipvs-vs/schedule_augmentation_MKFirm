@@ -5,8 +5,8 @@
         "source": 0,
         "target": 1,
         "frame_size_byte": 1384,
-        "cycle_time_ns": 200000,
-        "deadline_ns": 100000
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 1000000
     },
     {
         "id": 1,
@@ -14,8 +14,8 @@
         "source": 0,
         "target": 1,
         "frame_size_byte": 1409,
-        "cycle_time_ns": 200000,
-        "deadline_ns": 150000
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 1500000
     },
     {
         "id": 2,
@@ -23,7 +23,7 @@
         "source": 0,
         "target": 1,
         "frame_size_byte": 1251,
-        "cycle_time_ns": 200000,
-        "deadline_ns": 200000
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 2000000
     }
 ]
