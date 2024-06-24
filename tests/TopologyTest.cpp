@@ -18,7 +18,7 @@ auto IsInRange(T value, int precision) {
 
 
 
-TEST(TopologyTest, aggregatetEmergencySpecifications) {
+TEST(TopologyTest, aggregatedEmergencySpecifications) {
   const std::filesystem::path file_path_network = "../../tests/test_data/simple_topology.json";
   const std::filesystem::path file_path_emergency = "../../tests/test_data/emergency_streams.json";
 
@@ -65,4 +65,30 @@ TEST(TopologyTest, aggregatetEmergencySpecifications) {
   ASSERT_THAT(edge_6.aggregated_emergency_burst_size, IsInRange(5000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
   std::vector<tsndgm::StreamID> stream_ids_e13 = {3};
   assert_ids_match(edge_6.emergency_streams, stream_ids_e13);
+}
+
+TEST(TopologyTest, aggregatedEmergencySpecifications_simplifiedSetting) {
+  const std::filesystem::path file_path_network = "../../tests/test_data/Simplified_Setting/topology.json";
+  const std::filesystem::path file_path_emergency = "../../tests/test_data/Simplified_Setting/emergency_streams.json";
+
+  auto et_streams = io::load_emergency_traffic(file_path_emergency);
+  auto topology = io::load_topology(file_path_network);
+
+
+  topology.update_all_edges_aggregated_et_usage(et_streams);
+
+  // Check edges
+  const auto &edge_1 = topology.get_data_link_property({0, 1});
+
+  ASSERT_THAT(edge_1.aggregated_emergency_refill_rate, IsInRange(tsndgm::mbps_to_DataRate(1.4 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR), 2));
+  ASSERT_THAT(edge_1.aggregated_emergency_burst_size, IsInRange(1600 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  std::vector<tsndgm::StreamID> stream_ids_e01 = {0,1};
+  assert_ids_match(edge_1.emergency_streams, stream_ids_e01);
+
+  const auto &edge_2 = topology.get_data_link_property({1, 0});
+  ASSERT_THAT(edge_2.aggregated_emergency_refill_rate, IsInRange(0, 0));
+  ASSERT_THAT(edge_2.aggregated_emergency_burst_size, IsInRange(0, 0));
+  std::vector<tsndgm::StreamID> stream_ids_e10 = {};
+  assert_ids_match(edge_2.emergency_streams, stream_ids_e10);
+
 }
