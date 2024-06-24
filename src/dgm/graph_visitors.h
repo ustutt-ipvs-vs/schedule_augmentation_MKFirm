@@ -124,9 +124,7 @@ public:
       return 0UL;
     }();
 
-    const auto mu_i_max = std::max(mu_i_1, mu_i_2);
-    // add one IFG if there is (possibly) ET frames on the link (i.e., the IFG before the ET frame)
-    return network_link.aggregated_emergency_burst_size == 0 ? mu_i_max : mu_i_max + network_link.getInterFrameGap();
+    return std::max(mu_i_1, mu_i_2);
   }
 
   [[nodiscard]] static auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
