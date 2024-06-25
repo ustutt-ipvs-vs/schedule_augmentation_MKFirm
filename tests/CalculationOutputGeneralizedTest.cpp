@@ -6,32 +6,33 @@
 // fixture class
 class CalculationOutputTestGeneralized : public testing::Test {
 public:
-  static tsndgm::NetworkTopology network;
-  static std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
-  static std::vector<tsndgm::StreamSchedule> scheduled_streams;
-  static std::vector<tsndgm::EmergencyStream> emergency_streams;
+    static tsndgm::NetworkTopology network;
+    static std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
+    static std::vector<tsndgm::StreamSchedule> scheduled_streams;
+    static std::vector<tsndgm::EmergencyStream> emergency_streams;
 
-  typedef boost::graph_traits<tsndgm::transmission_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
+    typedef boost::graph_traits<tsndgm::transmission_graph_t>::vertex_descriptor V;
+    typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
 
 protected:
     CalculationOutputTestGeneralized() : dgm(network, streams, scheduled_streams) {
-    // Code in this constructor will be executed before *each* test
-    tsndgm::critical_path::compute_longest_paths(dgm);
-  }
+        // Code in this constructor will be executed before *each* test
+        tsndgm::critical_path::compute_longest_paths(dgm);
+    }
 
-  // Runs *once* before the tests to build the dgm transmission graph
-  static void SetUpTestSuite() {
-    network = io::load_topology("../../tests/test_data/Generalized_Setting/topology.json");
-    streams = io::load_time_triggered_traffic("../../tests/test_data/Generalized_Setting/streams.json");
-    scheduled_streams = io::load_schedule("../../tests/test_data/Generalized_Setting/transmission_output.json");
-    emergency_streams = io::load_emergency_traffic("../../tests/test_data/Generalized_Setting/emergency_streams.json");
+    // Runs *once* before the tests to build the dgm transmission graph
+    static void SetUpTestSuite() {
+        network = io::load_topology("../../tests/test_data/Generalized_Setting/topology.json");
+        streams = io::load_time_triggered_traffic("../../tests/test_data/Generalized_Setting/streams.json");
+        scheduled_streams = io::load_schedule("../../tests/test_data/Generalized_Setting/transmission_output.json");
+        emergency_streams = io::load_emergency_traffic(
+                "../../tests/test_data/Generalized_Setting/emergency_streams.json");
 
-    network.update_all_edges_aggregated_et_usage(emergency_streams);
-  }
+        network.update_all_edges_aggregated_et_usage(emergency_streams);
+    }
 
 public:
-  tsndgm::DisjunctiveGraphModel dgm;
+    tsndgm::DisjunctiveGraphModel dgm;
 };
 
 // Define static members
@@ -101,6 +102,12 @@ TEST_F(CalculationOutputTestGeneralized, weightsDisjunctive) {
     ASSERT_TRUE(v_opt.has_value());
     E transmission_e = dgm.getOutgoingDisjunctiveEdge(v_opt.value()).value();
     EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 58274);
+
+    e = tsndgm::Edge(0, 1);
+    v_opt = dgm.get_operation_on_edge(e, 0, 0);
+    ASSERT_TRUE(v_opt.has_value());
+    transmission_e = dgm.getOutgoingDisjunctiveEdge(v_opt.value()).value();
+    EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 80000);
 }
 
 TEST_F(CalculationOutputTestGeneralized, weightsConjunctive) {

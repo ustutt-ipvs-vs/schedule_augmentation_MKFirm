@@ -4,6 +4,8 @@
 #include <gtest/gtest.h>
 
 TEST(InfeasibleScenario, test1) {
+  testing::internal::CaptureStdout();
+
   auto network = io::load_topology("../../tests/test_data/infeasible/topology.json");
   auto streams = io::load_time_triggered_traffic("../../tests/test_data/infeasible/streams.json");
   const auto scheduled_streams = io::load_schedule("../../tests/test_data/infeasible/cp_schedule.json");
@@ -18,4 +20,6 @@ TEST(InfeasibleScenario, test1) {
 
   tsndgm::critical_path::compute_longest_paths(dgm);
   ASSERT_TRUE(dgm.checkDeadlineViolations());
+
+  std::string output = testing::internal::GetCapturedStdout();
 }
