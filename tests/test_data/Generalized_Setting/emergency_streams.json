@@ -4,8 +4,8 @@
         "name": "emergency_stream_0",
         "source": 2,
         "target": 1,
-        "rate_mbps": 2.0,
-        "bucket_size_byte": 4000,
+        "rate_mbps": 1.1,
+        "bucket_size_byte": 400,
         "route": [
             {
                 "id": 3,
@@ -27,7 +27,7 @@
         "source": 2,
         "target": 4,
         "rate_mbps": 0.1,
-        "bucket_size_byte": 8000,
+        "bucket_size_byte": 500,
         "route": [
             {
                 "id": 6,
@@ -49,7 +49,7 @@
         "source": 3,
         "target": 1,
         "rate_mbps": 0.4,
-        "bucket_size_byte": 8000,
+        "bucket_size_byte": 600,
         "route": [
             {
                 "id": 5,

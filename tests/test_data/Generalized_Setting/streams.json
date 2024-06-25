@@ -4,8 +4,26 @@
         "name": "stream_0",
         "source": 2,
         "target": 1,
-        "frame_size_byte": 1384,
-        "cycle_time_ns": 100000,
-        "deadline_ns": 100000
+        "frame_size_byte": 1000,
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 2000000
+    },
+    {
+        "id": 1,
+        "name": "stream_1",
+        "source": 3,
+        "target": 1,
+        "frame_size_byte": 500,
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 2000000
+    },
+    {
+        "id": 2,
+        "name": "stream_2",
+        "source": 3,
+        "target": 4,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 2000000,
+        "deadline_ns": 2000000
     }
 ]
