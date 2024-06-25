@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 // fixture class
-class CalculationOutputTest : public testing::Test {
+class CalculationOutputTestSimplified : public testing::Test {
 public:
   static tsndgm::NetworkTopology network;
   static std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> streams;
@@ -15,7 +15,7 @@ public:
   typedef boost::graph_traits<tsndgm::transmission_graph_t>::edge_descriptor E;
 
 protected:
-  CalculationOutputTest() : dgm(network, streams, scheduled_streams) {
+    CalculationOutputTestSimplified() : dgm(network, streams, scheduled_streams) {
     // Code in this constructor will be executed before *each* test
     tsndgm::critical_path::compute_longest_paths(dgm);
   }
@@ -35,16 +35,16 @@ public:
 };
 
 // Define static members
-tsndgm::NetworkTopology CalculationOutputTest::network;
-std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> CalculationOutputTest::streams;
-std::vector<tsndgm::EmergencyStream> CalculationOutputTest::emergency_streams;
-std::vector<tsndgm::StreamSchedule> CalculationOutputTest::scheduled_streams;
+tsndgm::NetworkTopology CalculationOutputTestSimplified::network;
+std::unordered_map<tsndgm::StreamID, tsndgm::MessageStream> CalculationOutputTestSimplified::streams;
+std::vector<tsndgm::EmergencyStream> CalculationOutputTestSimplified::emergency_streams;
+std::vector<tsndgm::StreamSchedule> CalculationOutputTestSimplified::scheduled_streams;
 
 // According to https://github.com/google/googletest/blob/main/docs/advanced.md this should make dgm available to the
 // tests. But it does not seem to work, maybe because it is not initialized above?
 // tsndgm::DisjunctiveGraphModel dgmTest::dgm;
 
-TEST_F(CalculationOutputTest, openCloseTimes) {
+TEST_F(CalculationOutputTestSimplified, openCloseTimesSimplified) {
   constexpr auto e = tsndgm::Edge(0, 1);
   const auto prop = dgm.transmission_graph[boost::graph_bundle];
 
@@ -70,7 +70,7 @@ TEST_F(CalculationOutputTest, openCloseTimes) {
   EXPECT_EQ(openings.second, 565958);
 }
 
-TEST_F(CalculationOutputTest, weightsDisjunctive) {
+TEST_F(CalculationOutputTestSimplified, weightsDisjunctiveSimplified) {
   constexpr auto e = tsndgm::Edge(0, 1);
   const auto prop = dgm.transmission_graph[boost::graph_bundle];
 
