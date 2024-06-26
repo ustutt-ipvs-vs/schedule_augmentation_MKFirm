@@ -1,6 +1,6 @@
 #include <IO/inputLoader.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <network/topology.h>
 
 auto assert_ids_match(const std::vector<std::reference_wrapper<const tsndgm::EmergencyStream>> &lhs,
@@ -16,15 +16,12 @@ auto IsInRange(T value, int precision) {
   return testing::AllOf(testing::Ge((value - precision)), testing::Le((value + precision)));
 }
 
-
-
 TEST(TopologyTest, aggregatedEmergencySpecifications) {
   const std::filesystem::path file_path_network = "../../tests/test_data/simple_topology.json";
   const std::filesystem::path file_path_emergency = "../../tests/test_data/emergency_streams.json";
 
   auto et_streams = io::load_emergency_traffic(file_path_emergency);
   auto topology = io::load_topology(file_path_network);
-
 
   topology.update_all_edges_aggregated_et_usage(et_streams);
 
@@ -74,7 +71,6 @@ TEST(TopologyTest, aggregatedEmergencySpecifications_simplifiedSetting) {
   auto et_streams = io::load_emergency_traffic(file_path_emergency);
   auto topology = io::load_topology(file_path_network);
 
-
   topology.update_all_edges_aggregated_et_usage(et_streams);
 
   // Check edges
@@ -82,7 +78,7 @@ TEST(TopologyTest, aggregatedEmergencySpecifications_simplifiedSetting) {
 
   ASSERT_THAT(edge_1.aggregated_emergency_refill_rate, IsInRange(tsndgm::mbps_to_DataRate(1.4 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR), 2));
   ASSERT_THAT(edge_1.aggregated_emergency_burst_size, IsInRange(1600 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
-  std::vector<tsndgm::StreamID> stream_ids_e01 = {0,1};
+  std::vector<tsndgm::StreamID> stream_ids_e01 = {0, 1};
   assert_ids_match(edge_1.emergency_streams, stream_ids_e01);
 
   const auto &edge_2 = topology.get_data_link_property({1, 0});
@@ -90,5 +86,4 @@ TEST(TopologyTest, aggregatedEmergencySpecifications_simplifiedSetting) {
   ASSERT_THAT(edge_2.aggregated_emergency_burst_size, IsInRange(0, 0));
   std::vector<tsndgm::StreamID> stream_ids_e10 = {};
   assert_ids_match(edge_2.emergency_streams, stream_ids_e10);
-
 }

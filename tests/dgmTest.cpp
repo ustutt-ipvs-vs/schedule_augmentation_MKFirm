@@ -98,9 +98,9 @@ TEST_F(dgmTest, conjunctiveEdges) {
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 }
 
-TEST_F(dgmTest, discjunctiveEdges) {
+TEST_F(dgmTest, discjunctiveEdgesTopoEdge0_2) {
   constexpr auto e = tsndgm::Edge(0, 2);
-  const auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
+  auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
   ASSERT_TRUE(v_opt.has_value());
   auto current_v = v_opt.value();
 
@@ -119,6 +119,45 @@ TEST_F(dgmTest, discjunctiveEdges) {
   current_v = target((current_e), dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+
+  // Edge 3
+  current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10896);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 2);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 1);
+}
+
+TEST_F(dgmTest, discjunctiveEdgesTopoEdge3_1) {
+  constexpr auto e = tsndgm::Edge(3, 1);
+  auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
+  ASSERT_TRUE(v_opt.has_value());
+  auto current_v = v_opt.value();
+
+  // Edge 1
+  E current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 17200);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+
+  // Edge 2
+  current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 21440);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
+
+  // Edge 3
+  current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 21792);
+
+  current_v = target((current_e), dgm.transmission_graph);
+  ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 2);
+  ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 1);
 }
 
 TEST_F(dgmTest, fifoEdges) {
