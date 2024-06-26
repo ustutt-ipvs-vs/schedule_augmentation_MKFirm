@@ -146,8 +146,9 @@ void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(const Edge &edge, std
   std::ranges::sort(vertices, ordering_function);
 
   for (const auto &[first_vertex, second_vertex] : vertices | std::views::pairwise) {
+    const auto ifg = network.get_data_link_property(transmission_graph[first_vertex].edge).getInterFrameGap();
     const auto dtrans = getTransmissionDelay(edge, transmission_graph[first_vertex].stream_id);
-    boost::add_edge(first_vertex, second_vertex, {dtrans, disjunctive}, transmission_graph);
+    boost::add_edge(first_vertex, second_vertex, {dtrans + ifg, disjunctive}, transmission_graph);
   }
 }
 

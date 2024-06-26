@@ -106,7 +106,7 @@ TEST_F(dgmTest, discjunctiveEdges) {
 
   // Edge 1
   E current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
-  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 8504);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 8600);
 
   current_v = target((current_e), dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
@@ -114,7 +114,7 @@ TEST_F(dgmTest, discjunctiveEdges) {
 
   // Edge 2
   current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
-  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10624);
+  ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10720);
 
   current_v = target((current_e), dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
