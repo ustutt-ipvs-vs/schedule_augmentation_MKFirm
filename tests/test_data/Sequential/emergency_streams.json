@@ -1,0 +1,46 @@
+[
+    {
+        "streamID": 0,
+        "name": "emergency_stream_0",
+        "source": 1,
+        "target": 3,
+        "rate_mbps": 0.1,
+        "bucket_size_byte": 100,
+        "route": [
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 4,
+                "name": "0-3",
+                "from": 0,
+                "to": 3
+            }
+        ]
+    },
+    {
+        "streamID": 1,
+        "name": "emergency_stream_1",
+        "source": 1,
+        "target": 2,
+        "rate_mbps": 0.5,
+        "bucket_size_byte": 400,
+        "route": [
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 2,
+                "name": "0-2",
+                "from": 0,
+                "to": 2
+            }
+        ]
+    }
+]
