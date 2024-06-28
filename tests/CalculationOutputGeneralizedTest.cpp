@@ -59,23 +59,23 @@ TEST_F(CalculationOutputTestGeneralized, openCloseTimes) {
   v_opt = dgm.get_operation_on_edge(e, 0, 0);
   ASSERT_TRUE(v_opt.has_value());
   openings = prop.gate_openings[v_opt.value()];
-  EXPECT_EQ(openings.first, 82503);
-  EXPECT_EQ(openings.second, 259267);
+  EXPECT_EQ(openings.first, 130024);
+  EXPECT_EQ(openings.second, 306788);
 
   // Stream 1
   e = tsndgm::Edge(3, 0);
   v_opt = dgm.get_operation_on_edge(e, 1, 0);
   ASSERT_TRUE(v_opt.has_value());
   openings = prop.gate_openings[v_opt.value()];
-  EXPECT_EQ(openings.first, 217067);
-  EXPECT_EQ(openings.second, 314380);
+  EXPECT_EQ(openings.first, 264588);
+  EXPECT_EQ(openings.second, 361901);
 
   e = tsndgm::Edge(0, 1);
   v_opt = dgm.get_operation_on_edge(e, 1, 0);
   ASSERT_TRUE(v_opt.has_value());
   openings = prop.gate_openings[v_opt.value()];
-  EXPECT_EQ(openings.first, 259267);
-  EXPECT_EQ(openings.second, 396031);
+  EXPECT_EQ(openings.first, 306788);
+  EXPECT_EQ(openings.second, 443552);
 
   // Stream 2
   e = tsndgm::Edge(3, 0);
@@ -89,8 +89,8 @@ TEST_F(CalculationOutputTestGeneralized, openCloseTimes) {
   v_opt = dgm.get_operation_on_edge(e, 2, 0);
   ASSERT_TRUE(v_opt.has_value());
   openings = prop.gate_openings[v_opt.value()];
-  EXPECT_EQ(openings.first, 10672);
-  EXPECT_EQ(openings.second, 66249);
+  EXPECT_EQ(openings.first, 67713);
+  EXPECT_EQ(openings.second, 123290);
 }
 
 TEST_F(CalculationOutputTestGeneralized, weightsDisjunctive) {
@@ -117,7 +117,7 @@ TEST_F(CalculationOutputTestGeneralized, weightsConjunctive) {
   auto v_opt = dgm.get_operation_on_edge(e, 0, 0);
   ASSERT_TRUE(v_opt.has_value());
   E transmission_e = dgm.getOutgoingConjunctiveEdge(v_opt.value()).value();
-  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 82303);
+  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 129824);
 
   // Transmission Edge 3-0
   e = tsndgm::Edge(3, 0);
@@ -129,7 +129,7 @@ TEST_F(CalculationOutputTestGeneralized, weightsConjunctive) {
   v_opt = dgm.get_operation_on_edge(e, 2, 0);
   ASSERT_TRUE(v_opt.has_value());
   transmission_e = dgm.getOutgoingConjunctiveEdge(v_opt.value()).value();
-  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 10472);
+  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 67513);
 }
 
 TEST_F(CalculationOutputTestGeneralized, weightsFifo) {

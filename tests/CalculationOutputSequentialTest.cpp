@@ -59,8 +59,8 @@ TEST_F(CalculationOutputTestSequential, openCloseTimes) {
   v_opt = dgm.get_operation_on_edge(e, 0, 0);
   ASSERT_TRUE(v_opt.has_value());
   openings = prop.gate_openings[v_opt.value()];
-  EXPECT_EQ(openings.first, 24403);
-  EXPECT_EQ(openings.second, 33356);
+  EXPECT_EQ(openings.first, 14203);
+  EXPECT_EQ(openings.second, 23156);
 }
 
 TEST_F(CalculationOutputTestSequential, weightsConjunctive) {
@@ -71,7 +71,7 @@ TEST_F(CalculationOutputTestSequential, weightsConjunctive) {
   auto v_opt = dgm.get_operation_on_edge(e, 0, 0);
   ASSERT_TRUE(v_opt.has_value());
   E transmission_e = dgm.getOutgoingConjunctiveEdge(v_opt.value()).value();
-  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 24203);
+  EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 14003);
 
   // Transmission Edge 0-3
   e = tsndgm::Edge(0, 3);

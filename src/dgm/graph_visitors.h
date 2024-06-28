@@ -77,7 +77,7 @@ public:
           // sequential
           auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
           const auto [b_2, b_2_rate] = getBranchingBurst(network_link, next_network_link);
-          const auto burst_part = static_cast<Delay>((b_2 + (mu_i - gate_opening) * b_2_rate) / network_link.data_rate);
+          const auto burst_part = static_cast<Delay>(std::ceil(((static_cast<double>(b_2) + static_cast<double>(mu_i - gate_opening) * b_2_rate) / network_link.data_rate)));
           // this access is necessary, since the transmission graph given in finish_vertex is const
           dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
         }
@@ -116,9 +116,10 @@ public:
         const auto predecessor_closing = prop.gate_openings[predecessor].second;
         const auto &predecessor_stream = prop.tt_streams.at(transmission_graph[predecessor].stream_id);
         return static_cast<Tick>(predecessor_closing +
-                                 (calculateTransmissionDelay(network_link.data_rate, predecessor_stream.frame_size) *
+                                 static_cast<Delay>(std::ceil(
+                                 (static_cast<double>(calculateTransmissionDelay(network_link.data_rate, predecessor_stream.frame_size)) *
                                   network_link.aggregated_emergency_refill_rate) /
-                                     (network_link.data_rate - network_link.aggregated_emergency_refill_rate));
+                                     (network_link.data_rate - network_link.aggregated_emergency_refill_rate))));
       }
       // no disjunctive predecessor
       return 0UL;
