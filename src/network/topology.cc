@@ -70,8 +70,8 @@ const DataLinkProperty &NetworkTopology::get_data_link_property(const Edge &edge
   return get(boost::edge_bundle, g)[e];
 }
 
-auto NetworkTopology::add_et_stream_to_aggregated_et_usage_of_edge(const Edge &edge,
-                                                                   const EmergencyStream &stream) -> void {
+auto NetworkTopology::add_et_stream_to_aggregated_et_usage_of_edge(const Edge &edge, const EmergencyStream &stream)
+    -> void {
   const E e = get_edge_by_ids(edge);
   DataLinkProperty &edge_property = get(boost::edge_bundle, g)[e];
   edge_property.emergency_streams.emplace_back(stream);
@@ -187,7 +187,8 @@ V NetworkTopology::get_vertex_by_id(const DeviceId id) const {
   return network_topology_t::null_vertex();
 }
 
-V NetworkTopology::get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, const DeviceId id) {
+auto NetworkTopology::get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, const DeviceId id)
+    -> V {
   int i = 0;
   for (const NetworkDeviceProperty &device_property : device_properties) {
     if (device_property.id == id)
@@ -197,7 +198,7 @@ V NetworkTopology::get_vertex_by_id(const std::vector<NetworkDeviceProperty> &de
   throw std::runtime_error{"device not found: id " + std::to_string(id)};
 }
 
-E NetworkTopology::get_edge_by_ids(const Edge &edge) const {
+auto NetworkTopology::get_edge_by_ids(const Edge &edge) const -> E {
   const V v1 = get_vertex_by_id<true>(edge.first);
   const V v2 = get_vertex_by_id<true>(edge.second);
 
@@ -207,8 +208,8 @@ E NetworkTopology::get_edge_by_ids(const Edge &edge) const {
   throw std::runtime_error{"edge not found: (" + std::to_string(v1) + ", " + std::to_string(v2) + ")"};
 }
 
-auto NetworkTopology::get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties,
-                                      const Edge &edge) -> std::pair<V, V> {
+auto NetworkTopology::get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
+    -> std::pair<V, V> {
   V v1 = get_vertex_by_id(device_properties, edge.first);
   V v2 = get_vertex_by_id(device_properties, edge.second);
   return std::make_pair(v1, v2);

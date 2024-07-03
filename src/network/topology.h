@@ -109,8 +109,8 @@ private:
   [[nodiscard]] V get_vertex_by_id(DeviceId id) const;
   [[nodiscard]] E get_edge_by_ids(const Edge &edge) const;
 
-  V get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, DeviceId id);
-  auto get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
+  static auto get_vertex_by_id(const std::vector<NetworkDeviceProperty> &device_properties, DeviceId id) -> V;
+  static auto get_edge_by_ids(const std::vector<NetworkDeviceProperty> &device_properties, const Edge &edge)
       -> std::pair<V, V>;
 
   network_topology_t g;
