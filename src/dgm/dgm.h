@@ -37,23 +37,6 @@ public:
   void print(const V v) const { tsndgm::print(transmission_graph, network, v); }
   void print(const E &e) const { tsndgm::print(transmission_graph, network, e); }
 
-  void print_fixed_lateness() {
-    TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-    for (MessageStreamHandle ms = 0; ms < prop.tt_streams.size(); ms++) {
-      auto &stream = prop.tt_streams[ms];
-      const auto listeners = stream.route.get_listeners();
-
-      // compute tardiness of stream's end-to-end latency
-      for (Edge listener : listeners) {
-        const V v_listener = prop.operation_to_vertex[{listener, ms}];
-        std::cout << ms << ", (" << listener.first << ", " << listener.second << "): " << stream.phase << " "
-                  << stream.deadline << " " << prop.crit_cost[v_listener] << " " << std::endl;
-        //<< crit_path.get_fixed_lateness(ms, listener) << std::endl;
-        //// TODO insert critical path as parameter, or move the whole function elsewhere?
-      }
-    }
-  }
-
   [[nodiscard]] E edge(const V u, const V v) const {
     auto [e, found] = boost::edge(u, v, transmission_graph);
     if (not found)

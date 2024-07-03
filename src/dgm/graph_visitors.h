@@ -163,41 +163,4 @@ public:
   bool reversed = true;
 };
 
-class slack_visitor final : public boost::default_dfs_visitor {
-public:
-  virtual ~slack_visitor() = default;
-  typedef boost::graph_traits<transmission_graph_t>::vertex_descriptor V;
-  typedef boost::graph_traits<transmission_graph_t>::edge_descriptor E;
-
-  explicit slack_visitor(transmission_graph_t &transmission_graph)
-      : prop(get_property(transmission_graph, boost::graph_bundle)) {
-    longest_path_visitor::total_traversals++;
-  }
-
-  [[nodiscard]] virtual bool back_edge(E e, const transmission_graph_t &transmission_graph) const {
-    throw std::runtime_error("Selection is not complete; disjunctive graph is acyclic.");
-  }
-
-  void discover_vertex(V v, const transmission_graph_t &transmission_graph) const {
-    if (v == prop.sink || boost::edge(v, prop.sink, transmission_graph).second)
-      prop.slack[v] = 0;
-    else
-      prop.slack[v] = std::numeric_limits<Delay>::max();
-  }
-
-  void finish_edge(E uv, const transmission_graph_t &transmission_graph) const {
-    V u = source(uv, transmission_graph), v = target(uv, transmission_graph);
-
-    if (transmission_graph[uv].weight == std::numeric_limits<Delay>::min())
-      return;
-
-    Delay uv_slack = prop.crit_cost[v] - prop.crit_cost[u] - transmission_graph[uv].weight;
-    if (uv_slack + prop.slack[v] < prop.slack[u])
-      prop.slack[u] = uv_slack + prop.slack[v];
-  }
-
-  TransmissionGraphProperty &prop;
-  bool reversed = false;
-};
-
 } // namespace tsndgm
