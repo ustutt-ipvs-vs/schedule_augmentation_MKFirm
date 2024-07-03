@@ -13,5 +13,5 @@ namespace tsndgm {
 constexpr Tick EPSILON = 1;
 
 constexpr FrameSize INTER_FRAME_GAP_BYTES = 12;
-constexpr float INTER_FRAME_GAP_INCREASE_FACTOR = (64.0 + INTER_FRAME_GAP_BYTES) / 64.0;
+constexpr double INTER_FRAME_GAP_INCREASE_FACTOR = (64.0 + INTER_FRAME_GAP_BYTES) / 64.0;
 } // namespace tsndgm
