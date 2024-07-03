@@ -17,7 +17,7 @@ io::ProgramOptions::ProgramOptions(std::vector<std::string> &arguments) {
   std::ranges::reverse(arguments);
   try {
     app.parse(arguments);
-  } catch (const CLI::CallForHelp &e) {
+  } catch ([[maybe_unused]] const CLI::CallForHelp &e) {
     throw std::runtime_error(app.help()); // return help text
   } catch (const CLI::ParseError &e) {
     const auto errorMessage = std::string("Error parsing command-line arguments: ") + e.what();

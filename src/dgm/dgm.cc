@@ -21,15 +21,6 @@ auto DisjunctiveGraphModel::get_operation_on_edge(const Edge &edge, const Stream
   return std::nullopt;
 }
 
-/*
-auto DisjunctiveGraphModel::critical_path(const CriticalPath::Objective type, const bool reverse)
-    -> CriticalPath::Result {
-  crit_path.compute_longest_paths(reverse);
-  return crit_path.path(type);
-}
-// TODO move this capability elsewhere
-*/
-
 auto DisjunctiveGraphModel::getOutgoingConjunctiveEdge(const V v) const -> std::optional<E> {
   return getEdge<conjunctive>(out_edges(v, transmission_graph));
 }
@@ -68,7 +59,7 @@ auto DisjunctiveGraphModel::checkDeadlineViolations() -> bool {
   bool deadline_violation = false;
 
   for (const auto edge : final_edges) {
-    const auto source_v = boost::source(edge, transmission_graph);
+    const auto source_v = source(edge, transmission_graph);
     const auto &operation = transmission_graph[source_v];
     const auto &stream = prop.tt_streams.at(operation.stream_id);
     const auto &network_link = network.get_data_link_property(operation.edge);
@@ -93,9 +84,9 @@ auto DisjunctiveGraphModel::build() -> void {
   }
 
   // add disjunctive and FIFO Edges
-  for (const auto &[edge, vertex_list] : prop.topology_edge_to_dgm_vertices) {
-    add_disjunctive_edges_for_edge(edge, vertex_list);
-    add_fifo_edges_for_edge(edge, vertex_list);
+  for (const auto &[network_link, vertex_list] : prop.topology_edge_to_dgm_vertices) {
+    add_disjunctive_edges_for_network_link(network_link, vertex_list);
+    add_fifo_edges_for_network_link(vertex_list);
   }
 
   prop.resize(num_vertices(transmission_graph));
@@ -133,7 +124,7 @@ auto DisjunctiveGraphModel::add_conjunctive_edges_for_frame(const FrameSchedule 
   boost::add_edge(previous_vertex, prop.sink, {weight_previous_iteration, conjunctive}, transmission_graph);
 }
 
-void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(const Edge &edge, std::vector<V> vertices) {
+void DisjunctiveGraphModel::add_disjunctive_edges_for_network_link(const Edge &network_link, std::vector<V> vertices) {
   // here we create a function (lambda) stored in "sorting_function", which we
   // will pass to the actual sorting algorithm.
   auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -147,12 +138,12 @@ void DisjunctiveGraphModel::add_disjunctive_edges_for_edge(const Edge &edge, std
 
   for (const auto &[first_vertex, second_vertex] : vertices | std::views::pairwise) {
     const auto ifg = network.get_data_link_property(transmission_graph[first_vertex].edge).getInterFrameGap();
-    const auto dtrans = getTransmissionDelay(edge, transmission_graph[first_vertex].stream_id);
+    const auto dtrans = getTransmissionDelay(network_link, transmission_graph[first_vertex].stream_id);
     boost::add_edge(first_vertex, second_vertex, {dtrans + ifg, disjunctive}, transmission_graph);
   }
 }
 
-auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vector<V> vertices) -> void {
+auto DisjunctiveGraphModel::add_fifo_edges_for_network_link(std::vector<V> vertices) -> void {
   TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
@@ -203,23 +194,6 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_edge(const Edge &edge, std::vecto
                       transmission_graph);
     }
   });
-
-  /*
-  // Example and test (printed before the conjunctive/disjunctive edges):
-  std::cout << "Edge [" << edge.first << "," << edge.second << "]:\n";
-  for (const V current_V : vertices) {
-    const int pcp = transmission_graph[current_V].pcp; // TODO used "int" because pcp is int in schedule.h.
-                                                       //  Maybe introduce own datatype again?
-    const V predecessor_vertex = transmission_graph[current_V].dgm_predecessor_vertex;
-    std::cout << "--StreamID: " << transmission_graph[current_V].stream_id << ", PCP: " << pcp
-              << ", OwnStartTime: " << transmission_graph[current_V].start_old_schedule << ", PredecStartTime: ";
-    if (predecessor_vertex == prop.src) {
-      std::cout << "SRC!\n";
-    } else {
-      std::cout << transmission_graph[predecessor_vertex].start_old_schedule << "\n";
-    }
-  }
-  */
 }
 
 auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamID stream_id) -> Delay {

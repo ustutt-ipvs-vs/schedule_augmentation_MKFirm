@@ -17,7 +17,7 @@ void TSNConfiguration::compute() {
   for (MessageStreamHandle ms = 0; ms < prop.tt_streams.size(); ms++) {
     MessageStream stream = prop.tt_streams[ms];
     Edge talker = stream.route.get_talker();
-    auto v = prop.operation_to_vertex[{talker, ms}];
+    const auto v = prop.operation_to_vertex[{talker, ms}];
 
     initial_transmission_config[ms] = prop.crit_cost[v];
   }
@@ -84,12 +84,12 @@ void tsn_configuration_visitor::finish_vertex(V v, const transmission_graph_t &t
     return;
 
   // add entry to GCL config
-  Edge egress_port = transmission_graph[v].edge;
+  const Edge egress_port = transmission_graph[v].edge;
   DataRate rate = topology.get_data_link_property(egress_port).data_rate;
   Delay prop_delay = topology.get_data_link_property(egress_port).propagation_delay;
   PeriodicGate &gate = gcl_config[egress_port];
 
-  Delay open_duration = 0;
+  const Delay open_duration = 0;
   Delay d_trans_min = std::numeric_limits<Delay>::max();
   Delay d_trans_total = 0;
   /*

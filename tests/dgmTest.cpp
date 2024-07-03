@@ -85,7 +85,7 @@ TEST_F(dgmTest, conjunctiveEdges) {
   E current_e = dgm.getOutgoingConjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 23448);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 
@@ -93,14 +93,14 @@ TEST_F(dgmTest, conjunctiveEdges) {
   current_e = dgm.getOutgoingConjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 11824);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 }
 
 TEST_F(dgmTest, discjunctiveEdgesTopoEdge0_2) {
   constexpr auto e = tsndgm::Edge(0, 2);
-  auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
+  const auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
   ASSERT_TRUE(v_opt.has_value());
   auto current_v = v_opt.value();
 
@@ -108,7 +108,7 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge0_2) {
   E current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 8600);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 
@@ -116,7 +116,7 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge0_2) {
   current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10720);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 
@@ -124,14 +124,14 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge0_2) {
   current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 10896);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 2);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 1);
 }
 
 TEST_F(dgmTest, discjunctiveEdgesTopoEdge3_1) {
   constexpr auto e = tsndgm::Edge(3, 1);
-  auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
+  const auto v_opt = dgm.get_operation_on_edge(e, 2, 0);
   ASSERT_TRUE(v_opt.has_value());
   auto current_v = v_opt.value();
 
@@ -139,7 +139,7 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge3_1) {
   E current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 17200);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 0);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 
@@ -147,7 +147,7 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge3_1) {
   current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 21440);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 1);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 0);
 
@@ -155,7 +155,7 @@ TEST_F(dgmTest, discjunctiveEdgesTopoEdge3_1) {
   current_e = dgm.getOutgoingDisjunctiveEdge(current_v).value();
   ASSERT_EQ(dgm.transmission_graph[current_e].weight, 21792);
 
-  current_v = target((current_e), dgm.transmission_graph);
+  current_v = target(current_e, dgm.transmission_graph);
   ASSERT_EQ(dgm.transmission_graph[current_v].stream_id, 2);
   ASSERT_EQ(dgm.transmission_graph[current_v].frame_number, 1);
 }
@@ -213,7 +213,7 @@ TEST_F(dgmTest, weightEdgesToSink) {
   using boost::make_iterator_range;
 
   for (auto current_edge : make_iterator_range(in_edges(sink, dgm.transmission_graph))) {
-    if (const auto sourceV = dgm.transmission_graph[boost::source(current_edge, dgm.transmission_graph)];
+    if (const auto sourceV = dgm.transmission_graph[source(current_edge, dgm.transmission_graph)];
         sourceV.stream_id == 0 && sourceV.frame_number == 0) {
       ASSERT_EQ(dgm.transmission_graph[current_edge].weight, 10724);
     } else if (sourceV.stream_id == 0 && sourceV.frame_number == 1) {

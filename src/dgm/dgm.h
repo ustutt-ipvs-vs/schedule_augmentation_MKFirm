@@ -92,8 +92,8 @@ private:
   auto build() -> void;
   auto add_conjunctive_edges_for_frame(const FrameSchedule &current_frame_schedule, StreamID frame_number, int pcp)
       -> void;
-  void add_disjunctive_edges_for_edge(const Edge &edge, std::vector<V> vertices);
-  void add_fifo_edges_for_edge(const Edge &edge, std::vector<V> vertices);
+  void add_disjunctive_edges_for_network_link(const Edge &network_link, std::vector<V> vertices);
+  void add_fifo_edges_for_network_link(std::vector<V> vertices);
   Delay getTransmissionDelay(const Edge &edge, StreamID stream_id);
 
   void internal_commit_all(size_t index);

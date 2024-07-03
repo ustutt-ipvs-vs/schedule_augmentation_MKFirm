@@ -87,7 +87,7 @@ auto dynamic_lateness_path(const transmission_graph_t &transmission_graph, const
     for (Edge listener : listeners) {
       const V v_listener = prop.operation_to_vertex.at({listener, ms});
       const Delay recv = prop.crit_cost[v_listener] +
-                         transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight;
+                         transmission_graph[edge(v_listener, prop.sink, transmission_graph).first].weight;
       Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.deadline;
       if (recv - stream.phase - stream.period > std::max(lateness, static_cast<Delay>(0)))
         lateness = recv - stream.phase - stream.period;
@@ -108,7 +108,7 @@ auto get_dynamic_lateness(const transmission_graph_t &transmission_graph, Messag
 
   const V v_listener = prop.operation_to_vertex.at({listener, ms});
   const Delay recv = prop.crit_cost[v_listener] +
-                     transmission_graph[boost::edge(v_listener, prop.sink, transmission_graph).first].weight;
+                     transmission_graph[edge(v_listener, prop.sink, transmission_graph).first].weight;
   Delay lateness = recv - prop.crit_cost[v_talker] - prop.slack[v_talker] - stream.deadline;
   if (recv - stream.phase - stream.period > std::max(lateness, static_cast<Delay>(0)))
     lateness = recv - stream.phase - stream.period;

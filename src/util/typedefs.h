@@ -25,7 +25,7 @@ typedef std::pair<DeviceId, DeviceId> Edge;
 constexpr auto mbps_to_DataRate(const double mbps) -> DataRate {
   // 10^6: mega, 8: bit to byte
   constexpr auto factor = 1e6 / 8;
-  return static_cast<DataRate>((mbps * factor / 1e9));
+  return mbps * factor / 1e9;
 }
 
 [[nodiscard]] constexpr auto calculateTransmissionDelay(const DataRate data_rate, const FrameSize frame_size) -> Delay {

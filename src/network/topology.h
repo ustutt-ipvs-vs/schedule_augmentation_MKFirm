@@ -1,10 +1,10 @@
 #pragma once
 
+#include "../util/constants.h"
 #include "../util/typedefs.h"
 #include "emergency_stream.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <filesystem>
-#include "../util/constants.h"
 #include <utility>
 
 namespace tsndgm {
@@ -13,9 +13,9 @@ static DeviceId unique_id = 0;
 
 struct NetworkDeviceProperty {
   DeviceId id;
-  Delay processing_delay;
+  Delay processing_delay = 0;
   std::string name;
-  unsigned int queues_per_port;
+  unsigned int queues_per_port = 0;
 
   NetworkDeviceProperty() = default;
 
@@ -42,8 +42,8 @@ static NetworkDeviceProperty UniqueNetworkDeviceProperty(Delay processing_delay 
 struct DataLinkProperty {
   LinkId id;
   std::string name;
-  DataRate data_rate;
-  Delay propagation_delay;
+  DataRate data_rate = mbps_to_DataRate(100);
+  Delay propagation_delay = 0;
   BurstSize aggregated_emergency_burst_size = 0;
   DataRate aggregated_emergency_refill_rate = 0;
   std::vector<std::reference_wrapper<const EmergencyStream>> emergency_streams;

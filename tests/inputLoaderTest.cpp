@@ -1,19 +1,12 @@
 #include <IO/inputLoader.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <util/constants.h>
 
-template <typename T>
-auto IsInRange(T value, int precision) {
-  return testing::AllOf(testing::Ge((value - precision)), testing::Le((value + precision)));
-}
-
 TEST(InputLoaderTest, loadEmergencyStreamTest) {
-  const std::filesystem::path file_path =
-      "../../tests/test_data/emergency_streams.json";
+  const std::filesystem::path file_path = "../../tests/test_data/emergency_streams.json";
 
   const auto et_streams = io::load_emergency_traffic(file_path);
-
 
   ASSERT_EQ(et_streams.size(), 4);
 
@@ -24,9 +17,9 @@ TEST(InputLoaderTest, loadEmergencyStreamTest) {
   EXPECT_EQ(stream_0.source, 3);
   EXPECT_EQ(stream_0.destination, 2);
   EXPECT_EQ(stream_0.bucket_size_byte_without_interframe_gap, 9000);
-  ASSERT_THAT(stream_0.bucket_size_byte, IsInRange(9000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  ASSERT_NEAR(stream_0.bucket_size_byte, 9000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2);
   EXPECT_EQ(stream_0.refill_rate_without_interframe_gap, tsndgm::mbps_to_DataRate(0.1));
-  ASSERT_THAT(stream_0.refill_rate, IsInRange(tsndgm::mbps_to_DataRate(0.1) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  ASSERT_NEAR(stream_0.refill_rate, tsndgm::mbps_to_DataRate(0.1) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2);
 
   // stream 3
   const tsndgm::EmergencyStream &stream_3 = et_streams.at(3);
@@ -35,9 +28,9 @@ TEST(InputLoaderTest, loadEmergencyStreamTest) {
   EXPECT_EQ(stream_3.source, 2);
   EXPECT_EQ(stream_3.destination, 3);
   EXPECT_EQ(stream_3.bucket_size_byte_without_interframe_gap, 5000);
-  ASSERT_THAT(stream_3.bucket_size_byte, IsInRange(5000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  ASSERT_NEAR(stream_3.bucket_size_byte, 5000 * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2);
   EXPECT_EQ(stream_3.refill_rate_without_interframe_gap, tsndgm::mbps_to_DataRate(1.4));
-  ASSERT_THAT(stream_3.refill_rate, IsInRange(tsndgm::mbps_to_DataRate(1.4) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2));
+  ASSERT_NEAR(stream_3.refill_rate, tsndgm::mbps_to_DataRate(1.4) * tsndgm::INTER_FRAME_GAP_INCREASE_FACTOR, 2);
 }
 
 TEST(InputLoaderTest, loadTimeTriggeredTraffic) {
@@ -73,8 +66,7 @@ TEST(InputLoaderTest, loadTimeTriggeredTraffic) {
 }
 
 TEST(InputLoaderTest, loadSimpleTopologyTest) {
-  const std::filesystem::path file_path =
-      "../../tests/test_data/simple_topology.json";
+  const std::filesystem::path file_path = "../../tests/test_data/simple_topology.json";
 
   const auto topology = io::load_topology(file_path);
 
@@ -96,17 +88,14 @@ TEST(InputLoaderTest, loadSimpleTopologyTest) {
   ASSERT_EQ(device_0.queues_per_port, 8);
   // TODO add a check for is_switch as soon as it is implemented
 
-  const std::vector<tsndgm::Edge> edges = {{0, 1}, {1, 0}, {0, 2},
-                                           {2, 0}, {1, 3}, {3, 1}};
+  const std::vector<tsndgm::Edge> edges = {{0, 1}, {1, 0}, {0, 2}, {2, 0}, {1, 3}, {3, 1}};
   for (const auto &edge : edges) {
-    EXPECT_TRUE(topology.exists(edge))
-        << "Edge " << edge.first << " -> " << edge.second << " does not exist";
+    EXPECT_TRUE(topology.exists(edge)) << "Edge " << edge.first << " -> " << edge.second << " does not exist";
   }
-  EXPECT_FALSE(topology.exists({0, 3}))
-      << "Edge " << 0 << " -> " << 3 << " should not exist";
+  EXPECT_FALSE(topology.exists({0, 3})) << "Edge " << 0 << " -> " << 3 << " should not exist";
 
   // Check edge
-  const auto &edge = topology.get_data_link_property({0,1});
+  const auto &edge = topology.get_data_link_property({0, 1});
   ASSERT_EQ(edge.data_rate, tsndgm::mbps_to_DataRate(1000));
   ASSERT_EQ(edge.propagation_delay, 200);
 }
@@ -140,36 +129,32 @@ TEST(InputLoaderTest, loadScheduleTest) {
 
 TEST(InputLoaderTest, filesDoNotExist) {
   testing::internal::CaptureStdout();
-  const std::filesystem::path non_existing_file_path =
-      "../../tests/test_data/does_not_exist.json";
-  EXPECT_EXIT(io::load_emergency_traffic(non_existing_file_path),
-              testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+  const std::filesystem::path non_existing_file_path = "../../tests/test_data/does_not_exist.json";
+  EXPECT_EXIT(io::load_emergency_traffic(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND),
+              ".*");
 
   EXPECT_EXIT(io::load_time_triggered_traffic(non_existing_file_path),
               testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 
-  EXPECT_EXIT(io::load_schedule(non_existing_file_path),
-              testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+  EXPECT_EXIT(io::load_schedule(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
 
-  EXPECT_EXIT(io::load_topology(non_existing_file_path),
-              testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
+  EXPECT_EXIT(io::load_topology(non_existing_file_path), testing::ExitedWithCode(error_codes::FILE_NOT_FOUND), ".*");
   std::string output = testing::internal::GetCapturedStdout();
 }
 
 TEST(InputLoaderTest, NotAValidJsonFile) {
   testing::internal::CaptureStdout();
-  const std::filesystem::path invalid_json_file_path =
-      "../../tests/test_data/invalid_json.json";
+  const std::filesystem::path invalid_json_file_path = "../../tests/test_data/invalid_json.json";
   EXPECT_EXIT(io::load_emergency_traffic(invalid_json_file_path),
               testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
 
   EXPECT_EXIT(io::load_time_triggered_traffic(invalid_json_file_path),
               testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
 
-  EXPECT_EXIT(io::load_schedule(invalid_json_file_path),
-              testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
+  EXPECT_EXIT(io::load_schedule(invalid_json_file_path), testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED),
+              ".*");
 
-  EXPECT_EXIT(io::load_topology(invalid_json_file_path),
-              testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED), ".*");
+  EXPECT_EXIT(io::load_topology(invalid_json_file_path), testing::ExitedWithCode(error_codes::JSON_PARSING_FAILED),
+              ".*");
   std::string output = testing::internal::GetCapturedStdout();
 }

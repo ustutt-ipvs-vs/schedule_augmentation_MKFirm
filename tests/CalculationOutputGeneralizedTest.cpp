@@ -135,9 +135,9 @@ TEST_F(CalculationOutputTestGeneralized, weightsConjunctive) {
 TEST_F(CalculationOutputTestGeneralized, weightsFifo) {
   const auto prop = dgm.transmission_graph[boost::graph_bundle];
 
-  auto e = tsndgm::Edge(0, 1);
-  auto v_opt = dgm.get_operation_on_edge(e, 0, 0);
+  constexpr auto e = tsndgm::Edge(0, 1);
+  const auto v_opt = dgm.get_operation_on_edge(e, 0, 0);
   ASSERT_TRUE(v_opt.has_value());
-  E transmission_e = dgm.getOutgoingFifoEdge(v_opt.value()).value();
+  const E transmission_e = dgm.getOutgoingFifoEdge(v_opt.value()).value();
   EXPECT_EQ(dgm.transmission_graph[transmission_e].weight, 134564);
 }
