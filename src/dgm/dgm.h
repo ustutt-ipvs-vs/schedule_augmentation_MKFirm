@@ -17,10 +17,11 @@ public:
   transmission_graph_t transmission_graph;
   const NetworkTopology &network;
   std::vector<StreamSchedule> scheduled_streams;
+  long hyper_cycle;
 
   DisjunctiveGraphModel(const NetworkTopology &network, const std::unordered_map<StreamID, MessageStream> &streams,
                         const std::vector<StreamSchedule> &scheduled_streams)
-      : network(network), scheduled_streams(scheduled_streams) {
+      : network(network), scheduled_streams(scheduled_streams), hyper_cycle(calculateHyperCycle(streams)) {
     transmission_graph[boost::graph_bundle].src = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].sink = boost::add_vertex(transmission_graph);
     transmission_graph[boost::graph_bundle].tt_streams = streams;
@@ -79,14 +80,7 @@ private:
   void add_fifo_edges_for_network_link(std::vector<V> vertices);
   Delay getTransmissionDelay(const Edge &edge, StreamID stream_id);
 
-  void internal_commit_all(size_t index);
-  void internal_restore_commit(size_t index, bool swap);
-  void internal_copy_commit(size_t src_index, size_t dst_index);
-
-  void encode(std::vector<unsigned int> &buf, transmission_graph_t &g, OffsetMap &offset_map);
-
-  void remove_fifo_edges(V u, V v);
-  void renew_descriptors();
+  [[nodiscard]] static auto calculateHyperCycle(const std::unordered_map<StreamID, MessageStream> &streams) -> long;
 };
 
 } // namespace tsndgm

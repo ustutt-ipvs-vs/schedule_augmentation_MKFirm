@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/copy.hpp>
+#include <numeric>
 #include <ranges>
 
 namespace tsndgm {
@@ -203,6 +204,14 @@ auto DisjunctiveGraphModel::getTransmissionDelay(const Edge &edge, const StreamI
   const FrameSize frame_size = prop.tt_streams.at(stream_id).frame_size;
 
   return calculateTransmissionDelay(data_rate, frame_size);
+}
+
+auto DisjunctiveGraphModel::calculateHyperCycle(const std::unordered_map<StreamID, MessageStream> &streams) -> long {
+
+  const auto stream_view =
+      streams | std::views::values | std::views::transform([](const auto &stream) { return stream.period; });
+  return std::reduce(std::cbegin(stream_view), std::cend(stream_view), 1l,
+                     [](const auto lhs, const auto rhs) { return std::lcm(lhs, rhs); });
 }
 
 } // namespace tsndgm

@@ -230,3 +230,5 @@ TEST_F(dgmTest, weightEdgesToSink) {
     }
   }
 }
+
+TEST_F(dgmTest, hyperCycle) { EXPECT_EQ(dgm.hyper_cycle, 200000); }

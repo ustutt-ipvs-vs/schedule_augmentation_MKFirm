@@ -36,6 +36,7 @@ auto io::createPorts(const V v, const tsndgm::NetworkTopology &network, const ts
     ports[link_key]["id"] = edgeProperty.id;
     ports[link_key]["name"] = edgeProperty.name;
     ports[link_key]["target"] = edge.m_target;
+    ports[link_key]["gcl_cycle"] = dgm.hyper_cycle;
     ports[link_key]["gcl_per_pcp"] = createGCL(edge, dgm);
   }
 
