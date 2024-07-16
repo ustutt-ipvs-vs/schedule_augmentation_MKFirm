@@ -65,7 +65,8 @@ auto DisjunctiveGraphModel::checkDeadlineViolations() -> bool {
     const auto &stream = prop.tt_streams.at(operation.stream_id);
     const auto &network_link = network.get_data_link_property(operation.edge);
     const auto actual_arrival = prop.gate_openings[source_v].second + network_link.propagation_delay;
-    if (stream.deadline < actual_arrival) {
+    const auto deadline = transmission_graph[source_v].frame_number * stream.period + stream.deadline;
+    if (deadline < actual_arrival) {
       std::cout << "stream: " << operation.stream_id << " frame " << operation.frame_number
                 << " violates it's deadline: " << actual_arrival << " instead of " << stream.deadline << "\n";
       deadline_violation = true;
