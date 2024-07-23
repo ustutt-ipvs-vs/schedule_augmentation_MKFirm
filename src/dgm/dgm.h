@@ -7,7 +7,6 @@
 #include <utility>
 
 namespace tsndgm {
-typedef std::map<Edge, size_t> OffsetMap;
 
 class DisjunctiveGraphModel {
 public:

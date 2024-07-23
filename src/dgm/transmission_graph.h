@@ -36,8 +36,6 @@ struct TransmissionGraphProperty {
   std::vector<V> crit_pred;
   std::vector<std::pair<Tick, Tick>> gate_openings;
 
-  Delay hyperperiod;
-
   auto resize(std::size_t n) -> void {
     crit_cost.resize(n);
     // slack.resize(n); // TODO consider adding this line
