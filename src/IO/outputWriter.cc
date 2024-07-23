@@ -42,6 +42,7 @@ auto io::createPorts(const V v, const tsndgm::NetworkTopology &network, const ts
 
   return ports;
 }
+
 auto io::createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> nlohmann::ordered_json {
   const auto &prop = dgm.transmission_graph[boost::graph_bundle];
   const auto e = tsndgm::Edge(edge.m_source, edge.m_target);
@@ -53,8 +54,23 @@ auto io::createGCL(const E &edge, const tsndgm::DisjunctiveGraphModel &dgm) -> n
     return lhs_elem.pcp == rhs_elem.pcp;
   };
 
+  auto ordering_function = [&](const auto lhs_id, const auto rhs_id) {
+    // sort by pcp first and old start time second.
+    const auto &lhs_elem = dgm.transmission_graph[lhs_id];
+    const auto &rhs_elem = dgm.transmission_graph[rhs_id];
+
+    if (lhs_elem.pcp == rhs_elem.pcp) {
+      // sort by start time as secondary ordering
+      return prop.gate_openings.at(lhs_id).first < prop.gate_openings.at(rhs_id).first;
+    }
+    return lhs_elem.pcp < rhs_elem.pcp;
+  };
+
   if (prop.topology_edge_to_dgm_vertices.contains(e)) {
-    const auto &vertices = prop.topology_edge_to_dgm_vertices.at(e);
+    auto vertices = prop.topology_edge_to_dgm_vertices.at(e);
+
+    std::ranges::sort(vertices, ordering_function);
+
     std::ranges::for_each(vertices | std::views::chunk_by(grouping_function), [&](const auto pcp_group) {
       auto array = nlohmann::ordered_json::array();
       for (const V v : pcp_group) {
