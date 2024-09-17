@@ -1,0 +1,102 @@
+[
+    {
+        "id": 0,
+        "name": "stream_0",
+        "source": 8,
+        "target": 6,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 300000,
+        "deadline_ns": 234750,
+        "et_capable": true
+    },
+    {
+        "id": 1,
+        "name": "stream_1",
+        "source": 7,
+        "target": 10,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 200000,
+        "deadline_ns": 124500,
+        "et_capable": true
+    },
+    {
+        "id": 2,
+        "name": "stream_2",
+        "source": 8,
+        "target": 10,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 300000,
+        "deadline_ns": 234750,
+        "et_capable": true
+    },
+    {
+        "id": 3,
+        "name": "stream_3",
+        "source": 7,
+        "target": 11,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 400000,
+        "deadline_ns": 219500,
+        "et_capable": false
+    },
+    {
+        "id": 4,
+        "name": "stream_4",
+        "source": 9,
+        "target": 8,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 300000,
+        "deadline_ns": 300000,
+        "et_capable": true
+    },
+    {
+        "id": 5,
+        "name": "stream_5",
+        "source": 10,
+        "target": 7,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 200000,
+        "deadline_ns": 162250,
+        "et_capable": true
+    },
+    {
+        "id": 6,
+        "name": "stream_6",
+        "source": 11,
+        "target": 7,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 400000,
+        "deadline_ns": 309750,
+        "et_capable": true
+    },
+    {
+        "id": 7,
+        "name": "stream_7",
+        "source": 11,
+        "target": 9,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 400000,
+        "deadline_ns": 309750,
+        "et_capable": true
+    },
+    {
+        "id": 8,
+        "name": "stream_8",
+        "source": 8,
+        "target": 9,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 400000,
+        "deadline_ns": 307250,
+        "et_capable": true
+    },
+    {
+        "id": 9,
+        "name": "stream_9",
+        "source": 8,
+        "target": 7,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 400000,
+        "deadline_ns": 214500,
+        "et_capable": true
+    }
+]

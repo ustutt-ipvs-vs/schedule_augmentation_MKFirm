@@ -1,0 +1,174 @@
+[
+    {
+        "id": 0,
+        "ttStreamID": 2,
+        "name": "emergency_stream_0",
+        "source": 8,
+        "target": 10,
+        "rate_mbps": 1.6666666666666668e-07,
+        "bucket_size_byte": 100,
+        "frame_size_byte": 100,
+        "survival_time_ns": 900000,
+        "min_inter_event_time_ns": 600000,
+        "route": [
+            {
+                "id": 13,
+                "name": "8-2",
+                "from": 8,
+                "to": 2
+            },
+            {
+                "id": 10,
+                "name": "2-3",
+                "from": 2,
+                "to": 3
+            },
+            {
+                "id": 14,
+                "name": "3-4",
+                "from": 3,
+                "to": 4
+            },
+            {
+                "id": 20,
+                "name": "4-10",
+                "from": 4,
+                "to": 10
+            }
+        ]
+    },
+    {
+        "id": 1,
+        "ttStreamID": 4,
+        "name": "emergency_stream_1",
+        "source": 9,
+        "target": 8,
+        "rate_mbps": 1.6666666666666668e-07,
+        "bucket_size_byte": 100,
+        "frame_size_byte": 100,
+        "survival_time_ns": 900000,
+        "min_inter_event_time_ns": 600000,
+        "route": [
+            {
+                "id": 17,
+                "name": "9-3",
+                "from": 9,
+                "to": 3
+            },
+            {
+                "id": 11,
+                "name": "3-2",
+                "from": 3,
+                "to": 2
+            },
+            {
+                "id": 12,
+                "name": "2-8",
+                "from": 2,
+                "to": 8
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "ttStreamID": 9,
+        "name": "emergency_stream_2",
+        "source": 8,
+        "target": 7,
+        "rate_mbps": 1.25e-07,
+        "bucket_size_byte": 100,
+        "frame_size_byte": 100,
+        "survival_time_ns": 1200000,
+        "min_inter_event_time_ns": 800000,
+        "route": [
+            {
+                "id": 13,
+                "name": "8-2",
+                "from": 8,
+                "to": 2
+            },
+            {
+                "id": 7,
+                "name": "2-1",
+                "from": 2,
+                "to": 1
+            },
+            {
+                "id": 8,
+                "name": "1-7",
+                "from": 1,
+                "to": 7
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "ttStreamID": 8,
+        "name": "emergency_stream_3",
+        "source": 8,
+        "target": 9,
+        "rate_mbps": 1.25e-07,
+        "bucket_size_byte": 100,
+        "frame_size_byte": 100,
+        "survival_time_ns": 1200000,
+        "min_inter_event_time_ns": 800000,
+        "route": [
+            {
+                "id": 13,
+                "name": "8-2",
+                "from": 8,
+                "to": 2
+            },
+            {
+                "id": 10,
+                "name": "2-3",
+                "from": 2,
+                "to": 3
+            },
+            {
+                "id": 16,
+                "name": "3-9",
+                "from": 3,
+                "to": 9
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "ttStreamID": 0,
+        "name": "emergency_stream_4",
+        "source": 8,
+        "target": 6,
+        "rate_mbps": 1.6666666666666668e-07,
+        "bucket_size_byte": 100,
+        "frame_size_byte": 100,
+        "survival_time_ns": 900000,
+        "min_inter_event_time_ns": 600000,
+        "route": [
+            {
+                "id": 13,
+                "name": "8-2",
+                "from": 8,
+                "to": 2
+            },
+            {
+                "id": 7,
+                "name": "2-1",
+                "from": 2,
+                "to": 1
+            },
+            {
+                "id": 1,
+                "name": "1-0",
+                "from": 1,
+                "to": 0
+            },
+            {
+                "id": 4,
+                "name": "0-6",
+                "from": 0,
+                "to": 6
+            }
+        ]
+    }
+]
