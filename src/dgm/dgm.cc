@@ -172,15 +172,16 @@ auto DisjunctiveGraphModel::add_fifo_edges_for_network_link(std::vector<V> verti
     for (auto filtered =
              pcp_group | std::views::pairwise | std::views::filter([&](const auto &pair) {
                // filter src -> transmission edges
-               return transmission_graph[pair.first].dgm_predecessor_vertex != prop.src;
+               return transmission_graph[std::get<0>(pair)].dgm_predecessor_vertex != prop.src;
              }) |
              std::views::filter([&](const auto &pair) {
+	       auto [v1, v2] = pair;
                // filter frames where the early frame is delivered before the later frame is released
-               const MessageStream &early_stream = prop.tt_streams.at(transmission_graph[pair.first].stream_id);
-               const MessageStream &late_stream = prop.tt_streams.at(transmission_graph[pair.second].stream_id);
+               const MessageStream &early_stream = prop.tt_streams.at(transmission_graph[v1].stream_id);
+               const MessageStream &late_stream = prop.tt_streams.at(transmission_graph[v2].stream_id);
                const auto deadline_early_stream =
-                   early_stream.period * transmission_graph[pair.first].frame_number + early_stream.deadline;
-               const auto release_time_late_stream = late_stream.period * transmission_graph[pair.second].frame_number;
+                   early_stream.period * transmission_graph[v1].frame_number + early_stream.deadline;
+               const auto release_time_late_stream = late_stream.period * transmission_graph[v2].frame_number;
                return release_time_late_stream < deadline_early_stream;
              });
          const auto [first_vertex, second_vertex] : filtered) {
