@@ -32,6 +32,7 @@ struct TransmissionGraphProperty {
   std::map<Operation, V> operation_to_vertex;
 
   std::vector<Tick> crit_cost;
+  std::vector<Tick> mu_i;
   std::vector<Delay> slack;
   std::vector<V> crit_pred;
   std::vector<std::pair<Tick, Tick>> gate_openings;
@@ -41,6 +42,7 @@ struct TransmissionGraphProperty {
     // slack.resize(n); // TODO consider adding this line
     crit_pred.resize(n);
     gate_openings.resize(n);
+    mu_i.resize(n);
   }
 };
 
@@ -80,7 +82,7 @@ static void print(const transmission_graph_t &transmission_graph, const NetworkT
     std::cout << "sink";
   } else {
     std::cout << "([" << network[transmission_graph[v].edge.first] << ", " << network[transmission_graph[v].edge.second]
-              << "], {s" << transmission_graph[v].stream_id << ", f" << transmission_graph[v].frame_number << "})";
+              << "], {s" << transmission_graph[v].stream_id << ", f" << transmission_graph[v].frame_number << "}): gate_openings: [" << get<0>(prop.gate_openings[v]) << ", " << get<1>(prop.gate_openings[v]) << "] mu: " << prop.mu_i[v];
   }
 }
 
@@ -94,6 +96,14 @@ static void print(const transmission_graph_t &transmission_graph, const NetworkT
   std::cout << " -> ";
   print(transmission_graph, network, target(e, transmission_graph));
   std::cout << ": " << transmission_graph[e].weight;
+}
+
+static void print_operations(const transmission_graph_t &transmission_graph, const NetworkTopology &network) {
+  std::cout << "Operations:" << std::endl;
+  for (auto v : boost::make_iterator_range(boost::vertices(transmission_graph))) {
+    print(transmission_graph, network, v);
+    std::cout << std::endl;
+  }
 }
 
 static void print(const transmission_graph_t &transmission_graph, const NetworkTopology &network) {
@@ -124,4 +134,5 @@ static void print(const transmission_graph_t &transmission_graph, const NetworkT
     }
   }
 }
+
 } // namespace tsndgm

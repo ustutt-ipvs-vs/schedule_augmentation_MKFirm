@@ -56,14 +56,14 @@ auto main(const int argc, char *argv[]) -> int {
   io::set_routes(scheduled_streams, streams);
   network.update_all_edges_aggregated_et_usage(emergency_streams);
 
-  std::cout << "input loading and parsing done!\n";
+  std::cout << "Input loading and parsing done!\n";
 
   tsndgm::DisjunctiveGraphModel dgm(network, streams, scheduled_streams);
-  dgm.print();
-
   tsndgm::critical_path::compute_longest_paths(dgm);
-  auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
-  tsndgm::critical_path::print(dgm, path_result);
+  dgm.print_operations();
+
+  //auto path_result = collect_critical_path_result(dgm.transmission_graph, tsndgm::critical_path::makespan);
+  //tsndgm::critical_path::print(dgm, path_result);
 
   if (not dgm.checkDeadlineViolations()) {
     io::write_output("./sample_output.json", network, dgm);

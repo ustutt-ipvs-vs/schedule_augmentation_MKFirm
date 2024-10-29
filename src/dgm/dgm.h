@@ -33,6 +33,7 @@ public:
   auto get_operation_on_edge(const Edge &edge, StreamID stream_id, int frame_number) -> std::optional<V>;
 
   void print() const { tsndgm::print(transmission_graph, network); }
+  void print_operations() const { tsndgm::print_operations(transmission_graph, network); }
 
   void print(const V v) const { tsndgm::print(transmission_graph, network, v); }
   void print(const E &e) const { tsndgm::print(transmission_graph, network, e); }

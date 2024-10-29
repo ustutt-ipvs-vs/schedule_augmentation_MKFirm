@@ -62,6 +62,7 @@ public:
     // update gate operations
     const auto gate_opening = prop.crit_cost[v];
     const auto mu_i = getLatestTransmissionStart(transmission_graph, v, network_link, gate_opening);
+    prop.mu_i[v] = mu_i; // for logging purposes
     const auto current_transmission_Delay = calculateTransmissionDelay(network_link.data_rate, stream.frame_size);
     const Tick gate_closing = mu_i + current_transmission_Delay;
     prop.gate_openings[v] = std::make_pair(gate_opening, gate_closing);
