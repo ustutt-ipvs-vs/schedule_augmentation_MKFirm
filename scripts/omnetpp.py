@@ -6,6 +6,8 @@ import json
 OMNETPP_NED_MIN_POS = 200
 OMNETPP_NED_MAX_POS = 1000
 
+PORT = 2000
+
 omnetpp_ned_header = """package d6g.simulations.{package};
 
 import inet.networks.base.TsnNetworkBase;
@@ -55,6 +57,7 @@ def parse_json_file(filename):
 def build_network_description_file(topology, ned_output, package, network_name):
     ned = omnetpp_ned_header.format(network=network_name, package=package)
     device_map = {}
+    link_map = {}
 
     for node in topology["nodes"]:
         x = node["position"].split(",")[0] if "position" in node else random.randint(OMNETPP_NED_MIN_POS, OMNETPP_NED_MAX_POS)
@@ -68,20 +71,25 @@ def build_network_description_file(topology, ned_output, package, network_name):
         device_map[node["id"]]["ifaces"] = []
         device_map[node["id"]]["identifier_entries"] = []
         device_map[node["id"]]["encoder_entries"] = []
-        device_map[node["id"]]["port"] = 1000
+        device_map[node["id"]]["app"] = 0
         device_map[node["id"]]["has_outgoing_streams"] = "false"
+        device_map[node["id"]]["ip_address"] = None
 
     ned += "\n connections:\n"
     for link in topology["links"]:
+        link_map[f"{link['source']}-{link['target']}"] = link
+        if link["source"] > link["target"]:
+            continue
+
         ned += switch_link.format(source=device_map[link["source"]]["name"], target=device_map[link["target"]]["name"], datarate=link["link_speed_mbps"], delay=link["propagation_delay_ns"])
         device_map[link["source"]]["ifaces"].append(link["target"])
-        device_map[link["source"]]["ifaces"].append(link["source"])
+        device_map[link["target"]]["ifaces"].append(link["source"])
     ned += "}"
 
     with open(ned_output, "w") as f:
         f.write(ned)
 
-    return device_map
+    return device_map, link_map
 
 omnetpp_ini = """
 {header}
@@ -96,9 +104,14 @@ omnetpp_ini = """
 {talkers}
 
 #--------------------------------------------
-# Stream Specification
+# TT Stream Specification
 #--------------------------------------------
-{streams}
+{tt_streams}
+
+#--------------------------------------------
+# ET Stream Specification
+#--------------------------------------------
+{et_streams}
 
 #--------------------------------------------
 # Bridge Specification 
@@ -128,20 +141,36 @@ pcp_ini = """
 """
 
 tt_stream_ini = """
+# Stream {stream}: period {stream_period}ms, deadline {deadline}ms
 *.{talker}.app[{talker_app}].typename = "UdpSourceApp"
-*.{talker}.app[{talker_app}].packetName = "{stream}_{frame}"
+*.{talker}.app[{talker_app}].packetName = "tt_{stream}_{frame}"
 *.{talker}.app[{talker_app}].io.destAddress = "{listener}"
 *.{talker}.app[{talker_app}].io.destPort = {port}
-*.{talker}.app[{talker_app}].source.packetLength = {frame_size}B - 54B
+*.{talker}.app[{talker_app}].source.packetLength = {frame_size}B - 58B # 58B = 8B (UDP) + 20B (IP) + 14B (ETH MAC) + 4B (Dot1Q) + 4B (ETH FCS) + 8B (ETH PHY)
 *.{talker}.app[{talker_app}].source.productionInterval = {period}ms
 *.{talker}.app[{talker_app}].source.initialProductionOffset = {offset}ms
 *.{listener}.app[{listener_app}].typename = "UdpSinkApp"
 *.{listener}.app[{listener_app}].io.localPort = {port}
 """
 
+et_stream_ini = """
+*.{talker}.app[{talker_app}].typename = "UdpBasicBurst"
+*.{talker}.app[{talker_app}].packetName = "et_{stream}"
+*.{talker}.app[{talker_app}].destAddresses = "{listener}"
+*.{talker}.app[{talker_app}].chooseDestAddrMode = "once"
+*.{talker}.app[{talker_app}].destPort = {port}
+*.{talker}.app[{talker_app}].burstDuration = {burst_duration}ms
+*.{talker}.app[{talker_app}].startTime = {interevent_time}ms + exponential({exp_param}ms)
+*.{talker}.app[{talker_app}].sleepDuration = {interevent_time}ms + exponential({exp_param}ms)
+*.{talker}.app[{talker_app}].sendInterval = 9999s # burst consists of a single packet
+*.{talker}.app[{talker_app}].messageLength = {frame_size}B - 58B # 58B = 8B (UDP) + 20B (IP) + 14B (ETH MAC) + 4B (Dot1Q) + 4B (ETH FCS) + 8B (ETH PHY)
+*.{listener}.app[{listener_app}].typename = "UdpSinkApp"
+*.{listener}.app[{listener_app}].io.localPort = {port}
+"""
+
 shaping_ini = """
 *.{device}.hasEgressTrafficShaping = true
-*.{device}.eth[*].macLayer.queue.transmissionGate[*].initiallyOpen = false
+*.{device}.eth[*].macLayer.queue.transmissionGate[0..6].initiallyOpen = false
 *.{device}.eth[*].macLayer.queue.numTrafficClasses = {queues}
 """
 
@@ -164,7 +193,9 @@ def gcl_port_finder(gcl, stream_id):
             break
     return pcp_val, transmission_offsets
 
-def build_ini_file(gcl, tt_streams, et_streams, device_map, topology, ini_output, scenario, package, network_name, sim_time):
+def build_ini_file(gcl, tt_streams, et_streams, device_map, link_map, topology, ini_output, scenario, package, network_name, sim_time):
+    global PORT
+
     hyper_period = math.lcm(*[stream["cycle_time_ns"] for stream in tt_streams]) / 1e6
     ini = omnetpp_ini_header.format(scenario=scenario, package=package, network=network_name, sim_time=sim_time)
 
@@ -174,26 +205,41 @@ def build_ini_file(gcl, tt_streams, et_streams, device_map, topology, ini_output
         iface = source["ifaces"].index(link["target"])
         ini_links += channel_ini.format(source=source["name"], iface=iface, datarate=link["link_speed_mbps"])
 
-    ini_streams = ""
+    ini_tt_streams = ""
     for stream in tt_streams:
         pcp, transmission_offsets = gcl_port_finder(gcl[str(stream["source"])]["ports"], stream["id"])
 
         for i,offset in enumerate(transmission_offsets):
-            ini_streams += tt_stream_ini.format(talker=device_map[stream["source"]]["name"], listener=device_map[stream["target"]]["name"], port=device_map[stream["target"]]["port"], talker_app=device_map[stream["source"]]["port"]-1000, listener_app=device_map[stream["target"]]["port"]-1000, frame_size=stream["frame_size_byte"], period=hyper_period, offset=offset / 1e6, stream=stream["id"], frame=i)
+            ini_tt_streams += tt_stream_ini.format(talker=device_map[stream["source"]]["name"], listener=device_map[stream["target"]]["name"], port=PORT, talker_app=device_map[stream["source"]]["app"], listener_app=device_map[stream["target"]]["app"], frame_size=stream["frame_size_byte"], period=hyper_period, offset=offset / 1e6, stream=stream["id"], frame=i, stream_period=stream["cycle_time_ns"]/1e6, deadline=stream["deadline_ns"]/1e6)
 
-            device_map[stream["source"]]["identifier_entries"].append(pcp_ini_identifier_entry.format(stream=f"{stream['id']}_{i}", dest_port=device_map[stream["target"]]["port"]))
+            device_map[stream["source"]]["identifier_entries"].append(pcp_ini_identifier_entry.format(stream=f"{stream['id']}_{i}", dest_port=PORT))
             device_map[stream["source"]]["encoder_entries"].append(pcp_ini_encoder_entry.format(stream=f"{stream['id']}_{i}", pcp=pcp))
 
-            device_map[stream["target"]]["port"] += 1
-            device_map[stream["source"]]["port"] += 1
+            device_map[stream["target"]]["app"] += 1
+            device_map[stream["source"]]["app"] += 1
+            PORT += 1
             device_map[stream["source"]]["has_outgoing_streams"] = "true"
+
+    ini_et_streams = ""
+    for stream in et_streams:
+        drate = link_map[stream["route"][0]["name"]]["link_speed_mbps"]
+        burst_duration = stream["bucket_size_byte"] / (drate - stream["rate_mbps"]) * 8/1e3
+        ini_et_streams += et_stream_ini.format(talker=device_map[stream["source"]]["name"], listener=device_map[stream["target"]]["name"], port=PORT, talker_app=device_map[stream["source"]]["app"], listener_app=device_map[stream["target"]]["app"], frame_size=stream["frame_size_byte"], stream=stream["id"], burst_duration=burst_duration, interevent_time=stream["min_inter_event_time_ns"] / 1e6, exp_param=10)
+
+        device_map[stream["source"]]["identifier_entries"].append(pcp_ini_identifier_entry.format(stream=f"et_{stream['id']}", dest_port=PORT))
+        device_map[stream["source"]]["encoder_entries"].append(pcp_ini_encoder_entry.format(stream=f"et_{stream['id']}", pcp=7))
+
+        device_map[stream["target"]]["app"] += 1
+        device_map[stream["source"]]["app"] += 1
+        device_map[stream["source"]]["has_outgoing_streams"] = "true"
+        PORT += 1
 
     ini_talkers = ""
     for node_id in device_map:
         if device_map[node_id]["is_switch"]:
             continue
         node = device_map[node_id]
-        ini_talkers += talker_ini.format(device=node["name"], has_outgoing_streams=node["has_outgoing_streams"], apps=node["port"] - 1000)
+        ini_talkers += talker_ini.format(device=node["name"], has_outgoing_streams=node["has_outgoing_streams"], apps=node["app"])
         if not node["has_outgoing_streams"]:
             continue
         ini_talkers += pcp_ini.format(talker=node["name"], identifier_entries=", ".join(node["identifier_entries"]), encoder_entries=", ".join(node["encoder_entries"]))
@@ -229,7 +275,7 @@ def build_ini_file(gcl, tt_streams, et_streams, device_map, topology, ini_output
 
                 ini_bridges += gcl_ini.format(device=device_map[int(bridge)]["name"], iface=iface, queue=queue, offset=offset, gcl=", ".join([f"{round(d / 1e6, 6)}ms" for d in durations]), exact_transmissions=", ".join(exact_transmissions))
 
-    ini = omnetpp_ini.format(header=ini, links=ini_links, talkers=ini_talkers, bridges=ini_bridges, streams=ini_streams)
+    ini = omnetpp_ini.format(header=ini, links=ini_links, talkers=ini_talkers, bridges=ini_bridges, tt_streams=ini_tt_streams, et_streams=ini_et_streams)
 
     with open(ini_output, "w") as f:
         f.write(ini)
@@ -238,9 +284,9 @@ def main():
     parser = argparse.ArgumentParser(
                         prog='Omnetpp Builder',
                         description='Converts the Scheduler\'s Output in Omnetpp NED and INI files')
-    parser.add_argument('-t', '--topology_input', default="data/topology.json") 
-    parser.add_argument('-s', '--tt_streams_input', default="data/streams.json") 
-    parser.add_argument('-e', '--et_streams_input', default="data/emergency_streams.json") 
+    parser.add_argument('-t', '--topology_input', default="input/topology.json") 
+    parser.add_argument('-s', '--tt_streams_input', default="input/streams.json") 
+    parser.add_argument('-e', '--et_streams_input', default="input/emergency_streams.json") 
     parser.add_argument('-g', '--gcl_input', default="release/sample_output.json") 
     parser.add_argument('-ned', '--ned_output', default="data/network.ned") 
     parser.add_argument('-ini', '--ini_output', default="data/omnetpp.ini") 
@@ -252,11 +298,11 @@ def main():
     args = parser.parse_args()
 
     topology = parse_json_file(args.topology_input)
-    device_map = build_network_description_file(topology, args.ned_output, args.package_name, args.network_name)
+    device_map, link_map = build_network_description_file(topology, args.ned_output, args.package_name, args.network_name)
     gcl = parse_json_file(args.gcl_input)
     tt_streams = parse_json_file(args.tt_streams_input)
     et_streams = parse_json_file(args.et_streams_input)
-    build_ini_file(gcl, tt_streams, et_streams, device_map, topology, args.ini_output, args.scenario, args.package_name, args.network_name, args.simulation_time)
+    build_ini_file(gcl, tt_streams, et_streams, device_map, link_map, topology, args.ini_output, args.scenario, args.package_name, args.network_name, args.simulation_time)
 
 if __name__ == '__main__':
   main()

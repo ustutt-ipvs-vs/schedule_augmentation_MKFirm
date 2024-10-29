@@ -23,23 +23,20 @@ network EmergencyTrafficNetwork extends DetComNetworkBase
         @display("p=100,800;is=s");
     }	
     n0: TsnSwitch {
-            @display("p=25,93");  
+            @display("p=723.5407239819006,776.8291571753987");  
     }
-    n1: TsnSwitch {
-            @display("p=26,32");  
+    n1: TsnDevice {
+            @display("p=1152.7149321266968,839.4305239179955");  
     }
     n2: TsnDevice {
-            @display("p=68,20");  
+            @display("p=568.6934389140272,395.6719817767654");  
     }
     n3: TsnDevice {
-            @display("p=90,33");  
+            @display("p=452.71493212669685,1095.6719817767653");  
     }
 
  connections:
-    n0.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n1.ethg++;
-    n1.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n0.ethg++;
-    n0.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n2.ethg++;
-    n2.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n0.ethg++;
-    n1.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n3.ethg++;
-    n3.ethg++ <--> EthernetLink { datarate=1000Mbps; delay=200ns; } <--> n1.ethg++;
+    n0.ethg++ <--> EthernetLink { datarate=100Mbps; delay=200ns; } <--> n1.ethg++;
+    n0.ethg++ <--> EthernetLink { datarate=100Mbps; delay=200ns; } <--> n2.ethg++;
+    n0.ethg++ <--> EthernetLink { datarate=100Mbps; delay=200ns; } <--> n3.ethg++;
 }
