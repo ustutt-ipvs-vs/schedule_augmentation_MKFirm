@@ -12,6 +12,8 @@ io::ProgramOptions::ProgramOptions(std::vector<std::string> &arguments) {
 
   app.add_option("-z,--schedule", schedule_path_, "File path to the schedule of the TT streams")->required();
 
+  app.add_option("-o,--output", output_path_, "File path to the output file");
+
   // additional arguments can be added here.
 
   std::ranges::reverse(arguments);
@@ -31,3 +33,5 @@ auto io::ProgramOptions::getTimeTriggeredStreamsPath() const -> FilePath { retur
 auto io::ProgramOptions::getSchedulePath() const -> FilePath { return schedule_path_; }
 
 auto io::ProgramOptions::getEmergencyStreams() const -> FilePath { return emergency_streams_path_; }
+
+auto io::ProgramOptions::getOutputPath() const -> FilePath { return output_path_; }

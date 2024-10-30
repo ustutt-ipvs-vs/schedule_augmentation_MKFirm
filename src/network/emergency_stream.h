@@ -49,7 +49,7 @@ inline auto createEmergencyStream(const nlohmann::json &j) -> EmergencyStream {
   // To incorporate the interframe gaps between emergency packets, we assume that every 64B packet actually requires a
   // size of 76B (= 64B + 12B interframe gap).
   auto stream = EmergencyStream{
-      .id = j["streamID"],
+      .id = j["ttStreamID"],
       .name = j["name"],
       .source = j["source"],
       .destination = j["target"],

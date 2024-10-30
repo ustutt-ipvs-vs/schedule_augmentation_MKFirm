@@ -66,7 +66,7 @@ auto main(const int argc, char *argv[]) -> int {
   //tsndgm::critical_path::print(dgm, path_result);
 
   if (not dgm.checkDeadlineViolations()) {
-    io::write_output("./sample_output.json", network, dgm);
+    io::write_output(options.getOutputPath(), network, dgm);
     std::cout << "Writing output done!\n";
   } else {
     std::cout << "No valid schedule found!\n";

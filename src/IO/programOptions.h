@@ -19,11 +19,14 @@ public:
 
   [[nodiscard]] auto getEmergencyStreams() const -> FilePath;
 
+  [[nodiscard]] auto getOutputPath() const -> FilePath;
+
 private:
   std::string topology_path_;
   std::string tt_streams_path_;
   std::string emergency_streams_path_;
   std::string schedule_path_;
+  std::string output_path_ = "./sample_output.json";
 };
 
 } // namespace io
