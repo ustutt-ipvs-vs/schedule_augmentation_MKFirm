@@ -25,6 +25,7 @@ protected:
   }
 
 public:
+public:
   tsndgm::DisjunctiveGraphModel dgm;
 };
 

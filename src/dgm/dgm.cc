@@ -32,27 +32,10 @@ auto DisjunctiveGraphModel::getOutgoingDisjunctiveEdge(const V v) const -> std::
 auto DisjunctiveGraphModel::getOutgoingFifoEdge(const V v) const -> std::optional<E> {
   return getEdge<fifo>(out_edges(v, transmission_graph));
 }
-auto DisjunctiveGraphModel::getIncommingDisjunctiveEdge(const V v) const -> std::optional<E> {
+auto DisjunctiveGraphModel::getIncomingDisjunctiveEdge(const V v) const -> std::optional<E> {
   return getEdge<disjunctive>(in_edges(v, transmission_graph));
 }
 
-auto DisjunctiveGraphModel::computeGateOpeningAndCloseOperations() -> void {
-  // TODO probably we can remove this function. Now the gate oerations are computed in the graph_visitor.
-  TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
-
-  for (const auto &[network_link, operations] : prop.topology_edge_to_dgm_vertices) {
-
-    for (const auto &operation : operations) {
-      const auto stream_id = transmission_graph[operation].stream_id;
-      const auto dtrans = getTransmissionDelay(network_link, stream_id);
-      const auto vertex_prop = transmission_graph[operation];
-      // TODO should we adhere to the old schedule?
-      const auto open_time = std::max(vertex_prop.start_old_schedule, prop.crit_cost.at(operation));
-      const auto close_time = open_time + dtrans;
-      prop.gate_openings[operation] = std::make_pair(open_time, close_time);
-    }
-  }
-}
 auto DisjunctiveGraphModel::checkDeadlineViolations() -> bool {
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 

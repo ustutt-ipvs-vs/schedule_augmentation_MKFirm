@@ -4,8 +4,6 @@
 #include "transmission_graph.h"
 #include "traversal.h"
 
-#include <src/util/constants.h>
-
 namespace tsndgm {
 
 class longest_path_visitor : public boost::default_dfs_visitor {
@@ -24,7 +22,7 @@ public:
     throw std::runtime_error("Selection is not complete; disjunctive graph is acyclic.");
   }
 
-  void discover_vertex(V v, const transmission_graph_t &transmission_graph) const {
+  void discover_vertex(const V v, [[maybe_unused]] const transmission_graph_t &transmission_graph) const {
     prop.crit_cost[v] = 0;
     if (reversed) {
       prop.crit_pred[v] = prop.src;
@@ -33,7 +31,7 @@ public:
     }
   }
 
-  void finish_edge(E uv, const transmission_graph_t &transmission_graph) const {
+  void finish_edge(const E &uv, const transmission_graph_t &transmission_graph) const {
     V u, v;
     if (reversed) {
       u = source(uv, transmission_graph), v = target(uv, transmission_graph);
@@ -48,7 +46,7 @@ public:
     }
   }
 
-  void finish_vertex(V v, const transmission_graph_t &transmission_graph) const {
+  void finish_vertex(const V v, const transmission_graph_t &transmission_graph) const {
 
     if (v == prop.src or v == prop.sink) {
       return;
@@ -78,7 +76,9 @@ public:
           // sequential
           auto &next_network_link = network_topology.get_data_link_property(destination_property.edge);
           const auto [b_2, b_2_rate] = getBranchingBurst(network_link, next_network_link);
-          const auto burst_part = static_cast<Delay>(std::ceil(((static_cast<double>(b_2) + static_cast<double>(mu_i - gate_opening) * b_2_rate) / network_link.data_rate)));
+          const auto burst_part = static_cast<Delay>(
+              std::ceil((static_cast<double>(b_2) + static_cast<double>(mu_i - gate_opening) * b_2_rate) /
+                        network_link.data_rate));
           // this access is necessary, since the transmission graph given in finish_vertex is const
           dgm.transmission_graph[out_edge].weight = burst_part + getTotalDelay(v, transmission_graph);
         }
@@ -110,17 +110,17 @@ public:
     const auto mu_i_1 = gate_opening + calculateTransmissionDelay(network_link.data_rate -
                                                                       network_link.aggregated_emergency_refill_rate,
                                                                   network_link.aggregated_emergency_burst_size);
-    const auto in_edge_opt = dgm.getIncommingDisjunctiveEdge(v);
+    const auto in_edge_opt = dgm.getIncomingDisjunctiveEdge(v);
     const Tick mu_i_2 = [&] -> Tick {
       if (in_edge_opt.has_value()) {
         const auto predecessor = in_edge_opt.value().m_source;
         const auto predecessor_closing = prop.gate_openings[predecessor].second;
         const auto &predecessor_stream = prop.tt_streams.at(transmission_graph[predecessor].stream_id);
-        return static_cast<Tick>(predecessor_closing +
-                                 static_cast<Delay>(std::ceil(
-                                 (static_cast<double>(calculateTransmissionDelay(network_link.data_rate, predecessor_stream.frame_size)) *
-                                  network_link.aggregated_emergency_refill_rate) /
-                                     (network_link.data_rate - network_link.aggregated_emergency_refill_rate))));
+        return predecessor_closing +
+               static_cast<Delay>(std::ceil(static_cast<double>(calculateTransmissionDelay(
+                                                network_link.data_rate, predecessor_stream.frame_size)) *
+                                            network_link.aggregated_emergency_refill_rate /
+                                            (network_link.data_rate - network_link.aggregated_emergency_refill_rate)));
       }
       // no disjunctive predecessor
       return 0UL;
@@ -132,12 +132,14 @@ public:
   [[nodiscard]] static auto getBranchingBurst(const DataLinkProperty &pre_branch_link,
                                               const DataLinkProperty &post_branch_link)
       -> std::pair<BurstSize, DataRate> {
+
     auto view = pre_branch_link.emergency_streams | std::views::filter([&](const auto &stream) {
                   // keep only the ones not present in the post branch link
                   return std::ranges::find_if(post_branch_link.emergency_streams, [&](const auto &post_stream) {
                            return post_stream.get().id == stream.get().id;
                          }) == post_branch_link.emergency_streams.end();
                 });
+
     return std::transform_reduce(
         view.begin(), view.end(), std::pair<BurstSize, DataRate>{0, 0},
         [&](const auto &acc, const auto stream) {

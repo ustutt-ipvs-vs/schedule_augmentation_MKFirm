@@ -1,0 +1,62 @@
+[
+    {
+        "id": 0,
+        "name": "stream_0",
+        "source": 8,
+        "target": 11,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 64500,
+        "et_capable": false
+    },
+    {
+        "id": 1,
+        "name": "stream_1",
+        "source": 11,
+        "target": 6,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 200000,
+        "deadline_ns": 200000,
+        "et_capable": true
+    },
+    {
+        "id": 2,
+        "name": "stream_2",
+        "source": 10,
+        "target": 7,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 100000,
+        "deadline_ns": 82250,
+        "et_capable": true
+    },
+    {
+        "id": 3,
+        "name": "stream_3",
+        "source": 9,
+        "target": 7,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 300000,
+        "deadline_ns": 169500,
+        "et_capable": true
+    },
+    {
+        "id": 4,
+        "name": "stream_4",
+        "source": 8,
+        "target": 6,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 200000,
+        "deadline_ns": 119500,
+        "et_capable": true
+    },
+    {
+        "id": 5,
+        "name": "stream_5",
+        "source": 9,
+        "target": 10,
+        "frame_size_byte": 100,
+        "cycle_time_ns": 300000,
+        "deadline_ns": 300000,
+        "et_capable": true
+    }
+]

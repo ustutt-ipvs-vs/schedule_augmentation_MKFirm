@@ -77,12 +77,13 @@ static void print(const transmission_graph_t &transmission_graph, const NetworkT
   const TransmissionGraphProperty &prop = transmission_graph[boost::graph_bundle];
 
   if (v == prop.src) {
-    std::cout << "src";
+    std::cout << "[" << v << "] " << "src";
   } else if (v == prop.sink) {
-    std::cout << "sink";
+    std::cout << "[" << v << "] " << "sink";
   } else {
-    std::cout << "([" << network[transmission_graph[v].edge.first] << ", " << network[transmission_graph[v].edge.second]
-              << "], {s" << transmission_graph[v].stream_id << ", f" << transmission_graph[v].frame_number << "}): gate_openings: [" << get<0>(prop.gate_openings[v]) << ", " << get<1>(prop.gate_openings[v]) << "] mu: " << prop.mu_i[v];
+    std::cout << "[" << v << "] " << "([" << network[transmission_graph[v].edge.first] << ", "
+              << network[transmission_graph[v].edge.second] << "], {s" << transmission_graph[v].stream_id << ", f"
+              << transmission_graph[v].frame_number << "})";
   }
 }
 
@@ -108,26 +109,26 @@ static void print_operations(const transmission_graph_t &transmission_graph, con
 
 static void print(const transmission_graph_t &transmission_graph, const NetworkTopology &network) {
   std::cout << "Operations:" << std::endl;
-  for (auto v : boost::make_iterator_range(boost::vertices(transmission_graph))) {
+  for (const auto v : boost::make_iterator_range(boost::vertices(transmission_graph))) {
     print(transmission_graph, network, v);
     std::cout << std::endl;
   }
   std::cout << "Conjunctive Edges:" << std::endl;
-  for (auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
+  for (const auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
     if (transmission_graph[e].edge_type == conjunctive) {
       print(transmission_graph, network, e);
       std::cout << std::endl;
     }
   }
   std::cout << "Disjunctive Edges:" << std::endl;
-  for (auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
+  for (const auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
     if (transmission_graph[e].edge_type == disjunctive) {
       print(transmission_graph, network, e);
       std::cout << std::endl;
     }
   }
   std::cout << "FIFO Edges:" << std::endl;
-  for (auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
+  for (const auto e : boost::make_iterator_range(boost::edges(transmission_graph))) {
     if (transmission_graph[e].edge_type == fifo) {
       print(transmission_graph, network, e);
       std::cout << std::endl;

@@ -56,7 +56,7 @@ public:
 
   [[nodiscard]] auto getOutgoingFifoEdge(V v) const -> std::optional<E>;
 
-  [[nodiscard]] auto getIncommingDisjunctiveEdge(V v) const -> std::optional<E>;
+  [[nodiscard]] auto getIncomingDisjunctiveEdge(V v) const -> std::optional<E>;
 
   template <TransmissionGraphEdgeType type>
   auto getEdge(auto edges) const -> std::optional<E> {
@@ -67,8 +67,6 @@ public:
     }
     return std::nullopt;
   }
-
-  auto computeGateOpeningAndCloseOperations() -> void;
 
   auto checkDeadlineViolations() -> bool;
 
