@@ -1,10 +1,13 @@
 # TSN-DGM
 
+TSN-DGM is a C++ library for generating robust schedules in wireless Time-Sensitive Networks (TSN) with the Disjunctive Graph Model (DGM).
+
+This repository is part of the paper _An (m, k)-firm Elevation Policy for Weakly Hard  Real-Time in Converged 5G-TSN Networks_.
+For more context please refer to this document: https://doi.org/10.5281/zenodo.19224732
+
 When using this code, please cite:
 
 **TODO add reference to our paper**
-
-TSN-DGM is a C++ library for generating robust schedules in wireless Time-Sensitive Networks (TSN) with the Disjunctive Graph Model (DGM).
 
 ## Clone Repository
 For TSN-DGM itself, it suffices to clone the repository via
