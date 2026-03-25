@@ -39,6 +39,8 @@ Install boost:
 sudo apt-get install libboost-all-dev
 ```
 
+Install gcc: At least gcc 14 is required.
+
 ## Build 
 If you wish to modify the compile flags, please modify *CMakeLists.txt*. 
 Otherwise, you can simply run:
