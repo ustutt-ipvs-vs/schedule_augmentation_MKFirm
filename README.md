@@ -1,11 +1,15 @@
 # TSN-DGM
 
+When using this code, please cite:
+
+**TODO add reference to our paper**
+
 TSN-DGM is a C++ library for generating robust schedules in wireless Time-Sensitive Networks (TSN) with the Disjunctive Graph Model (DGM).
 
 ## Clone Repository
 For TSN-DGM itself, it suffices to clone the repository via
 ```
-git clone git@github.tik.uni-stuttgart.de:st160727/libtsndgm.git
+git clone https://github.com/ustutt-ipvs-vs/schedule_augmentation_MKFirm.git
 ```
 However, if you want to run the JSP benchmarks yourself, the submodule *JSPLIB* must be retrieved as well, e.g., via
 ```
