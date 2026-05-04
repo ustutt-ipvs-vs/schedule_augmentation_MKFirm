@@ -1,6 +1,6 @@
 # Augmentation Procedure for the (m,k)-firm Elevation Policy
 
-This repository provides the generral augmentation procedure, using a TSN schedule as an input and prolonging/deferring its transmission slots to account for the additional delays induced by elevated traffic.
+This repository provides the general augmentation procedure, using a TSN schedule as an input and prolonging/deferring its transmission slots to account for the additional delays induced by elevated traffic.
 For a more tightly coupled integration with a modern TSN scheduler (and an improved implementation of transmission graphs), you may want to look at our [integration with FIPS](https://github.com/ustutt-ipvs-vs/FIPS_MKFirm).
 
 This repository is part of the paper _An (m, k)-firm Elevation Policy for Weakly Hard  Real-Time in Converged 5G-TSN Networks_.
